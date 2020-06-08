@@ -1,19 +1,11 @@
 # Get CFB Data API for Play by Play - Use to generate expected points added (EPA)
-
 rm(list=ls())
-
 library(scales)
-
 library(tidyverse)
-
 library(RCurl)
-
 library(XML)
-
 library(rjson)
-
 library(jsonlite)
-
 library(stringr)
 
 #Staturdays Colors
