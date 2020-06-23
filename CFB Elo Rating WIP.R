@@ -60,7 +60,7 @@ for (j in 2000:2019) {
 teams_elo_initial <- as_tibble(unique(c(unique(games.master$home_team),
                                         unique(games.master$away_team)))) %>% 
   mutate(elo_rating = 1500) %>% rename(team = value) %>% 
-  mutate(week = 0, season = min(games.master$season))
+  mutate(week = 0, season = min(games.master$season), date = as.Date(ymd_hms(min(games.master$start_date))))
 
 elo_ratings <- teams_elo_initial
 
@@ -143,6 +143,11 @@ for(i in 1:nrow(cfb_games)){
   game_week <- cfb_games$week[i]
   game_season <- cfb_games$season[i]
   game_date <- cfb_games$date[i]
+  previous_game_date <- elo_ratings %>% 
+    filter(team == home_team) %>% 
+    arrange(desc(season), desc(week)) %>% 
+    slice(1) %>% 
+    pull(date)
   
   # get latest rating for each team
   home_rating <- elo_ratings %>% 
@@ -157,7 +162,7 @@ for(i in 1:nrow(cfb_games)){
     pull(elo_rating)
   
   # Regress Elo Rating towards mean if it's the first week of a new season - and place it under week 0 for that year for "preseason rankings"
-  if(game_week == 1 & game_season != min(cfb_games$season)){
+  if((game_date - previous_game_date >= 90) & (game_season != min(cfb_games$season))){
     home_rating <- home_rating * (regress) + 1500 * (1 - regress)
     away_rating <- away_rating * (regress) + 1500 * (1 - regress)
   
