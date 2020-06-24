@@ -131,7 +131,21 @@ k_optimization <- tibble(HomeWin=0, HomeExpectedWin=0)
 #### updated for loop to speed up process ####
 for(yr in c(2000:2019)){
   message(paste0("Calculating elo ratings for: "),yr)
+  #regress Elo ratings before the first season of the year
+  if(yr != min(cfb_games$season)){
+  print("regressing")
+  preseason_elo <- elo_ratings %>% group_by(team) %>% 
+    slice(which.max(date)) %>% 
+    mutate(elo_rating = elo_rating*(regress)+1500*(1-regress),
+           week = 0,
+           season=yr,
+           date=ymd(paste0(yr,"-08-15")))
+  elo_ratings <- elo_ratings %>% 
+    bind_rows(preseason_elo)
+  }
+  
   for(wk in c(1:max(cfb_games[which(cfb_games$season == yr),]$week))){
+    print("calculating")
     current_week <- cfb_games %>% filter(season==yr, week==wk)
     #if there are games that week
     if(nrow(current_week) != 0) {
@@ -147,11 +161,7 @@ for(yr in c(2000:2019)){
         rename(home_rating_last_updated = date.y) %>%
         rename(away_rating_last_updated = date)
       
-      #regress if first game and calculate new home and away ratings
-      current_week <- current_week %>% mutate(home_rating = ifelse(game_date-home_rating_last_updated>90 & season.x != min(cfb_games$season),
-                                                                                               home_rating*(regress)+1500*(1-regress), home_rating),
-                                              away_rating = ifelse(game_date-away_rating_last_updated>90 & season.x != min(cfb_games$season),
-                                                                   away_rating*(regress)+1500*(1-regress), away_rating))
+      #calculate new ratings after game
       current_week <- current_week %>% mutate(new_home_rating = calc_new_elo_rating(home_rating, game_outcome_home, calc_expected_score((home_rating+home_field_advantage), away_rating)),
                                               new_away_rating = calc_new_elo_rating(away_rating, 1-game_outcome_home, calc_expected_score(away_rating, (home_rating+home_field_advantage))))
       
