@@ -200,7 +200,7 @@ for(yr in c(2000:2019)){
 }
 
 #Calculates the brier score
-k_optimization %>% mutate(error=abs((HomeWin-HomeExpectedWin))) %>% 
+k_optimization %>% mutate(error=(HomeWin-HomeExpectedWin)^2) %>% 
   filter(Year>2010) %>% 
   group_by(kval) %>% 
   summarise(e=mean(error))
