@@ -51,10 +51,6 @@ for (j in 2000:2019) {
   }
 }
 
-#Calculates the brier score
-#k_optimization %>% mutate(error=(errorXWin-errorXWin2)^2) %>% 
-#  summarise(e=mean(error))
-
 # Calculate Initial Elo Rating and set up table to store data
 teams_elo_initial <- as_tibble(unique(c(unique(games.master$home_team),
                                         unique(games.master$away_team)))) %>% 
@@ -62,8 +58,6 @@ teams_elo_initial <- as_tibble(unique(c(unique(games.master$home_team),
   mutate(week = 0, season = min(games.master$season), date = as.Date(ymd_hms(min(games.master$start_date))))
 
 elo_ratings <- teams_elo_initial
-
-# k_optimization <- tibble(errorXWin=0, errorXWin2=0) 
 
 #Select variables we want
 cfb_games <- games.master %>% select(id, season, week, season_type, home_team, away_team, home_points, away_points, start_date) %>% 
@@ -131,76 +125,70 @@ home_field_advantage <- 65
 cfb_games <- cfb_games %>% 
   arrange(season, week, date)
 
-# Loop calculation for each row
-for(yr in 2000:2019){
+#keep track of predictions 
+k_optimization <- tibble(HomeWin=0, HomeExpectedWin=0) 
+
+#### updated for loop to speed up process ####
+for(yr in c(2000:2019)){
+  message(paste0("Calculating elo ratings for: "),yr)
+  for(wk in c(1:max(cfb_games[which(cfb_games$season == yr),]$week))){
+    current_week <- cfb_games %>% filter(season==yr, week==wk)
+    #if there are games that week
+    if(nrow(current_week) != 0) {
+      #bring in elo ratings
+      current_elo_ratings <- elo_ratings %>% group_by(team) %>% 
+        slice(which.max(date))
+      current_week <- current_week %>% left_join(current_elo_ratings,
+                                                 by=c("home_team"="team")) %>% 
+        left_join(current_elo_ratings, by=c("away_team"="team")) %>% 
+        rename(home_rating = elo_rating.x) %>% 
+        rename(away_rating = elo_rating.y) %>% 
+        rename(game_date = date.x) %>% 
+        rename(home_rating_last_updated = date.y) %>%
+        rename(away_rating_last_updated = date)
+      
+      #regress if first game and calculate new home and away ratings
+      current_week <- current_week %>% mutate(home_rating = ifelse(game_date-home_rating_last_updated>90 & season.x != min(cfb_games$season),
+                                                                                               home_rating*(regress)+1500*(1-regress), home_rating),
+                                              away_rating = ifelse(game_date-away_rating_last_updated>90 & season.x != min(cfb_games$season),
+                                                                   away_rating*(regress)+1500*(1-regress), away_rating))
+      current_week <- current_week %>% mutate(new_home_rating = calc_new_elo_rating(home_rating, game_outcome_home, calc_expected_score((home_rating+home_field_advantage), away_rating)),
+                                              new_away_rating = calc_new_elo_rating(away_rating, 1-game_outcome_home, calc_expected_score(away_rating, (home_rating+home_field_advantage))))
+      
+      #keep track of predictions and actual results
+      k_optimization_temp <- current_week %>% mutate(HomeExpectedWin=calc_expected_score((home_rating+home_field_advantage), away_rating)) %>% 
+        select(game_outcome_home, HomeExpectedWin) %>% 
+        rename(HomeWin = game_outcome_home)
   
-  for(wk in 1:max(cfb_games[which(cfb_games$season == yr),]$week)){
+      k_optimization <- k_optimization %>% bind_rows(k_optimization_temp)
+      
+      #home team elo update
+      updated_ratings_home <- current_week %>% select(home_team, new_home_rating, week.x, season.x, game_date) %>% 
+        rename(team=home_team) %>% 
+        rename(elo_rating = new_home_rating) %>% 
+        rename(week = week.x) %>%
+        rename(season = season.x) %>% 
+        rename(date = game_date)
+      
+      #away team elo update
+      updated_ratings_away <- current_week %>% select(away_team, new_away_rating, week.x, season.x, game_date) %>% 
+        rename(team=away_team) %>% 
+        rename(elo_rating = new_away_rating) %>% 
+        rename(week = week.x) %>%
+        rename(season = season.x) %>% 
+        rename(date = game_date)
+      
+      elo_ratings <- elo_ratings %>% 
+        bind_rows(updated_ratings_home) %>% 
+        bind_rows(updated_ratings_away)
+    }
     
-    for(i in 1:nrow(cfb_games %>% filter(season == yr, week == wk))){
-    
-      cfb_games_week <- cfb_games %>% filter(season == yr, week == wk)
-      if(nrow(cfb_games_week) != 0){ # Makes sure there were games that week (9/11/01), otherwise next if throws error
-        # get teams
-        home_team <- cfb_games_week$home_team[i]
-        away_team <- cfb_games_week$away_team[i]
-        # get actual scores
-        home_score <- cfb_games_week$game_outcome_home[i]
-        # get week
-        game_week <- cfb_games_week$week[i]
-        game_season <- cfb_games_week$season[i]
-        game_date <- cfb_games_week$date[i]
-        previous_game_date <- elo_ratings %>% 
-          filter(team == home_team) %>% 
-          arrange(desc(season), desc(week)) %>% 
-          slice(1) %>% 
-          pull(date)
-        
-        # get latest rating for each team
-        home_rating <- elo_ratings %>% 
-          filter(team == home_team) %>% 
-          arrange(desc(season), desc(week)) %>% 
-          slice(1) %>% 
-          pull(elo_rating)
-        away_rating <- elo_ratings %>% 
-          filter(team == away_team) %>% 
-          arrange(desc(season), desc(week)) %>% 
-          slice(1) %>% 
-          pull(elo_rating)
-        
-        # Regress Elo Rating towards mean if it's the first week of a new season - and place it under week 0 for that year for "preseason rankings"
-        if((game_date - previous_game_date >= 90) & (game_season != min(cfb_games$season))){
-          home_rating <- home_rating * (regress) + 1500 * (1 - regress)
-          away_rating <- away_rating * (regress) + 1500 * (1 - regress)
-        
-        updated_ratings <- tibble(team = c(home_team , away_team),
-                                  elo_rating = c(home_rating, away_rating),
-                                  week = rep(0, 2),
-                                  season = rep(game_season, 2),
-                                  date = rep(game_date, 2))
-        elo_ratings <- elo_ratings %>% 
-          bind_rows(updated_ratings)
-        }
-        # Add home-field advantage (in elo points)
-        home_rating_w_home_field <- home_rating + home_field_advantage
-        
-        # Get new ratings
-        new_home_rating <- calc_new_elo_rating(home_rating, home_score, calc_expected_score(home_rating_w_home_field, away_rating))
-        
-        new_away_rating <- calc_new_elo_rating(away_rating, 1-home_score, calc_expected_score(away_rating, home_rating_w_home_field))
-        
-        # Join current ratings with new ratings
-        
-        updated_ratings <- tibble(team = c(home_team , away_team),
-                                  elo_rating = c(new_home_rating, new_away_rating),
-                                  week = rep(game_week, 2),
-                                  season = rep(game_season, 2),
-                                  date = rep(game_date, 2))
-        elo_ratings <- elo_ratings %>% 
-          bind_rows(updated_ratings)
-      }
   }
 }
-}
+
+#Calculates the brier score
+k_optimization %>% mutate(error=(HomeWin-HomeExpectedWin)^2) %>% 
+  summarise(e=mean(error))
 
 # Graphs ------------------------------------------------------------------
 
