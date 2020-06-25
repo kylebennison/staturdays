@@ -111,24 +111,25 @@ calc_new_elo_rating <- function(team_rating, actual_score, expected_score, k=20)
 
 # Update Elo Ratings each week --------------------------------------------
 
-## Can use a for loop outside of this to test different k's and regressions, ex. for k in 1:40...
+## All factors have been tested and optimized
 # New Season Regression Factor
-regress <- (2/3)
+regress <- (.95)
 # k-factor
-#k <- 20
+k <- 85
 # home-field advantage (in elo points)
-home_field_advantage <- 65
+home_field_advantage <- 55
 
 # Make sure data is in the right order to run calculation by row
 cfb_games <- cfb_games %>% 
   arrange(season, week, date)
 
 #keep track of predictions 
-k_optimization <- tibble(HomeWin=0, HomeExpectedWin=0, Year=0000, kval = k) 
+k_optimization <- tibble(HomeWin=0, HomeExpectedWin=0, Year=0000, kval = k, regress_val = regress, home_field_val = home_field_advantage) 
 
-#100 seems good .18
-for(k in c(25,50,100)) {
+# k=100 seems good .18, for regress - .176 for .9 (2010), and .179 (2000), test k again - .176 for 75 and 100, test home_field_adv - .176 for 50 and 65, 55 is min at .1758
+for(regress in c(seq(.9, 1, by = 0.01))){
 elo_ratings <- teams_elo_initial
+message(paste0("Testing values: ", "hfa = ", home_field_advantage, " k =", k, " regress = ", regress))
 
 #### updated for loop to speed up process ####
 for(yr in c(2000:2019)){
@@ -169,8 +170,9 @@ for(yr in c(2000:2019)){
       k_optimization_temp <- current_week %>% mutate(HomeExpectedWin=calc_expected_score((home_rating+home_field_advantage), away_rating)) %>% 
         select(game_outcome_home, HomeExpectedWin) %>% 
         rename(HomeWin = game_outcome_home) %>% 
-        mutate(Year=yr,
-               kval = k)
+        mutate(Year=yr,k_val = k,
+               regress_val = regress,
+               home_field_val = home_field_advantage)
   
       k_optimization <- k_optimization %>% bind_rows(k_optimization_temp)
       
@@ -201,9 +203,17 @@ for(yr in c(2000:2019)){
 
 #Calculates the brier score
 k_optimization %>% mutate(error=(HomeWin-HomeExpectedWin)^2) %>% 
-  filter(Year>2010) %>% 
-  group_by(kval) %>% 
-  summarise(e=mean(error))
+  filter(Year>=2010) %>% 
+  group_by(k_val, home_field_val, regress_val) %>% 
+  summarise(e=mean(error)) %>% 
+  View()
+
+k_optimization %>% mutate(error=(HomeWin-HomeExpectedWin)^2) %>% 
+  filter(Year>=2010) %>% 
+  group_by(regress_val) %>% 
+  summarise(e=mean(error)) %>% 
+  ggplot(aes(x = regress_val, y = e)) +
+  geom_line()
 
 # Graphs ------------------------------------------------------------------
 
