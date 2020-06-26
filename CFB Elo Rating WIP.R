@@ -55,7 +55,7 @@ for (j in 2000:2019) {
 teams_elo_initial <- as_tibble(unique(c(unique(games.master$home_team),
                                         unique(games.master$away_team)))) %>% 
   mutate(elo_rating = 1500) %>% rename(team = value) %>% 
-  mutate(week = 0, season = min(games.master$season), date = as.Date(ymd_hms(min(games.master$start_date))))
+  mutate(week = 0, season = min(games.master$season), date = as.Date(ymd_hms(min(games.master$start_date))) - 7)
 
 #Select variables we want
 cfb_games <- games.master %>% select(id, season, week, season_type, home_team, away_team, home_points, away_points, start_date) %>% 
@@ -225,7 +225,7 @@ elo_ratings %>%
 
 # Elo of Penn State
 elo_ratings %>% 
-  filter(team %in% "Penn State", week!=0) %>% 
+  filter(team %in% "Penn State") %>% 
   ggplot(aes(date, elo_rating, colour = team)) +
   geom_line()
 
