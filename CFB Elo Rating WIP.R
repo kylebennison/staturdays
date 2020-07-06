@@ -265,11 +265,13 @@ upcoming.games <- left_join(upcoming.games, current_elo_ratings_a, by = c("away_
 
 # Get win prob
 upcoming.games <- upcoming.games %>% 
+  filter(week == 1) %>% 
   mutate(home_pred_win_prob = calc_expected_score(home_elo, away_elo), away_pred_win_prob = 1 - home_pred_win_prob)
 
 # Table of win probabilities for the week
 upcoming.games %>% 
   filter(week == 1) %>% 
-  select(season, week, home_team, away_team, home_elo, away_elo, home_pred_win_prob, away_pred_win_prob, home_conference, away_conference) %>% 
-  gt()
+  select(home_team,home_elo, home_pred_win_prob, home_conference, away_team, away_elo, away_pred_win_prob, away_conference) %>% 
+  gt() %>% 
+  tab_header(title = paste0(max(upcoming.games$season), " Week ", max(upcoming.games$week), " Win Probabilities"))
   
