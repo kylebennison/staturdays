@@ -8,6 +8,7 @@ library(rjson)
 library(jsonlite)
 library(stringr)
 library(lubridate)
+library(gt)
 
 #Staturdays Colors
 
@@ -127,9 +128,9 @@ cfb_games <- cfb_games %>%
 k_optimization <- tibble(HomeWin=0, HomeExpectedWin=0, Year=0000, kval = k, regress_val = regress, home_field_val = home_field_advantage) 
 
 # k=100 seems good .18, for regress - .176 for .9 (2010), and .179 (2000), test k again - .176 for 75 and 100, test home_field_adv - .176 for 50 and 65, 55 is min at .1758
-for(regress in c(seq(.9, 1, by = 0.01))){
+# for(regress in c(seq(.9, 1, by = 0.01))){
 elo_ratings <- teams_elo_initial
-message(paste0("Testing values: ", "hfa = ", home_field_advantage, " k =", k, " regress = ", regress))
+# message(paste0("Testing values: ", "hfa = ", home_field_advantage, " k =", k, " regress = ", regress))
 
 #### updated for loop to speed up process ####
 for(yr in c(2000:2019)){
@@ -199,7 +200,7 @@ for(yr in c(2000:2019)){
     
   }
 }
-}
+# }
 
 #Calculates the brier score
 k_optimization %>% mutate(error=(HomeWin-HomeExpectedWin)^2) %>% 
@@ -238,3 +239,37 @@ Elo_head_to_head <- function(team_a, team_b, start_season=min(elo_ratings$season
 }
 
 Elo_head_to_head("LSU", "Alabama", 2010, 2020)
+
+
+# Predict Upcoming Week Outcomes ------------------------------------------
+
+upcoming.games = data.frame()
+for (j in 2020:2020) {
+  for (i in 1:15) {
+    cat('Loading Games', j, 'Week', i, '\n')
+    full_url_games <- paste0(base_url_games, "year=", as.character(j), "&week=", as.character(i), "&seasonType=both")
+    full_url_games_encoded <- URLencode(full_url_games)
+    games <- fromJSON(getURL(full_url_games_encoded))
+    games <- as_tibble(games)
+    upcoming.games = rbind(upcoming.games, games)
+  }
+}
+
+current_elo_ratings_a <- current_elo_ratings %>% select(team, elo_rating)
+
+upcoming.games <- left_join(upcoming.games, current_elo_ratings_a, by = c("home_team" = "team")) %>% 
+  rename(home_elo = elo_rating)
+
+upcoming.games <- left_join(upcoming.games, current_elo_ratings_a, by = c("away_team" = "team")) %>% 
+  rename(away_elo = elo_rating)
+
+# Get win prob
+upcoming.games <- upcoming.games %>% 
+  mutate(home_pred_win_prob = calc_expected_score(home_elo, away_elo), away_pred_win_prob = 1 - home_pred_win_prob)
+
+# Table of win probabilities for the week
+upcoming.games %>% 
+  filter(week == 1) %>% 
+  select(season, week, home_team, away_team, home_elo, away_elo, home_pred_win_prob, away_pred_win_prob, home_conference, away_conference) %>% 
+  gt()
+  
