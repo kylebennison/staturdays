@@ -74,7 +74,7 @@ for (j in 2020) {
 }
 
 ## Update this value each week before running script
-week_of_games_just_played <- 1
+week_of_games_just_played <- 0
 week_of_upcoming_games <- week_of_games_just_played + 1
 
 #Select variables we want
@@ -240,10 +240,11 @@ Elo_head_to_head("LSU", "Alabama", 2010, 2020)
 
 # Table of win probabilities for the week
 upcoming.games %>% 
-  filter(week == 1) %>% 
+  filter(week == week_of_upcoming_games) %>% 
   select(home_team,home_elo, home_pred_win_prob, home_conference, away_team, away_elo, away_pred_win_prob, away_conference) %>%
+  arrange(desc(home_elo)) %>% 
   gt() %>% 
-  tab_header(title = paste0(max(upcoming.games$season), " Week ", max(upcoming.games$week), " Win Probabilities"),
+  tab_header(title = paste0(max(upcoming.games$season), " Week ", week_of_upcoming_games, " Win Probabilities"),
              subtitle = "Based on head-to-head Elo Ratings") %>% 
     tab_spanner(label = "Home", # Add a column spanning header
                 columns = vars(home_team,home_elo, home_pred_win_prob, home_conference)) %>% 
