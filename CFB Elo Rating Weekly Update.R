@@ -78,7 +78,7 @@ week_of_games_just_played <- 1
 week_of_upcoming_games <- week_of_games_just_played + 1
 
 #Select variables we want
-cfb_games <- games.master %>% select(id, season, week, season_type, home_team, away_team, home_points, away_points, start_date) %>% 
+cfb_games <- games.master %>% select(id, season, week, season_type, home_team, home_conference, away_team, away_conference, home_points, away_points, start_date) %>% 
   mutate(date=ymd_hms(start_date)) %>%
   select(-start_date)
 
@@ -122,7 +122,8 @@ upcoming.games = cfb_games
 # Save a version of this year's games for later
 lastweek.games <- upcoming.games
 # Read in historic Elo ratings
-elo_ratings <- read_csv(file = "/Users/kylebennison/Documents/Documents/Kyle/Staturdays/Data/elo_ratings_historic.csv")
+elo_ratings <- read_csv(file = "/Users/kylebennison/Documents/Documents/Kyle/Staturdays/Github Repo/staturdays/elo_ratings_historic.csv",
+                        col_types = list(col_character(), col_double(), col_integer(), col_integer(), col_date(format = "%m/%d/%y")))
 
 # Regress ratings if it's a new season
 if (today()-max(elo_ratings$date) > 90){
@@ -239,7 +240,7 @@ Elo_head_to_head("LSU", "Alabama", 2010, 2020)
 
 # Table of win probabilities for the week
 upcoming.games %>% 
-  filter(week == week_of_upcoming_games) %>% 
+  filter(week == 1) %>% 
   select(home_team,home_elo, home_pred_win_prob, home_conference, away_team, away_elo, away_pred_win_prob, away_conference) %>%
   gt() %>% 
   tab_header(title = paste0(max(upcoming.games$season), " Week ", max(upcoming.games$week), " Win Probabilities"),
