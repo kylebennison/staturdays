@@ -127,7 +127,7 @@ cfb_games <- cfb_games %>%
   arrange(season, week, date)
 
 #keep track of predictions 
-k_optimization <- tibble(HomeWin=0, HomeExpectedWin=0, Year=0000, kval = k, regress_val = regress, home_field_val = home_field_advantage) 
+k_optimization <- tibble(HomeWin=0, HomeExpectedWin=0, home_spread = 0, elo_diff = 0, Year=0000, kval = k, regress_val = regress, home_field_val = home_field_advantage) 
 
 # k=100 seems good .18, for regress - .176 for .9 (2010), and .179 (2000), test k again - .176 for 75 and 100, test home_field_adv - .176 for 50 and 65, 55 is min at .1758
 # for(regress in c(seq(.9, 1, by = 0.01))){
@@ -170,10 +170,14 @@ for(yr in c(2000:2019)){
                                               new_away_rating = calc_new_elo_rating(away_rating, 1-game_outcome_home, calc_expected_score(away_rating, (home_rating+home_field_advantage)),k))
       
       #keep track of predictions and actual results
-      k_optimization_temp <- current_week %>% mutate(HomeExpectedWin=calc_expected_score((home_rating+home_field_advantage), away_rating)) %>% 
-        select(game_outcome_home, HomeExpectedWin) %>% 
+      k_optimization_temp <- current_week %>% 
+        mutate(HomeExpectedWin=calc_expected_score((home_rating+home_field_advantage), away_rating)) %>% 
+        select(game_outcome_home, HomeExpectedWin, home_points, away_points, home_rating, away_rating) %>% 
         rename(HomeWin = game_outcome_home) %>% 
-        mutate(Year=yr,k_val = k,
+        mutate(home_spread = home_points - away_points,
+               elo_diff = home_rating - away_rating,
+               Year=yr,
+               kval = k,
                regress_val = regress,
                home_field_val = home_field_advantage)
   
@@ -219,12 +223,65 @@ k_optimization %>% mutate(error=(HomeWin-HomeExpectedWin)^2) %>%
   geom_line()
 
 # Get Actual vs. Predicted for Each Win Prob.
-k_optimization %>% mutate(win_prob_bucket = round(HomeExpectedWin, 2)) %>% 
+k_optimization %>% mutate(win_prob_bucket = round(HomeExpectedWin, 2), error = (HomeWin - HomeExpectedWin)^2) %>% 
   group_by(win_prob_bucket) %>% 
-  summarise(mean_actual_score = mean(HomeWin), count= n()) %>% 
+  summarise(mean_actual_score = mean(HomeWin), mse = mean(error), count= n()) %>% 
   ggplot() +
   geom_point(aes(x = win_prob_bucket, y = mean_actual_score)) +
+  geom_abline(slope = 1, intercept = 0) +
+  labs(
+    x = "Predicted Win Probability",
+    y = "Actual Average Wins",
+    title = "Accuracy of Win Probabilities Using Elo Ratings",
+    subtitle = "Across 16,000 games from 2000 to 2019",
+    caption = "@staturdays | @kylebeni012 - Data: @cfb_data")
+
+# Smooth representation of predictions
+k_optimization %>% 
+  mutate(win_prob_bucket = round(HomeExpectedWin, 2), error = (HomeWin - HomeExpectedWin)^2) %>% 
+  ggplot() + 
+  geom_smooth(aes(x = HomeExpectedWin, y = HomeWin)) + 
   geom_abline(slope = 1, intercept = 0)
+
+# Table of the same thing
+actual_vs_predict <- k_optimization %>% mutate(win_prob_bucket = round(HomeExpectedWin, 2), error = (HomeWin - HomeExpectedWin)^2) %>% 
+  group_by(win_prob_bucket) %>% 
+  summarise(mean_actual_score = mean(HomeWin), mse = mean(error), root_mse = sqrt(mse), count= n())
+
+# Linear Regression to get standard error ## NOT SURE IF THIS IS ACCURATE
+summary(lm(mean_actual_score ~ win_prob_bucket, {k_optimization %>% mutate(win_prob_bucket = round(HomeExpectedWin, 2), error = (HomeWin - HomeExpectedWin)^2) %>% 
+    group_by(win_prob_bucket) %>% 
+    summarise(mean_actual_score = mean(HomeWin), sd_mse = sd(error), count= n())}))
+
+summary(lm(HomeWin ~ HomeExpectedWin, {k_optimization %>% filter(Year >= 2010)}))
+# For each 10% increase in expected win probability, actual wins increase 9%.
+
+# Convert Elo to an Implied Point Spread WIP ------------------------------
+## Thought: maybe I need to do this backwards, and use the historic betting database, put that up against the win probability, and get a 
+## implied win probability from actual betting lines. Then use that to find value. Because right now the spreads are all over the place.
+
+# Calculate mean point spread by prediction bucket and elo diff
+k_optimization %>% mutate(win_prob_bucket = round(HomeExpectedWin, 2), error = (HomeWin - HomeExpectedWin)^2) %>% 
+  group_by(win_prob_bucket) %>% 
+  summarise(mean_point_spread = mean(home_spread), mean_elo_diff = mean(elo_diff), mse = mean(error), root_mse = sqrt(mse), count= n())
+
+summary(lm(home_spread ~ elo_diff, {k_optimization %>% filter(Year >= 2010)}))
+### So this makes the implied spread formula (elo_diff (home - away) / 20.14) + 4.69. This would imply 4.7 points of home field advantage which seems high.
+
+# Implied point spread and mean actual spread
+k_optimization %>% mutate(
+implied_spread = 4.6899972 + 0.0496551 * elo_diff
+) %>% 
+  mutate(implied_spread_bucket = round(implied_spread, 0)) %>% 
+  group_by(implied_spread_bucket) %>% 
+  summarise(mean_home_spread = mean(home_spread), count = n()) %>% 
+  ggplot() +
+  geom_point(aes(x = implied_spread_bucket, y = mean_home_spread))
+
+# Difference in Elo and Actual Spread
+k_optimization %>% 
+  ggplot() +
+  geom_point(aes(x = elo_diff, y = home_spread))
 
 # Graphs ------------------------------------------------------------------
 
@@ -236,7 +293,7 @@ elo_ratings %>%
 
 # Elo of Penn State
 elo_ratings %>% 
-  filter(team %in% "Penn State") %>% 
+  filter(team %in% "Penn State", season == 2019) %>% 
   ggplot(aes(date, elo_rating, colour = team)) +
   geom_line()
 
@@ -245,11 +302,18 @@ Elo_head_to_head <- function(team_a, team_b, start_season=min(elo_ratings$season
   elo_ratings %>% 
     filter(team %in% c(team_a, team_b), season >= start_season & season <= end_season) %>% 
     ggplot(aes(date, elo_rating, colour = team)) +
-    geom_line()
+    geom_line() +
+    labs(
+      x = "Date",
+      y = "Elo Rating",
+      color = "Team"
+    )
 }
 
 Elo_head_to_head("LSU", "Alabama", 2010, 2020)
 
+Elo_head_to_head("LSU", "Clemson", 2019, 2019) + 
+  labs(title = "LSU's Historic Climb to the 2019 CFP Championship")
 
 # Predict Upcoming Week Outcomes ------------------------------------------
 
