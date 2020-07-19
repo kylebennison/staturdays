@@ -218,6 +218,14 @@ k_optimization %>% mutate(error=(HomeWin-HomeExpectedWin)^2) %>%
   ggplot(aes(x = regress_val, y = e)) +
   geom_line()
 
+# Get Actual vs. Predicted for Each Win Prob.
+k_optimization %>% mutate(win_prob_bucket = round(HomeExpectedWin, 2)) %>% 
+  group_by(win_prob_bucket) %>% 
+  summarise(mean_actual_score = mean(HomeWin), count= n()) %>% 
+  ggplot() +
+  geom_point(aes(x = win_prob_bucket, y = mean_actual_score)) +
+  geom_abline(slope = 1, intercept = 0)
+
 # Graphs ------------------------------------------------------------------
 
 # Elo of the top 10 teams in average Elo all-time
