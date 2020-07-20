@@ -217,13 +217,20 @@ for(yr in c(2000:2019)){
 }
 # }
 
+# Calc mean predicted vs. mean actual, and Brier
+k_optimization %>% 
+  filter(Year >= 2010) %>%  
+  mutate(error = (HomeWin - HomeExpectedWin)^2) %>% 
+  summarise(mean_pred = mean(HomeExpectedWin), mean_actual = mean(HomeWin), Brier = mean(error), sum_win = sum(HomeWin), count = n())
+
 #Calculates the brier score
 k_optimization %>% mutate(error=(HomeWin-HomeExpectedWin)^2) %>% 
   filter(Year>=2010) %>% 
-  group_by(k_val, home_field_val, regress_val) %>% 
+  group_by(kval, home_field_val, regress_val) %>% 
   summarise(e=mean(error)) %>% 
   View()
 
+# See which regress value optimizes Brier the most
 k_optimization %>% mutate(error=(HomeWin-HomeExpectedWin)^2) %>% 
   filter(Year>=2010) %>% 
   group_by(regress_val) %>% 
@@ -232,7 +239,7 @@ k_optimization %>% mutate(error=(HomeWin-HomeExpectedWin)^2) %>%
   geom_line()
 
 # Get Actual vs. Predicted for Each Win Prob.
-actual_vs_predicted_plot <- k_optimization %>% mutate(win_prob_bucket = round(HomeExpectedWin, 2), error = (HomeWin - HomeExpectedWin)^2) %>% 
+actual_vs_predicted_plot <- k_optimization %>% filter(Year >= 2010) %>% mutate(win_prob_bucket = round(HomeExpectedWin, 2), error = (HomeWin - HomeExpectedWin)^2) %>% 
   group_by(win_prob_bucket) %>% 
   summarise(mean_actual_score = mean(HomeWin), mse = mean(error), count= n()) %>% 
   ggplot() +
