@@ -34,6 +34,15 @@ staturdays_colors <- function(...) {
   staturdays_col_list[cols]
 }
 
+staturdays_theme <- theme(plot.caption = element_text(size = 12, hjust = 1, color = staturdays_colors("orange")), 
+                          plot.title = element_text(color = staturdays_colors("dark_blue"), size = 30, face = "bold"),
+                          plot.subtitle = element_text(color = staturdays_colors("lightest_blue"), size = 20),
+                          axis.text = element_text(color = staturdays_colors("lightest_blue"), size = 15),
+                          axis.title = element_text(color = staturdays_colors("lightest_blue"), size = 15),
+                          legend.title = element_text(color = staturdays_colors("lightest_blue"), size = 15),
+                          legend.text = element_text(color = staturdays_colors("lightest_blue"), size = 15)
+)
+
 # Pull in Games Data ------------------------------------------------------
 
 # Power 5 List
@@ -223,18 +232,30 @@ k_optimization %>% mutate(error=(HomeWin-HomeExpectedWin)^2) %>%
   geom_line()
 
 # Get Actual vs. Predicted for Each Win Prob.
-k_optimization %>% mutate(win_prob_bucket = round(HomeExpectedWin, 2), error = (HomeWin - HomeExpectedWin)^2) %>% 
+actual_vs_predicted_plot <- k_optimization %>% mutate(win_prob_bucket = round(HomeExpectedWin, 2), error = (HomeWin - HomeExpectedWin)^2) %>% 
   group_by(win_prob_bucket) %>% 
   summarise(mean_actual_score = mean(HomeWin), mse = mean(error), count= n()) %>% 
   ggplot() +
-  geom_point(aes(x = win_prob_bucket, y = mean_actual_score)) +
+  geom_point(aes(x = win_prob_bucket, y = mean_actual_score), color = staturdays_colors("medium_blue"), alpha = .5, size = 3) +
   geom_abline(slope = 1, intercept = 0) +
   labs(
     x = "Predicted Win Probability",
     y = "Actual Average Wins",
-    title = "Accuracy of Win Probabilities Using Elo Ratings",
+    title = "Accuracy of Win Probabilities \nUsing Elo Ratings",
     subtitle = "Across 16,000 games from 2000 to 2019",
-    caption = "@staturdays | @kylebeni012 - Data: @cfb_data")
+    caption = "@staturdays | @kylebeni012 - Data: @cfb_data") +
+  staturdays_theme +
+  theme(plot.title = element_text(size = 25)) +
+  scale_y_continuous(labels = percent) +
+  scale_x_continuous(labels = percent)
+
+ggsave(filename = "actualvspredict_historic.png", 
+       plot = actual_vs_predicted_plot, 
+       path = "/Users/kylebennison/Documents/Documents/Kyle/Staturdays/R Plots/",
+       width = 200,
+       height = 200,
+       units = "mm"
+       )
 
 # Smooth representation of predictions
 k_optimization %>% 
@@ -251,12 +272,13 @@ actual_vs_predict <- k_optimization %>% mutate(win_prob_bucket = round(HomeExpec
 # Linear Regression to get standard error ## NOT SURE IF THIS IS ACCURATE
 summary(lm(mean_actual_score ~ win_prob_bucket, {k_optimization %>% mutate(win_prob_bucket = round(HomeExpectedWin, 2), error = (HomeWin - HomeExpectedWin)^2) %>% 
     group_by(win_prob_bucket) %>% 
-    summarise(mean_actual_score = mean(HomeWin), sd_mse = sd(error), count= n())}))
+    summarise(mean_actual_score = mean(HomeWin), mse = mean(error), count= n())}))
 
 summary(lm(HomeWin ~ HomeExpectedWin, {k_optimization %>% filter(Year >= 2010)}))
 # For each 10% increase in expected win probability, actual wins increase 9%.
 
 # Convert Elo to an Implied Point Spread WIP ------------------------------
+
 ## Thought: maybe I need to do this backwards, and use the historic betting database, put that up against the win probability, and get a 
 ## implied win probability from actual betting lines. Then use that to find value. Because right now the spreads are all over the place.
 
@@ -312,8 +334,25 @@ Elo_head_to_head <- function(team_a, team_b, start_season=min(elo_ratings$season
 
 Elo_head_to_head("LSU", "Alabama", 2010, 2020)
 
-Elo_head_to_head("LSU", "Clemson", 2019, 2019) + 
-  labs(title = "LSU's Historic Climb to the 2019 CFP Championship")
+elo_h2h_plot <- Elo_head_to_head("LSU", "Clemson", 2019, 2019) + 
+  labs(
+    title = "LSU's Historic Climb to the \n2019 CFP Championship",
+    subtitle = "LSU climbed as they beat highly rated opponents, \nwhile Clemson flatlined",
+    caption = "@staturdays | @kylebeni012 - Data: @cfb_data") +
+  staturdays_theme +
+  scale_color_manual(values = c("#F66733", "#461D7C")) +
+  theme(legend.position = c(.85, .25),
+        legend.background = element_blank(),
+        legend.text = element_text(color = staturdays_colors("dark_blue")),
+        legend.title = element_text(color = staturdays_colors("dark_blue")))
+  
+ggsave(filename = "lsu_2019_elo.png", 
+       plot = elo_h2h_plot, 
+       path = "/Users/kylebennison/Documents/Documents/Kyle/Staturdays/R Plots/",
+       width = 200,
+       height = 200,
+       units = "mm"
+)
 
 # Predict Upcoming Week Outcomes ------------------------------------------
 
