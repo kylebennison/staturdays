@@ -122,7 +122,7 @@ upcoming.games = cfb_games
 # Save a version of this year's games for later
 lastweek.games <- upcoming.games
 # Read in historic Elo ratings
-elo_ratings <- read_csv(file = "/Users/kylebennison/Documents/Documents/Kyle/Staturdays/Github Repo/staturdays/elo_ratings_historic.csv",
+elo_ratings <- read_csv(file = "https://raw.githubusercontent.com/kylebennison/staturdays/master/elo_ratings_historic.csv",
                         col_types = list(col_character(), col_double(), col_integer(), col_integer(), col_date(format = "%m/%d/%y")))
 
 # Regress ratings if it's a new season
@@ -135,7 +135,7 @@ if (today()-max(elo_ratings$date) > 90){
            date=ymd(paste0(j,"-08-15")))
   elo_ratings <- elo_ratings %>% 
     bind_rows(preseason_elo)
-  write_csv(preseason_elo, path = "/Users/kylebennison/Documents/Documents/Kyle/Staturdays/Github Repo/staturdays/elo_ratings_historic.csv", append = TRUE, col_names = FALSE)
+  fwrite(preseason_elo, file = "C:/Users/Kyle/Documents/Kyle/Staturdays/Staturdays Github/Github/staturdays/elo_ratings_historic.csv", append = TRUE, col.names = FALSE)
 }
 # Get most updated rating for each team
 current_elo_ratings <- elo_ratings %>% group_by(team) %>% slice_max(order_by = date, n = 1)
@@ -210,7 +210,8 @@ elo_ratings <- elo_ratings %>%
   bind_rows(updated_ratings_away)
 
 # Write new data to github
-write_csv(elo_ratings_updated, path = "/Users/kylebennison/Documents/Documents/Kyle/Staturdays/Github Repo/staturdays/elo_ratings_historic.csv", append = TRUE, col_names = FALSE)
+fwrite(elo_ratings_updated, file = "C:/Users/Kyle/Documents/Kyle/Staturdays/Staturdays Github/Github/staturdays/elo_ratings_historic.csv", append = TRUE, col.names = FALSE)
+
 
 # Graphs ------------------------------------------------------------------
 
