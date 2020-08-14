@@ -47,7 +47,8 @@ staturdays_theme <- theme(plot.caption = element_text(size = 12, hjust = 1, colo
 
 # Power 5 List
 
-power_5 <- c("ACC", "Big 12", "Big Ten", "Pac-12", "SEC")
+power_5 <- c("ACC", "Big 12", "Big Ten", "Pac-12", "SEC", "Pac-10")
+group_of_5 <- c("American Athletic", "Conference USA", "Mid-American", "Mountain West", "Sun Belt")
 
 base_url_games <- "https://api.collegefootballdata.com/games?" # Base URL for games data
 
@@ -63,10 +64,39 @@ for (j in 2000:2019) {
   }
 }
 
+# Pull in conference data for each year for all teams (FBS only)
+conference_url <- "https://api.collegefootballdata.com/teams/fbs?year="
+conference.master = data.frame()
+for (j in 2000:2019) {
+    cat('Loading Conferences ', j, '\n')
+    full_url_games <- paste0(conference_url, as.character(j))
+    full_url_games_encoded <- URLencode(full_url_games)
+    games <- fromJSON(getURL(full_url_games_encoded))
+    games <- as_tibble(games)
+    games <- games %>% mutate(year = j)
+    conference.master = rbind(conference.master, games)
+  }
+# Get every team's conference in the year 2000 (initialization year)
+conferences_2000 <- conference.master %>% filter(year == 2000) %>% select(school, conference)
+
+#keep track of predictions 
+k_optimization <- tibble(HomeWin=0, HomeExpectedWin=0, home_spread = 0, elo_diff = 0, Year=0000, kval = k, regress_val = regress, home_field_val = home_field_advantage, g5_val = g5, d3_val = d3)
+
+for(g5 in seq(1000, 1500, by = 100)){
+  for(d3 in seq(1000, 1500, by = 100)){
+
+# Get all unique teams from the games database, join in conference, and then assign an initial Elo Rating
+unique_teams <- as_tibble(unique(c(unique(unique(c(unique(games.master$home_team),
+                                         unique(games.master$away_team))))))) %>% 
+  left_join(conferences_2000, by = c("value" = "school")) %>% 
+  mutate(conference_class = case_when(conference %in% power_5 ~ 1500,
+                                      conference %in% group_of_5 ~ g5,
+                                      TRUE ~ d3))
+
 # Calculate Initial Elo Rating and set up table to store data
-teams_elo_initial <- as_tibble(unique(c(unique(games.master$home_team),
-                                        unique(games.master$away_team)))) %>% 
-  mutate(elo_rating = 1500) %>% rename(team = value) %>% 
+teams_elo_initial <- unique_teams %>% select(value, conference_class) %>% 
+  rename(elo_rating = conference_class) %>% 
+           rename(team = value) %>% 
   mutate(week = 0, season = min(games.master$season), date = as.Date(ymd_hms(min(games.master$start_date))) - 7)
 
 #Select variables we want
@@ -135,9 +165,6 @@ home_field_advantage <- 55
 cfb_games <- cfb_games %>% 
   arrange(season, week, date)
 
-#keep track of predictions 
-k_optimization <- tibble(HomeWin=0, HomeExpectedWin=0, home_spread = 0, elo_diff = 0, Year=0000, kval = k, regress_val = regress, home_field_val = home_field_advantage) 
-
 # k=100 seems good .18, for regress - .176 for .9 (2010), and .179 (2000), test k again - .176 for 75 and 100, test home_field_adv - .176 for 50 and 65, 55 is min at .1758
 # for(regress in c(seq(.9, 1, by = 0.01))){
 elo_ratings <- teams_elo_initial
@@ -145,7 +172,7 @@ elo_ratings <- teams_elo_initial
 
 #### updated for loop to speed up process ####
 for(yr in c(2000:2019)){
-  message(paste0("Calculating elo ratings for: "),yr)
+  message(paste0("Calculating elo ratings for: "),yr, "D3: ", d3, "G5: ", g5)
   #regress Elo ratings before the first season of the year
   if(yr != min(cfb_games$season)){
   preseason_elo <- elo_ratings %>% group_by(team) %>% 
@@ -188,7 +215,9 @@ for(yr in c(2000:2019)){
                Year=yr,
                kval = k,
                regress_val = regress,
-               home_field_val = home_field_advantage)
+               home_field_val = home_field_advantage,
+               g5_val = g5,
+               d3_val = d3)
   
       k_optimization <- k_optimization %>% bind_rows(k_optimization_temp)
       
@@ -215,7 +244,8 @@ for(yr in c(2000:2019)){
     
   }
 }
-# }
+  }
+}
 
 # Calc mean predicted vs. mean actual, and Brier
 k_optimization %>% 
@@ -224,11 +254,12 @@ k_optimization %>%
   summarise(mean_pred = mean(HomeExpectedWin), mean_actual = mean(HomeWin), Brier = mean(error), sum_win = sum(HomeWin), count = n())
 
 #Calculates the brier score
-k_optimization %>% mutate(error=(HomeWin-HomeExpectedWin)^2) %>% 
+brier <- k_optimization %>% mutate(error=(HomeWin-HomeExpectedWin)^2) %>% 
   filter(Year>=2010) %>% 
-  group_by(kval, home_field_val, regress_val) %>% 
-  summarise(e=mean(error)) %>% 
-  View()
+  group_by(kval, home_field_val, regress_val, g5_val, d3_val) %>% 
+  summarise(e=mean(error))
+
+# write_csv(brier, path = "C:/Users/Kyle/Documents/Kyle/Staturdays/Data/elo g5 d3 initial 8.13.20.csv")
 
 # See which regress value optimizes Brier the most
 k_optimization %>% mutate(error=(HomeWin-HomeExpectedWin)^2) %>% 
