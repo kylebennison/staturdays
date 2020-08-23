@@ -83,13 +83,20 @@ for (j in 2000:2019) {
 conferences_2000 <- conference.master %>% filter(year == 2019) %>% select(school, conference)
 
 #keep track of predictions 
+## All factors have been tested and optimized
+# New Season Regression Factor
+regress <- (.95)
+# k-factor
+k <- 85
+# home-field advantage (in elo points)
+home_field_advantage <- 55
+# Conference adjustors
+g5 <- 1200
+d3 <- 500
 k_optimization <- tibble(HomeWin=0, HomeExpectedWin=0, home_spread = 0, elo_diff = 0, Year=0000, kval = k, regress_val = regress, home_field_val = home_field_advantage, g5_val = g5, d3_val = d3)
 
 #for(g5 in seq(1000, 1500, by = 100)){
 #  for(d3 in seq(1000, 1500, by = 100)){
-    
-g5 <- 1200
-d3 <- 500
 
 # Get all unique teams from the games database, join in conference, and then assign an initial Elo Rating
 unique_teams <- as_tibble(unique(c(unique(unique(c(unique(games.master$home_team),
@@ -162,14 +169,6 @@ calc_new_elo_rating <- function(team_rating, actual_score, expected_score, k=20)
 
 # Update Elo Ratings each week --------------------------------------------
 
-## All factors have been tested and optimized
-# New Season Regression Factor
-regress <- (.95)
-# k-factor
-k <- 85
-# home-field advantage (in elo points)
-home_field_advantage <- 55
-
 # Make sure data is in the right order to run calculation by row
 cfb_games <- cfb_games %>% 
   arrange(season, week, date)
@@ -181,7 +180,7 @@ elo_ratings <- teams_elo_initial
 
 #### updated for loop to speed up process ####
 for(yr in c(2000:2019)){
-  message(paste0("Calculating elo ratings for: "),yr, " D3: ", d3, "G5: ", g5)
+  message(paste0("Calculating elo ratings for year: "),yr, " D3: ", d3, " G5: ", g5)
   #regress Elo ratings before the first season of the year
   if(yr != min(cfb_games$season)){
   preseason_elo <- elo_ratings %>% group_by(team) %>% 
@@ -191,6 +190,7 @@ for(yr in c(2000:2019)){
     left_join(unique_teams, by=c("team" = "value")) %>% 
     #team elo rating week season date
     mutate(elo_rating = elo_rating*(regress)+conference_class*(1-regress),
+           conference = conference.x,
            week = 0,
            season=yr,
            date=ymd(paste0(yr,"-08-15"))) %>% 
@@ -238,16 +238,18 @@ for(yr in c(2000:2019)){
       k_optimization <- k_optimization %>% bind_rows(k_optimization_temp)
       
       #home team elo update
-      updated_ratings_home <- current_week %>% select(home_team, new_home_rating, week.x, season.x, game_date) %>% 
+      updated_ratings_home <- current_week %>% select(home_team, home_conference, new_home_rating, week.x, season.x, game_date) %>% 
         rename(team=home_team) %>% 
+        rename(conference = home_conference) %>% 
         rename(elo_rating = new_home_rating) %>% 
         rename(week = week.x) %>%
         rename(season = season.x) %>% 
         rename(date = game_date)
       
       #away team elo update
-      updated_ratings_away <- current_week %>% select(away_team, new_away_rating, week.x, season.x, game_date) %>% 
+      updated_ratings_away <- current_week %>% select(away_team, away_conference, new_away_rating, week.x, season.x, game_date) %>% 
         rename(team=away_team) %>% 
+        rename(conference = away_conference) %>% 
         rename(elo_rating = new_away_rating) %>% 
         rename(week = week.x) %>%
         rename(season = season.x) %>% 
@@ -410,45 +412,6 @@ ggsave(filename = "lsu_2019_elo.png",
        height = 200,
        units = "mm"
 )
-
-
-# 2020 Preseason Rankings -------------------------------------------------
-
-upcoming.games %>% 
-  filter(week == 1) %>% 
-  select(home_team,home_elo, home_pred_win_prob, home_conference, away_team, away_elo, away_pred_win_prob, away_conference) %>%
-  gt() %>% 
-  tab_header(title = paste0(max(upcoming.games$season), " Week ", max(upcoming.games$week), " Win Probabilities"),
-             subtitle = "Based on head-to-head Elo Ratings") %>% 
-  tab_spanner(label = "Home", # Add a column spanning header
-              columns = vars(home_team,home_elo, home_pred_win_prob, home_conference)) %>% 
-  tab_spanner(label = "Away", # Add a column spanning header
-              columns = vars(away_team, away_elo, away_pred_win_prob, away_conference)) %>% 
-  cols_label(home_team = "Team", home_elo = "Elo Rating", home_pred_win_prob = "Win Probability", home_conference = "Conference",
-             away_team = "Team", away_elo = "Elo Rating", away_pred_win_prob = "Win Probability", away_conference = "Conference") %>% 
-  fmt_percent(columns = vars(home_pred_win_prob, away_pred_win_prob), decimals = 2) %>% 
-  fmt_number(vars(home_elo, away_elo), decimals = 2, use_seps = FALSE) %>% 
-  data_color(columns = vars(home_pred_win_prob, away_pred_win_prob), # Use a color scale on win prob
-             colors = scales::col_numeric(
-               palette = staturdays_palette,
-               domain = NULL),
-             alpha = 0.7) %>% 
-  tab_style( # Add a weighted line down the middle
-    style = list(
-      cell_borders(
-        sides = "left",
-        color = staturdays_colors("dark_blue"),
-        weight = px(3)
-      )
-    ),
-    locations = list(
-      cells_body(
-        columns = vars(away_team)
-      )
-    )
-  ) %>% 
-  tab_source_note("@kylebeni012 | @staturdays — Data: @cfb_data")
-
 
 # Predict Upcoming Week Outcomes ------------------------------------------
 
