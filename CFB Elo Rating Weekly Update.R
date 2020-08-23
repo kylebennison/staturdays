@@ -123,13 +123,14 @@ upcoming.games = cfb_games
 lastweek.games <- upcoming.games
 # Read in historic Elo ratings
 elo_ratings <- read_csv(file = "https://raw.githubusercontent.com/kylebennison/staturdays/master/elo_ratings_historic.csv",
-                        col_types = list(col_character(), col_double(), col_integer(), col_integer(), col_date(format = "%m/%d/%y")))
+                        col_types = list(col_character(), col_character(), col_double(), col_integer(), col_integer(), col_date(format = "%Y-%m-%d")))
 
 # Regress ratings if it's a new season
 if (today()-max(elo_ratings$date) > 90){
   preseason_elo <- elo_ratings %>% group_by(team) %>% 
     slice(which.max(date)) %>% 
     mutate(elo_rating = elo_rating*(regress)+1500*(1-regress),
+           conference = conference,
            week = 0,
            season=j,
            date=ymd(paste0(j,"-08-15")))
@@ -169,6 +170,9 @@ current_week <- current_week %>% left_join(current_elo_ratings,
   rename(game_date = date.x) %>% 
   rename(home_rating_last_updated = date.y) %>%
   rename(away_rating_last_updated = date)
+
+# only run if the games from last week have been played - if it's not preseason and the results are in (there aren't NA points scored)
+if(week_of_games_just_played > 0 & (length(current_week$home_points) != length(is.na(current_week$home_points)))){
 
 #calculate new ratings after game
 current_week <- current_week %>% mutate(new_home_rating = calc_new_elo_rating(home_rating, game_outcome_home, calc_expected_score((home_rating+home_field_advantage), away_rating),k),
@@ -211,7 +215,7 @@ elo_ratings <- elo_ratings %>%
 
 # Write new data to github
 fwrite(elo_ratings_updated, file = "C:/Users/Kyle/Documents/Kyle/Staturdays/Staturdays Github/Github/staturdays/elo_ratings_historic.csv", append = TRUE, col.names = FALSE)
-
+}
 
 # Graphs ------------------------------------------------------------------
 
