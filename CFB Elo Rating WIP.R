@@ -9,6 +9,7 @@ library(jsonlite)
 library(stringr)
 library(lubridate)
 library(gt)
+library(data.table)
 
 #Staturdays Colors
 
@@ -87,8 +88,8 @@ k_optimization <- tibble(HomeWin=0, HomeExpectedWin=0, home_spread = 0, elo_diff
 #for(g5 in seq(1000, 1500, by = 100)){
 #  for(d3 in seq(1000, 1500, by = 100)){
     
-    for(g5 in c(1200)){
-      for(d3 in c(500)){
+g5 <- 1200
+d3 <- 500
 
 # Get all unique teams from the games database, join in conference, and then assign an initial Elo Rating
 unique_teams <- as_tibble(unique(c(unique(unique(c(unique(games.master$home_team),
@@ -180,7 +181,7 @@ elo_ratings <- teams_elo_initial
 
 #### updated for loop to speed up process ####
 for(yr in c(2000:2019)){
-  message(paste0("Calculating elo ratings for: "),yr, "D3: ", d3, "G5: ", g5)
+  message(paste0("Calculating elo ratings for: "),yr, " D3: ", d3, "G5: ", g5)
   #regress Elo ratings before the first season of the year
   if(yr != min(cfb_games$season)){
   preseason_elo <- elo_ratings %>% group_by(team) %>% 
@@ -259,8 +260,8 @@ for(yr in c(2000:2019)){
     
   }
 }
-  }
-}
+  
+
 
 # Calc mean predicted vs. mean actual, and Brier
 k_optimization %>% 
@@ -273,6 +274,9 @@ brier <- k_optimization %>% mutate(error=(HomeWin-HomeExpectedWin)^2) %>%
   filter(Year>=2010) %>% 
   group_by(kval, home_field_val, regress_val, g5_val, d3_val) %>% 
   summarise(e=mean(error))
+
+# Write historic calculations to github for the first time
+#fwrite(elo_ratings, file = "C:/Users/Kyle/Documents/Kyle/Staturdays/Staturdays Github/Github/staturdays/elo_ratings_historic.csv", append = FALSE, col.names = TRUE)
 
 # write_csv(brier, path = "C:/Users/Kyle/Documents/Kyle/Staturdays/Data/elo g5 d3 initial 8.13.20.csv")
 
@@ -406,6 +410,45 @@ ggsave(filename = "lsu_2019_elo.png",
        height = 200,
        units = "mm"
 )
+
+
+# 2020 Preseason Rankings -------------------------------------------------
+
+upcoming.games %>% 
+  filter(week == 1) %>% 
+  select(home_team,home_elo, home_pred_win_prob, home_conference, away_team, away_elo, away_pred_win_prob, away_conference) %>%
+  gt() %>% 
+  tab_header(title = paste0(max(upcoming.games$season), " Week ", max(upcoming.games$week), " Win Probabilities"),
+             subtitle = "Based on head-to-head Elo Ratings") %>% 
+  tab_spanner(label = "Home", # Add a column spanning header
+              columns = vars(home_team,home_elo, home_pred_win_prob, home_conference)) %>% 
+  tab_spanner(label = "Away", # Add a column spanning header
+              columns = vars(away_team, away_elo, away_pred_win_prob, away_conference)) %>% 
+  cols_label(home_team = "Team", home_elo = "Elo Rating", home_pred_win_prob = "Win Probability", home_conference = "Conference",
+             away_team = "Team", away_elo = "Elo Rating", away_pred_win_prob = "Win Probability", away_conference = "Conference") %>% 
+  fmt_percent(columns = vars(home_pred_win_prob, away_pred_win_prob), decimals = 2) %>% 
+  fmt_number(vars(home_elo, away_elo), decimals = 2, use_seps = FALSE) %>% 
+  data_color(columns = vars(home_pred_win_prob, away_pred_win_prob), # Use a color scale on win prob
+             colors = scales::col_numeric(
+               palette = staturdays_palette,
+               domain = NULL),
+             alpha = 0.7) %>% 
+  tab_style( # Add a weighted line down the middle
+    style = list(
+      cell_borders(
+        sides = "left",
+        color = staturdays_colors("dark_blue"),
+        weight = px(3)
+      )
+    ),
+    locations = list(
+      cells_body(
+        columns = vars(away_team)
+      )
+    )
+  ) %>% 
+  tab_source_note("@kylebeni012 | @staturdays — Data: @cfb_data")
+
 
 # Predict Upcoming Week Outcomes ------------------------------------------
 
