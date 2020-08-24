@@ -243,6 +243,43 @@ Elo_head_to_head("LSU", "Alabama", 2010, 2020)
 
 ### Tables
 
+# Table of preseason Elo Ratings
+elo_ratings %>% 
+  filter(date == max(date)) %>% 
+  select(team, elo_rating, home_pred_win_prob, home_conference, away_team, away_elo, away_pred_win_prob, away_conference) %>%
+  arrange(desc(home_elo)) %>% 
+  gt() %>% 
+  tab_header(title = paste0(max(upcoming.games$season), " Week ", week_of_upcoming_games, " Win Probabilities"),
+             subtitle = "Based on head-to-head Elo Ratings") %>% 
+  tab_spanner(label = "Home", # Add a column spanning header
+              columns = vars(home_team,home_elo, home_pred_win_prob, home_conference)) %>% 
+  tab_spanner(label = "Away", # Add a column spanning header
+              columns = vars(away_team, away_elo, away_pred_win_prob, away_conference)) %>% 
+  cols_label(home_team = "Team", home_elo = "Elo Rating", home_pred_win_prob = "Win Probability", home_conference = "Conference",
+             away_team = "Team", away_elo = "Elo Rating", away_pred_win_prob = "Win Probability", away_conference = "Conference") %>% 
+  fmt_percent(columns = vars(home_pred_win_prob, away_pred_win_prob), decimals = 2) %>% 
+  fmt_number(vars(home_elo, away_elo), decimals = 2, use_seps = FALSE) %>% 
+  data_color(columns = vars(home_pred_win_prob, away_pred_win_prob), # Use a color scale on win prob
+             colors = scales::col_numeric(
+               palette = staturdays_palette,
+               domain = NULL),
+             alpha = 0.7) %>% 
+  tab_style( # Add a weighted line down the middle
+    style = list(
+      cell_borders(
+        sides = "left",
+        color = staturdays_colors("dark_blue"),
+        weight = px(3)
+      )
+    ),
+    locations = list(
+      cells_body(
+        columns = vars(away_team)
+      )
+    )
+  ) %>% 
+  tab_source_note("@kylebeni012 | @staturdays — Data: @cfb_data")
+
 # Table of win probabilities for the week
 upcoming.games %>% 
   filter(week == week_of_upcoming_games) %>% 
