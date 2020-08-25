@@ -270,12 +270,13 @@ joined_stats <- left_join(home_stats, away_stats, by = c("home_team" = "away_tea
 
 joined_stats %>% 
   arrange(desc(elo)) %>% 
+  mutate(row_num = row_number()) %>% 
   gt() %>% 
   tab_header(title = paste0(max(upcoming.games$season), " Preason Elo Ratings and Expected Wins"),
              subtitle = "Expected Wins Based on head-to-head Elo Ratings") %>% 
   tab_spanner(label = "Ratings and Wins", # Add a column spanning header
-              columns = vars(home_team, elo, expected_wins)) %>% 
-  cols_label(home_team = "Team", elo = "Elo Rating", expected_wins = "Expected Wins") %>% 
+              columns = vars(row_num, home_team, elo, expected_wins)) %>% 
+  cols_label(row_num = "Rank", home_team = "Team", elo = "Elo Rating", expected_wins = "Expected Wins") %>% 
   fmt_number(vars(elo, expected_wins), decimals = 2, use_seps = FALSE) %>% 
   data_color(columns = vars(elo, expected_wins), # Use a color scale on win prob
              colors = scales::col_numeric(
