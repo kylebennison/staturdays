@@ -77,8 +77,8 @@ setnames(summary_results_home, c("home_team"), c("team"))
 combined_results <- rbind(summary_results_home, summary_results_away)
 
 #process already completed games
-summary_results_home_completed <- dcast(already_played, home_team+szn~home_result, value.var = "home_result")
-summary_results_away_completed <- dcast(already_played, away_team+szn~home_result, value.var = "home_result")
+summary_results_home_completed <- dcast(already_played_new, home_team+szn~home_result, value.var = "home_result")
+summary_results_away_completed <- dcast(already_played_new, away_team+szn~home_result, value.var = "home_result")
 setnames(summary_results_away_completed, c("away_team","0", "1"), c("team","1", "0"))
 setnames(summary_results_home_completed, c("home_team"), c("team"))
 combined_results2 <- rbind(summary_results_home_completed, summary_results_away_completed)
