@@ -290,15 +290,23 @@ joined_stats <- left_join(home_stats, away_stats, by = c("home_team" = "away_tea
   group_by(home_team) %>% 
   summarise(elo = max(elo.x, elo.y), expected_wins = sum(expected_wins.x, expected_wins.y, na.rm = T))
 
+# Get just teams and conferences from 2019
+conf_most_recent <- elo_conf %>% 
+  filter(date == max(date)) %>% 
+  select(team, conference) %>% 
+  mutate(conference = if_else(is.na(conference) == T, "Non-FBS", conference))
+
+# Add conference to joined_stats
+joined_stats <- left_join(joined_stats, conf_most_recent, by = c("home_team" = "team"))
+
+# Preseason rankings
 joined_stats %>% 
   arrange(desc(elo)) %>% 
   mutate(row_num = row_number()) %>% 
   gt() %>% 
   tab_header(title = paste0(max(upcoming.games$season), " Preason Elo Ratings and Expected Wins"),
              subtitle = "Expected Wins Based on head-to-head Elo Ratings") %>% 
-  tab_spanner(label = "Ratings and Wins", # Add a column spanning header
-              columns = vars(row_num, home_team, elo, expected_wins)) %>% 
-  cols_label(row_num = "Rank", home_team = "Team", elo = "Elo Rating", expected_wins = "Expected Wins") %>% 
+  cols_label(row_num = "Rank", home_team = "Team", elo = "Elo Rating", expected_wins = "Expected Wins", conference = "Conference") %>% 
   fmt_number(vars(elo, expected_wins), decimals = 2, use_seps = FALSE) %>% 
   data_color(columns = vars(elo, expected_wins), # Use a color scale on win prob
              colors = scales::col_numeric(
@@ -320,6 +328,37 @@ joined_stats %>%
   #   )
   # ) %>% 
   tab_source_note("@kylebeni012 | @staturdays — Data: @cfb_data")
+
+# Only conferences that are playing as of right now
+joined_stats %>% 
+  filter(conference %in% c("SEC", "ACC", "Big 12", "American Athletic", "Conference USA", "Sun Belt") | home_team == "Notre Dame") %>% 
+  arrange(desc(elo)) %>% 
+  mutate(row_num = row_number()) %>% 
+  gt() %>% 
+  tab_header(title = paste0(max(upcoming.games$season), " Preason Elo Ratings and Expected Wins"),
+             subtitle = "Expected Wins Based on head-to-head Elo Ratings. Only conferences playing in the fall.") %>% 
+  cols_label(row_num = "Rank", home_team = "Team", elo = "Elo Rating", expected_wins = "Expected Wins", conference = "Conference") %>% 
+  fmt_number(vars(elo, expected_wins), decimals = 2, use_seps = FALSE) %>% 
+  data_color(columns = vars(elo, expected_wins), # Use a color scale on win prob
+             colors = scales::col_numeric(
+               palette = staturdays_palette,
+               domain = NULL),
+             alpha = 0.7) %>% 
+  # tab_style( # Add a weighted line down the middle
+  #   style = list(
+  #     cell_borders(
+  #       sides = "left",
+  #       color = staturdays_colors("dark_blue"),
+  #       weight = px(3)
+  #     )
+  #   ),
+  #   locations = list(
+  #     cells_body(
+  #       columns = vars(away_team)
+#     )
+#   )
+# ) %>% 
+tab_source_note("@kylebeni012 | @staturdays — Data: @cfb_data")
 
 # Table of win probabilities for the week
 upcoming.games %>% 
