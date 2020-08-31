@@ -303,6 +303,7 @@ joined_stats <- left_join(joined_stats, conf_most_recent, by = c("home_team" = "
 joined_stats %>% 
   arrange(desc(elo)) %>% 
   mutate(row_num = row_number()) %>% 
+  relocate(row_num) %>% 
   gt() %>% 
   tab_header(title = paste0(max(upcoming.games$season), " Preason Elo Ratings and Expected Wins"),
              subtitle = "Expected Wins Based on head-to-head Elo Ratings") %>% 
@@ -334,6 +335,7 @@ joined_stats %>%
   filter(conference %in% c("SEC", "ACC", "Big 12", "American Athletic", "Conference USA", "Sun Belt") | home_team == "Notre Dame") %>% 
   arrange(desc(elo)) %>% 
   mutate(row_num = row_number()) %>% 
+  relocate(row_num) %>% 
   gt() %>% 
   tab_header(title = paste0(max(upcoming.games$season), " Preason Elo Ratings and Expected Wins"),
              subtitle = "Expected Wins Based on head-to-head Elo Ratings. Only conferences playing in the fall.") %>% 
