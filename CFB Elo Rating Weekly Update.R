@@ -36,7 +36,7 @@ staturdays_colors <- function(...) {
 
 # Power 5 List
 
-power_5 <- c("ACC", "Big 12", "Big Ten", "Pac-12", "SEC")
+power_5 <- c("ACC", "Big 12", "Big Ten", "Pac-12", "SEC", "FBS Independents")
 group_of_5 <- c("American Athletic", "Conference USA", "Mid-American", "Mountain West", "Sun Belt")
 
 # New Season Regression Factor
@@ -155,11 +155,33 @@ current_elo_ratings <- elo_ratings %>% group_by(team) %>% slice_max(order_by = d
 # Take just team and rating
 current_elo_ratings_only <- current_elo_ratings %>% select(team, elo_rating)
 
+# Join upcoming schedule with elo ratings for home and away teams
 upcoming.games <- left_join(upcoming.games, current_elo_ratings_only, by = c("home_team" = "team")) %>% 
   rename(home_elo = elo_rating)
 
 upcoming.games <- left_join(upcoming.games, current_elo_ratings_only, by = c("away_team" = "team")) %>% 
   rename(away_elo = elo_rating)
+
+## Add Elo rating for teams with NA elo rating (never been rated before)
+# Home
+upcoming.games <- upcoming.games %>% mutate(
+  elo_final_home = 
+    case_when(is.na(home_elo) == T ~ case_when(home_conference %in% power_5 ~ 1500,
+                                                              home_conference %in% group_of_5 ~ g5,
+                                                              TRUE ~ d3),
+                             TRUE ~ home_elo)) %>% 
+  select(-home_elo) %>% 
+  rename(home_elo = elo_final_home)
+
+# Away
+upcoming.games <- upcoming.games %>% mutate(
+  elo_final_away = 
+    case_when(is.na(away_elo) == T ~ case_when(away_conference %in% power_5 ~ 1500,
+                                               away_conference %in% group_of_5 ~ g5,
+                                               TRUE ~ d3),
+              TRUE ~ away_elo)) %>% 
+  select(-away_elo) %>% 
+  rename(away_elo = elo_final_away)
 
 # Get win prob
 upcoming.games <- upcoming.games %>% 
