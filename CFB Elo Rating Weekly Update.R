@@ -280,16 +280,16 @@ Elo_head_to_head("LSU", "Alabama", 2010, 2020)
 # Table of preseason Elo Ratings
 home_stats <- upcoming.games %>% 
   group_by(home_team) %>% 
-  summarise(elo = max(home_elo), expected_wins = sum(home_pred_win_prob))
+  summarise(elo = max(home_elo), expected_wins = sum(home_pred_win_prob), n_games = n())
 
 away_stats <- upcoming.games %>% 
   group_by(away_team) %>% 
-  summarise(elo = max(away_elo), expected_wins = sum(away_pred_win_prob))
+  summarise(elo = max(away_elo), expected_wins = sum(away_pred_win_prob), n_games = n())
 
 # Right now, I am removing games where the opponent's elo is NA, so the expected_win value is NA, but this needs to be resolved. Only affects 3 teams.
 joined_stats <- left_join(home_stats, away_stats, by = c("home_team" = "away_team")) %>% 
   group_by(home_team) %>% 
-  summarise(elo = max(elo.x, elo.y), expected_wins = sum(expected_wins.x, expected_wins.y, na.rm = T))
+  summarise(elo = max(elo.x, elo.y), expected_wins = sum(expected_wins.x, expected_wins.y, na.rm = T), n_games = sum(n_games.x, n_games.y), win_rate = expected_wins / n_games)
 
 # Get just teams and conferences from 2019
 conf_most_recent <- elo_conf %>% 
@@ -305,11 +305,13 @@ preseason_2020_rankings <- joined_stats %>%
   arrange(desc(elo)) %>% 
   mutate(row_num = row_number()) %>% 
   relocate(row_num) %>% 
+  select(-n_games) %>% 
   gt() %>% 
   tab_header(title = paste0(max(upcoming.games$season), " Preason Elo Ratings and Expected Wins"),
              subtitle = "Expected Wins Based on head-to-head Elo Ratings") %>% 
-  cols_label(row_num = "Rank", home_team = "Team", elo = "Elo Rating", expected_wins = "Expected Wins", conference = "Conference") %>% 
+  cols_label(row_num = "Rank", home_team = "Team", elo = "Elo Rating", expected_wins = "Expected Wins", win_rate = "Win Percentage", conference = "Conference") %>% 
   fmt_number(vars(elo, expected_wins), decimals = 2, use_seps = FALSE) %>% 
+  fmt_percent(vars(win_rate), decimals = 2) %>% 
   data_color(columns = vars(elo, expected_wins), # Use a color scale on win prob
              colors = scales::col_numeric(
                palette = staturdays_palette,
