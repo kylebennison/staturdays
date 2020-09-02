@@ -300,7 +300,7 @@ conf_most_recent <- elo_conf %>%
 # Add conference to joined_stats
 joined_stats <- left_join(joined_stats, conf_most_recent, by = c("home_team" = "team"))
 
-# Preseason rankings
+# Preseason rankings - all teams
 preseason_2020_rankings <- joined_stats %>% 
   arrange(desc(elo)) %>% 
   mutate(row_num = row_number()) %>% 
@@ -317,88 +317,51 @@ preseason_2020_rankings <- joined_stats %>%
                palette = staturdays_palette,
                domain = NULL),
              alpha = 0.7) %>% 
-  # tab_style( # Add a weighted line down the middle
-  #   style = list(
-  #     cell_borders(
-  #       sides = "left",
-  #       color = staturdays_colors("dark_blue"),
-  #       weight = px(3)
-  #     )
-  #   ),
-  #   locations = list(
-  #     cells_body(
-  #       columns = vars(away_team)
-  #     )
-  #   )
-  # ) %>% 
   tab_source_note("@kylebeni012 | @staturdays — Data: @cfb_data")
 
+# Top 25
 preseason_2020_top_25 <- joined_stats %>% 
   arrange(desc(elo)) %>% 
   mutate(row_num = row_number()) %>% 
   relocate(row_num) %>% 
+  select(-n_games) %>% 
   filter(row_num <= 25) %>% 
   gt() %>% 
   tab_header(title = paste0(max(upcoming.games$season), " Preason Elo Ratings and Expected Wins"),
              subtitle = "Expected Wins Based on head-to-head Elo Ratings") %>% 
-  cols_label(row_num = "Rank", home_team = "Team", elo = "Elo Rating", expected_wins = "Expected Wins", conference = "Conference") %>% 
+  cols_label(row_num = "Rank", home_team = "Team", elo = "Elo Rating", expected_wins = "Expected Wins", win_rate = "Win Percentage", conference = "Conference") %>% 
   fmt_number(vars(elo, expected_wins), decimals = 2, use_seps = FALSE) %>% 
+  fmt_percent(vars(win_rate), decimals = 2) %>% 
   data_color(columns = vars(elo, expected_wins), # Use a color scale on win prob
              colors = scales::col_numeric(
                palette = staturdays_palette,
                domain = NULL),
              alpha = 0.7) %>% 
-  # tab_style( # Add a weighted line down the middle
-  #   style = list(
-  #     cell_borders(
-  #       sides = "left",
-  #       color = staturdays_colors("dark_blue"),
-  #       weight = px(3)
-  #     )
-  #   ),
-  #   locations = list(
-  #     cells_body(
-  #       columns = vars(away_team)
-#     )
-#   )
-# ) %>% 
 tab_source_note("@kylebeni012 | @staturdays — Data: @cfb_data")
 
 gtsave(data = preseason_2020_top_25, 
        filename = "2020_preseason_elo_rankings_top_25_8.31.20.png",
        path = "C:/Users/Kyle/Documents/Kyle/Staturdays/R Plots")
 
-# Only conferences that are playing as of right now
+# Only conferences that are playing as of right now - top 25
 preseason_2020_secaccbig12_top25 <- joined_stats %>% 
   filter(conference %in% c("SEC", "ACC", "Big 12", "American Athletic", "Conference USA", "Sun Belt") | home_team == "Notre Dame") %>% 
   arrange(desc(elo)) %>% 
   mutate(row_num = row_number()) %>% 
   relocate(row_num) %>% 
+  select(-n_games) %>% 
   filter(row_num <= 25) %>% 
   gt() %>% 
   tab_header(title = paste0(max(upcoming.games$season), " Preason Elo Ratings and Expected Wins"),
              subtitle = "Expected Wins Based on head-to-head Elo Ratings. Only conferences playing in the fall.") %>% 
-  cols_label(row_num = "Rank", home_team = "Team", elo = "Elo Rating", expected_wins = "Expected Wins", conference = "Conference") %>% 
+  cols_label(row_num = "Rank", home_team = "Team", elo = "Elo Rating", expected_wins = "Expected Wins", win_rate = "Win Percentage", conference = "Conference") %>% 
   fmt_number(vars(elo, expected_wins), decimals = 2, use_seps = FALSE) %>% 
+  fmt_percent(vars(win_rate), decimals = 2) %>% 
   data_color(columns = vars(elo, expected_wins), # Use a color scale on win prob
              colors = scales::col_numeric(
                palette = staturdays_palette,
                domain = NULL),
              alpha = 0.7) %>% 
-  # tab_style( # Add a weighted line down the middle
-  #   style = list(
-  #     cell_borders(
-  #       sides = "left",
-  #       color = staturdays_colors("dark_blue"),
-  #       weight = px(3)
-  #     )
-  #   ),
-  #   locations = list(
-  #     cells_body(
-  #       columns = vars(away_team)
-#     )
-#   )
-# ) %>% 
 tab_source_note("@kylebeni012 | @staturdays — Data: @cfb_data")
 
 gtsave(data = preseason_2020_secaccbig12_top25, 
@@ -430,10 +393,10 @@ gtsave(data = conf_non_conf_sos_tbl,
        path = "C:/Users/Kyle/Documents/Kyle/Staturdays/R Plots")
 
 # Table of win probabilities for the week
-upcoming.games %>% 
+win_probabilities_this_week <- upcoming.games %>% 
   filter(week == week_of_upcoming_games) %>% 
   select(home_team,home_elo, home_pred_win_prob, home_conference, away_team, away_elo, away_pred_win_prob, away_conference) %>%
-  arrange(desc(home_elo)) %>% 
+  arrange(desc(home_pred_win_prob)) %>% 
   gt() %>% 
   tab_header(title = paste0(max(upcoming.games$season), " Week ", week_of_upcoming_games, " Win Probabilities"),
              subtitle = "Based on head-to-head Elo Ratings") %>% 
@@ -443,8 +406,8 @@ upcoming.games %>%
                 columns = vars(away_team, away_elo, away_pred_win_prob, away_conference)) %>% 
   cols_label(home_team = "Team", home_elo = "Elo Rating", home_pred_win_prob = "Win Probability", home_conference = "Conference",
              away_team = "Team", away_elo = "Elo Rating", away_pred_win_prob = "Win Probability", away_conference = "Conference") %>% 
-  fmt_percent(columns = vars(home_pred_win_prob, away_pred_win_prob), decimals = 2) %>% 
-  fmt_number(vars(home_elo, away_elo), decimals = 2, use_seps = FALSE) %>% 
+  fmt_percent(columns = vars(home_pred_win_prob, away_pred_win_prob), decimals = 1) %>% 
+  fmt_number(vars(home_elo, away_elo), decimals = 0, use_seps = FALSE) %>% 
   data_color(columns = vars(home_pred_win_prob, away_pred_win_prob), # Use a color scale on win prob
              colors = scales::col_numeric(
                palette = staturdays_palette,
@@ -466,3 +429,6 @@ upcoming.games %>%
   ) %>% 
   tab_source_note("@kylebeni012 | @staturdays — Data: @cfb_data")
 
+gtsave(data = win_probabilities_this_week, 
+       filename = "2020_w1_win_probabilities_this_week.png",
+       path = "C:/Users/Kyle/Documents/Kyle/Staturdays/R Plots")
