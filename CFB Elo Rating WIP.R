@@ -93,7 +93,7 @@ home_field_advantage <- 55
 # Conference adjustors
 g5 <- 1200
 d3 <- 500
-k_optimization <- tibble(HomeWin=0, HomeExpectedWin=0, home_spread = 0, elo_diff = 0, Year=0000, kval = k, regress_val = regress, home_field_val = home_field_advantage, g5_val = g5, d3_val = d3)
+k_optimization <- tibble(HomeWin=0, HomeExpectedWin=0, home_spread = 0, elo_diff = 0, Year=0000, week=0, home_conf = "", home_team = "", away_team = "", away_conf = "", kval = k, regress_val = regress, home_field_val = home_field_advantage, g5_val = g5, d3_val = d3)
 
 #for(g5 in seq(1000, 1500, by = 100)){
 #  for(d3 in seq(1000, 1500, by = 100)){
@@ -224,11 +224,16 @@ for(yr in c(2000:2019)){
       #keep track of predictions and actual results
       k_optimization_temp <- current_week %>% 
         mutate(HomeExpectedWin=calc_expected_score((home_rating+home_field_advantage), away_rating)) %>% 
-        select(game_outcome_home, HomeExpectedWin, home_points, away_points, home_rating, away_rating) %>% 
+        select(game_outcome_home, HomeExpectedWin, home_conference, home_team, away_conference, away_team, home_points, away_points, home_rating, away_rating) %>% 
         rename(HomeWin = game_outcome_home) %>% 
         mutate(home_spread = home_points - away_points,
                elo_diff = home_rating - away_rating,
                Year=yr,
+               week = wk,
+               home_conf = home_conference,
+               home_team = home_team,
+               away_team = away_team,
+               away_conf = away_conference,
                kval = k,
                regress_val = regress,
                home_field_val = home_field_advantage,
@@ -307,6 +312,12 @@ actual_vs_predicted_plot <- k_optimization %>% filter(Year >= 2010) %>% mutate(w
   theme(plot.title = element_text(size = 25)) +
   scale_y_continuous(labels = percent) +
   scale_x_continuous(labels = percent)
+
+# Evaluate Elo on any given criteria to group by
+k_optimization %>% mutate(error=(HomeWin-HomeExpectedWin)^2) %>% 
+  filter(Year>=2010) %>% 
+  group_by(week) %>% 
+  summarise(e=mean(error), count = n())
 
 ggsave(filename = "actualvspredict_historic.png", 
        plot = actual_vs_predicted_plot, 
