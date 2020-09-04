@@ -432,3 +432,43 @@ win_probabilities_this_week <- upcoming.games %>%
 gtsave(data = win_probabilities_this_week, 
        filename = "2020_w1_win_probabilities_this_week.png",
        path = "C:/Users/Kyle/Documents/Kyle/Staturdays/R Plots")
+
+## Calculate biggest upsets week-over-week by win prob and change in Elo
+
+home_wow_elo_change <- elo_ratings %>% 
+  filter(season == max(season)) %>% 
+  arrange(desc(date)) %>% 
+  group_by(team) %>% 
+  mutate(wow_change = ((elo_rating) - lag(elo_rating, n = 1, order_by = date))/(lag(elo_rating, n = 1, order_by = date))) %>% 
+  inner_join(upcoming.games, by = c("team" = "home_team", "week", "season"))
+
+away_wow_elo_change <- elo_ratings %>% 
+  filter(season == max(season)) %>% 
+  arrange(desc(date)) %>% 
+  group_by(team) %>% 
+  mutate(wow_change = ((elo_rating) - lag(elo_rating, n = 1, order_by = date))/(lag(elo_rating, n = 1, order_by = date))) %>% 
+  inner_join(upcoming.games, by = c("team" = "away_team", "week", "season"))
+
+wow_elo_change <- rbind(home_wow_elo_change, away_wow_elo_change) %>% 
+  select(1:7, home_team, away_team, home_points, away_points, home_pred_win_prob, away_pred_win_prob) %>% 
+  mutate(home_surprise = home_points - home_pred_win_prob, away_surprise = away_points - away_pred_win_prob)
+
+# Table of movers
+
+wow_elo_change_tbl <- wow_elo_change %>% 
+  filter(season == max(season)) %>% 
+  filter(week == max(week)) %>% 
+  select(team, conference, elo_rating, wow_change) %>% 
+  ungroup() %>% 
+  slice_max(order_by = wow_change, n = 10) %>% 
+  gt() %>% 
+  tab_header(title = paste0(season), " Week ", paste0(week), " Biggest Elo Movers",
+             subtitle = "Largest changes in Elo") %>% 
+  cols_label(home_conference = "Conference", avg.elo = "Average Opponent Elo") %>% 
+  fmt_number(vars(avg.elo), decimals = 2, use_seps = FALSE) %>% 
+  data_color(columns = vars(avg.elo), # Use a color scale on win prob
+             colors = scales::col_numeric(
+               palette = staturdays_palette,
+               domain = NULL),
+             alpha = 0.7) %>% 
+  tab_source_note("@kylebeni012 | @staturdays — Data: @cfb_data")
