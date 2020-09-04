@@ -2,6 +2,7 @@ library(data.table)
 library(lubridate)
 library(jsonlite)
 library(RCurl)
+options(scipen=999)
 
 elo_ratings <- fread("https://raw.githubusercontent.com/kylebennison/staturdays/master/elo_ratings_historic.csv")
 cfb_schedule_url <- "https://api.collegefootballdata.com/games?year=2020&seasonType=regular"
@@ -20,7 +21,7 @@ already_played <- schedule[!is.na(schedule$home_points),]
 already_played$home_result <- ifelse(already_played$home_points > already_played$away_points, 1, 0)
 #make alread6y_played length of sims and add szn
 already_played_new <- data.table()
-for(szn in c(1:1000)){
+for(szn in c(1:3000)){
   already_played$szn <- szn
   already_played_new <- rbind(already_played_new, already_played)
 }
@@ -44,7 +45,7 @@ to_be_played$elo_home_win_prob <- 1/(1+ (10^ ( (to_be_played$elo_rating_away - t
 to_be_played <- to_be_played[order(to_be_played$start_date),]
 
 results <- data.table()
-for(szn in c(1:1000)){
+for(szn in c(1:3000)){
   season_elo_ratings <- current_elo_ratings
   season_results <- data.table()
   
@@ -82,6 +83,8 @@ summary_results_away_completed <- dcast(already_played_new, away_team+szn~home_r
 setnames(summary_results_away_completed, c("away_team","0", "1"), c("team","1", "0"))
 setnames(summary_results_home_completed, c("home_team"), c("team"))
 combined_results2 <- rbind(summary_results_home_completed, summary_results_away_completed)
+combined_results2[is.na(combined_results2$`0`),3] <- 0
+combined_results2[is.na(combined_results2$`1`),4] <- 1
 #new
 combined_results <- rbind(combined_results, combined_results2)
 
@@ -89,8 +92,10 @@ combined_results <- rbind(combined_results, combined_results2)
 #wins and losses per season
 combined_results <- dcast(combined_results, team+szn~., value.var = c("0", "1"), fun.aggregate = sum)
 combined_results$win_perc <- combined_results$`1`/(combined_results$`1`+combined_results$`0`)
+combined_results$undefeated <- ifelse(combined_results$`0` == 0,1,0)
 
 combined_results_3 <- combined_results[,list(wins = mean(`1`),
                                              losses = mean(`0`),
-                                             win_perc = mean(win_perc)),
+                                             win_perc = mean(win_perc),
+                                             prob_undefeated = mean(undefeated)),
                                        by='team']
