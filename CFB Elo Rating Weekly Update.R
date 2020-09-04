@@ -472,3 +472,54 @@ wow_elo_change_tbl <- wow_elo_change %>%
                domain = NULL),
              alpha = 0.7) %>% 
   tab_source_note("@kylebeni012 | @staturdays — Data: @cfb_data")
+
+## Strength of Schedule
+
+lhs.tmp <- upcoming.games %>% group_by(home_team) %>% 
+  rename(opponent = away_team, team = home_team) %>% 
+  summarise(avg_opponent_elo = mean(away_elo), elo = mean(home_elo), count = n())
+
+rhs.tmp <- upcoming.games %>% group_by(away_team) %>% 
+  rename(opponent = home_team, team = away_team) %>% 
+  summarise(avg_opponent_elo = mean(home_elo), elo = mean(away_elo), count = n())
+
+team_strength_of_schedule <- left_join(lhs.tmp, rhs.tmp, by = "team") %>% 
+  group_by(team) %>% 
+  mutate(avg_opponent_elo = ((avg_opponent_elo.x*count.x)/(sum(count.x, count.y))) + ((avg_opponent_elo.y*count.y)/(sum(count.x, count.y))),
+         count = sum(count.x, count.y),
+         elo = elo.x) %>% 
+  select(team, elo, avg_opponent_elo, count) %>% 
+  arrange(desc(avg_opponent_elo)) %>% 
+  ungroup() %>% 
+  mutate(rank = row_number()) %>% 
+  mutate(difference = elo - avg_opponent_elo)
+
+team_strength_of_schedule_tbl <- team_strength_of_schedule %>% 
+  select(-count) %>% 
+  slice_max(order_by = avg_opponent_elo, n = 25) %>% 
+  gt() %>% 
+  tab_header(title = "2020 Strength of Schedule",
+             subtitle = "Average Opponent Elo Rating") %>% 
+  cols_label(team = "Team", elo = "Elo Rating", avg_opponent_elo = "Average Opponent Elo", difference = "Elo Advantage/Disadvantage", rank = "SOS Rank") %>% 
+  fmt_number(vars(elo, avg_opponent_elo, difference), decimals = 0, use_seps = FALSE) %>% 
+  data_color(columns = vars(avg_opponent_elo, difference), # Use a color scale on win prob
+             colors = scales::col_numeric(
+               palette = staturdays_palette,
+               domain = NULL),
+             alpha = 0.7) %>% 
+  tab_source_note("@kylebeni012 | @staturdays — Data: @cfb_data")
+
+team_difficultly_of_schedule_tbl <- team_strength_of_schedule %>% 
+  select(-count) %>% 
+  slice_max(order_by = difference, n = 25) %>% 
+  gt() %>% 
+  tab_header(title = "2020 Difficulty of Schedule",
+             subtitle = "Difference between Elo Ratings and Average Opponent Elo Rating") %>% 
+  cols_label(team = "Team", elo = "Elo Rating", avg_opponent_elo = "Average Opponent Elo", difference = "Elo Advantage/Disadvantage", rank = "SOS Rank") %>% 
+  fmt_number(vars(elo, avg_opponent_elo, difference), decimals = 0, use_seps = FALSE) %>% 
+  data_color(columns = vars(avg_opponent_elo, difference), # Use a color scale on win prob
+             colors = scales::col_numeric(
+               palette = staturdays_palette,
+               domain = NULL),
+             alpha = 0.7) %>% 
+  tab_source_note("@kylebeni012 | @staturdays — Data: @cfb_data")
