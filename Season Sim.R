@@ -2,6 +2,7 @@ library(data.table)
 library(lubridate)
 library(jsonlite)
 library(RCurl)
+library(tidyverse)
 options(scipen=999)
 
 elo_ratings <- fread("https://raw.githubusercontent.com/kylebennison/staturdays/master/elo_ratings_historic.csv")
