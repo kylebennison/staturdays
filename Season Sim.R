@@ -111,3 +111,12 @@ combined_results_4 <- combined_results_3 %>%
          lower_95_wins = if_else(wins - std_dev_wins*1.645 < 0, 0, wins - std_dev_wins*1.645),
          upper_95_losses = if_else(losses + std_dev_wins*1.645 > games, games, losses + std_dev_wins*1.645),
          lower_95_losses = if_else(losses - std_dev_wins*1.645 < 0, 0, losses - std_dev_wins*1.645))
+
+# Add table-friendly win and loss range columns
+win_loss_tbl <- combined_results_4 %>% 
+  mutate(upper_95_wins = round(upper_95_wins, 1),
+         lower_95_wins = round(lower_95_wins, 1),
+         upper_95_losses = round(upper_95_losses, 1), 
+         lower_95_losses = round(lower_95_losses, 1),
+         win_range = paste0(lower_95_wins, " - ", upper_95_wins),
+         loss_range = paste0(lower_95_losses, " - ", upper_95_losses))
