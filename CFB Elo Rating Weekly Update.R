@@ -511,11 +511,13 @@ team_strength_of_schedule_tbl <- team_strength_of_schedule %>%
 
 team_difficultly_of_schedule_tbl <- team_strength_of_schedule %>% 
   select(-count) %>% 
-  slice_max(order_by = difference, n = 25) %>% 
+  arrange(difference) %>% 
+  mutate(rank_difference = row_number()) %>% 
+  slice_min(order_by = difference, n = 25) %>% 
   gt() %>% 
-  tab_header(title = "2020 Difficulty of Schedule",
+  tab_header(title = "2020 Difficulty of Schedule (DOS)",
              subtitle = "Difference between Elo Ratings and Average Opponent Elo Rating") %>% 
-  cols_label(team = "Team", elo = "Elo Rating", avg_opponent_elo = "Average Opponent Elo", difference = "Elo Advantage/Disadvantage", rank = "SOS Rank") %>% 
+  cols_label(team = "Team", elo = "Elo Rating", avg_opponent_elo = "Average Opponent Elo", difference = "Elo Advantage/Disadvantage", rank = "SOS Rank", rank_difference = "DOS Rank") %>% 
   fmt_number(vars(elo, avg_opponent_elo, difference), decimals = 0, use_seps = FALSE) %>% 
   data_color(columns = vars(avg_opponent_elo, difference), # Use a color scale on win prob
              colors = scales::col_numeric(
@@ -523,3 +525,7 @@ team_difficultly_of_schedule_tbl <- team_strength_of_schedule %>%
                domain = NULL),
              alpha = 0.7) %>% 
   tab_source_note("@kylebeni012 | @staturdays — Data: @cfb_data")
+
+gtsave(data = team_difficultly_of_schedule_tbl, 
+       filename = paste0("2020_team_difficultly_of_schedule_tbl__", str_replace_all(now(), ":", "."), ".png"),
+       path = "C:/Users/Kyle/Documents/Kyle/Staturdays/R Plots")
