@@ -48,6 +48,7 @@ results <- data.table()
 for(szn in c(1:3000)){
   season_elo_ratings <- current_elo_ratings
   season_results <- data.table()
+  message("Simulating Season ", szn, "/3000")
   
   for(wk in c(min(to_be_played$week):max(to_be_played$week))){
     to_be_played_week <- to_be_played[to_be_played$week == wk,]
@@ -96,6 +97,16 @@ combined_results$undefeated <- ifelse(combined_results$`0` == 0,1,0)
 
 combined_results_3 <- combined_results[,list(wins = mean(`1`),
                                              losses = mean(`0`),
+                                             games = mean(`1`)+mean(`0`), # total games on schedule
                                              win_perc = mean(win_perc),
-                                             prob_undefeated = mean(undefeated)),
+                                             std_dev_wins = sd(`1`), # std dev of wins (same as losses)
+                                             prob_undefeated = mean(undefeated)
+                                             ),
                                        by='team']
+
+# Adding a 95th percentile confidence interval for wins and losses, assuming normal distribution
+combined_results_4 <- combined_results_3 %>% 
+  mutate(upper_95_wins = if_else(wins + std_dev_wins*1.645 > games, games, wins + std_dev_wins*1.645),
+         lower_95_wins = if_else(wins - std_dev_wins*1.645 < 0, 0, wins - std_dev_wins*1.645),
+         upper_95_losses = if_else(losses + std_dev_wins*1.645 > games, games, losses + std_dev_wins*1.645),
+         lower_95_losses = if_else(losses - std_dev_wins*1.645 < 0, 0, losses - std_dev_wins*1.645))
