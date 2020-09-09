@@ -10,6 +10,7 @@ library(stringr)
 library(lubridate)
 library(gt)
 library(webshot)
+library(data.table)
 
 #Staturdays Colors
 
@@ -79,8 +80,8 @@ for (j in 2020) {
 }
 
 ## Update this value each week before running script
-week_of_games_just_played <- 0
-week_of_upcoming_games <- week_of_games_just_played + 1
+week_of_games_just_played <- 1
+week_of_upcoming_games <- week_of_games_just_played + 2
 
 #Select variables we want
 cfb_games <- games.master %>% select(id, season, week, season_type, home_team, home_conference, away_team, away_conference, home_points, away_points, start_date) %>% 
@@ -206,7 +207,7 @@ current_week <- current_week %>% left_join(current_elo_ratings,
   rename(away_rating_last_updated = date)
 
 # only run if the games from last week have been played - if it's not preseason and the results are in (there aren't NA points scored)
-if(week_of_games_just_played > 0 & (length(current_week$home_points) != length(is.na(current_week$home_points)))){
+if(week_of_games_just_played > 0){ #& (length(current_week$home_points) != length(is.na(current_week$home_points)))){
 
 #calculate new ratings after game
 current_week <- current_week %>% mutate(new_home_rating = calc_new_elo_rating(home_rating, game_outcome_home, calc_expected_score((home_rating+home_field_advantage), away_rating),k),
@@ -223,16 +224,18 @@ k_optimization_temp <- current_week %>% mutate(HomeExpectedWin=calc_expected_sco
 # k_optimization <- k_optimization %>% bind_rows(k_optimization_temp)
 
 #home team elo update
-updated_ratings_home <- current_week %>% select(home_team, new_home_rating, week.x, season.x, game_date) %>% 
+updated_ratings_home <- current_week %>% select(home_team, home_conference, new_home_rating, week.x, season.x, game_date) %>% 
   rename(team=home_team) %>% 
+  rename(conference = home_conference) %>% 
   rename(elo_rating = new_home_rating) %>% 
   rename(week = week.x) %>%
   rename(season = season.x) %>% 
   rename(date = game_date)
 
 #away team elo update
-updated_ratings_away <- current_week %>% select(away_team, new_away_rating, week.x, season.x, game_date) %>% 
+updated_ratings_away <- current_week %>% select(away_team, away_conference, new_away_rating, week.x, season.x, game_date) %>% 
   rename(team=away_team) %>% 
+  rename(conference = away_conference) %>% 
   rename(elo_rating = new_away_rating) %>% 
   rename(week = week.x) %>%
   rename(season = season.x) %>% 
@@ -340,7 +343,7 @@ preseason_2020_top_25 <- joined_stats %>%
 tab_source_note("@kylebeni012 | @staturdays — Data: @cfb_data")
 
 gtsave(data = preseason_2020_top_25, 
-       filename = "2020_preseason_elo_rankings_top_25_8.31.20.png",
+       filename = paste0("preseason_2020_top_25_", str_replace_all(now(), ":", "."), ".png"),
        path = "C:/Users/Kyle/Documents/Kyle/Staturdays/R Plots")
 
 # Only conferences that are playing as of right now - top 25
@@ -439,19 +442,19 @@ home_wow_elo_change <- elo_ratings %>%
   filter(season == max(season)) %>% 
   arrange(desc(date)) %>% 
   group_by(team) %>% 
-  mutate(wow_change = ((elo_rating) - lag(elo_rating, n = 1, order_by = date))/(lag(elo_rating, n = 1, order_by = date))) %>% 
+  mutate(wow_change = ((elo_rating) - lag(elo_rating, n = 1, order_by = date))/(lag(elo_rating, n = 1, order_by = date)), previous_elo = lag(elo_rating, n =1, order_by = date)) %>% 
   inner_join(upcoming.games, by = c("team" = "home_team", "week", "season"))
 
 away_wow_elo_change <- elo_ratings %>% 
   filter(season == max(season)) %>% 
   arrange(desc(date)) %>% 
   group_by(team) %>% 
-  mutate(wow_change = ((elo_rating) - lag(elo_rating, n = 1, order_by = date))/(lag(elo_rating, n = 1, order_by = date))) %>% 
+  mutate(wow_change = ((elo_rating) - lag(elo_rating, n = 1, order_by = date))/(lag(elo_rating, n = 1, order_by = date)), previous_elo = lag(elo_rating, n =1, order_by = date)) %>% 
   inner_join(upcoming.games, by = c("team" = "away_team", "week", "season"))
 
 wow_elo_change <- rbind(home_wow_elo_change, away_wow_elo_change) %>% 
-  select(1:7, home_team, away_team, home_points, away_points, home_pred_win_prob, away_pred_win_prob) %>% 
-  mutate(home_surprise = home_points - home_pred_win_prob, away_surprise = away_points - away_pred_win_prob)
+  select(1:8, home_team, away_team, home_points, away_points, game_outcome_home, home_pred_win_prob, away_pred_win_prob) %>% 
+  mutate(home_surprise = game_outcome_home - home_pred_win_prob, away_surprise = (1-game_outcome_home) - away_pred_win_prob)
 
 # Table of movers
 
