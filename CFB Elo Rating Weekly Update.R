@@ -206,8 +206,8 @@ current_week <- current_week %>% left_join(current_elo_ratings,
   rename(home_rating_last_updated = date.y) %>%
   rename(away_rating_last_updated = date)
 
-# only run if the games from last week have been played - if it's not preseason and the results are in (there aren't NA points scored)
-if(week_of_games_just_played > 0){ #& (length(current_week$home_points) != length(is.na(current_week$home_points)))){
+# only run if it's not preseason, and make sure the results are not calculated twice (game date == last updated date)
+if(week_of_games_just_played > 0 & !any(current_week$game_date == current_week$home_rating_last_updated) & !any(current_week$game_date == current_week$away_rating_last_updated)){ #& (length(current_week$home_points) != length(is.na(current_week$home_points)))){
 
 #calculate new ratings after game
 current_week <- current_week %>% mutate(new_home_rating = calc_new_elo_rating(home_rating, game_outcome_home, calc_expected_score((home_rating+home_field_advantage), away_rating),k),
