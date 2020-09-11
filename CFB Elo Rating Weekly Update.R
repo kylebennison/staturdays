@@ -315,11 +315,12 @@ preseason_2020_rankings <- joined_stats %>%
   relocate(row_num) %>% 
   select(-n_games) %>% 
   gt() %>% 
-  tab_header(title = paste0(max(upcoming.games$season), " Preason Elo Ratings and Expected Wins"),
+  tab_header(title = paste0(max(upcoming.games$season), " Week ", week_of_upcoming_games, " Elo Ratings and Expected Wins"),
              subtitle = "Expected Wins Based on head-to-head Elo Ratings") %>% 
   cols_label(row_num = "Rank", home_team = "Team", elo = "Elo Rating", expected_wins = "Expected Wins", win_rate = "Win Percentage", conference = "Conference") %>% 
-  fmt_number(vars(elo, expected_wins), decimals = 2, use_seps = FALSE) %>% 
-  fmt_percent(vars(win_rate), decimals = 2) %>% 
+  fmt_number(vars(elo), decimals = 0, use_seps = FALSE) %>% 
+  fmt_number(vars(expected_wins), decimals = 1, use_seps = FALSE) %>% 
+  fmt_percent(vars(win_rate), decimals = 1) %>% 
   data_color(columns = vars(elo, expected_wins), # Use a color scale on win prob
              colors = scales::col_numeric(
                palette = staturdays_palette,
@@ -339,11 +340,12 @@ preseason_2020_top_25 <- joined_stats %>%
   select(-n_games) %>% 
   filter(row_num <= 25) %>% 
   gt() %>% 
-  tab_header(title = paste0(max(upcoming.games$season), " Preason Elo Ratings and Expected Wins"),
+  tab_header(title = paste0(max(upcoming.games$season), " Week ", week_of_upcoming_games, " Elo Ratings and Expected Wins"),
              subtitle = "Expected Wins Based on head-to-head Elo Ratings") %>% 
   cols_label(row_num = "Rank", home_team = "Team", elo = "Elo Rating", expected_wins = "Expected Wins", win_rate = "Win Percentage", conference = "Conference") %>% 
-  fmt_number(vars(elo, expected_wins), decimals = 2, use_seps = FALSE) %>% 
-  fmt_percent(vars(win_rate), decimals = 2) %>% 
+  fmt_number(vars(elo), decimals = 0, use_seps = FALSE) %>% 
+  fmt_number(vars(expected_wins), decimals = 1, use_seps = FALSE) %>% 
+  fmt_percent(vars(win_rate), decimals = 1) %>% 
   data_color(columns = vars(elo, expected_wins), # Use a color scale on win prob
              colors = scales::col_numeric(
                palette = staturdays_palette,
@@ -353,31 +355,6 @@ tab_source_note("@kylebeni012 | @staturdays — Data: @cfb_data")
 
 gtsave(data = preseason_2020_top_25, 
        filename = paste0("preseason_2020_top_25_", str_replace_all(now(), ":", "."), ".png"),
-       path = "C:/Users/Kyle/Documents/Kyle/Staturdays/R Plots")
-
-# Only conferences that are playing as of right now - top 25
-preseason_2020_secaccbig12_top25 <- joined_stats %>% 
-  filter(conference %in% c("SEC", "ACC", "Big 12", "American Athletic", "Conference USA", "Sun Belt") | home_team == "Notre Dame") %>% 
-  arrange(desc(elo)) %>% 
-  mutate(row_num = row_number()) %>% 
-  relocate(row_num) %>% 
-  select(-n_games) %>% 
-  filter(row_num <= 25) %>% 
-  gt() %>% 
-  tab_header(title = paste0(max(upcoming.games$season), " Preason Elo Ratings and Expected Wins"),
-             subtitle = "Expected Wins Based on head-to-head Elo Ratings. Only conferences playing in the fall.") %>% 
-  cols_label(row_num = "Rank", home_team = "Team", elo = "Elo Rating", expected_wins = "Expected Wins", win_rate = "Win Percentage", conference = "Conference") %>% 
-  fmt_number(vars(elo, expected_wins), decimals = 2, use_seps = FALSE) %>% 
-  fmt_percent(vars(win_rate), decimals = 2) %>% 
-  data_color(columns = vars(elo, expected_wins), # Use a color scale on win prob
-             colors = scales::col_numeric(
-               palette = staturdays_palette,
-               domain = NULL),
-             alpha = 0.7) %>% 
-tab_source_note("@kylebeni012 | @staturdays — Data: @cfb_data")
-
-gtsave(data = preseason_2020_secaccbig12_top25, 
-       filename = "2020_preseason_elo_rankings_secaccbig12_top25_8.31.20.png",
        path = "C:/Users/Kyle/Documents/Kyle/Staturdays/R Plots")
 
 # See what conference has the toughest opponent elo ratings
@@ -392,7 +369,7 @@ conf_non_conf_sos_tbl <- conf_non_conf_SOS %>%
   tab_header(title = paste0(max(upcoming.games$season), " Non-Conference Strength of Schedule"),
              subtitle = "Average Elo of opponents in non-conference games, by conference.") %>% 
   cols_label(home_conference = "Conference", avg.elo = "Average Opponent Elo") %>% 
-  fmt_number(vars(avg.elo), decimals = 2, use_seps = FALSE) %>% 
+  fmt_number(vars(avg.elo), decimals = 0, use_seps = FALSE) %>% 
   data_color(columns = vars(avg.elo), # Use a color scale on win prob
              colors = scales::col_numeric(
                palette = staturdays_palette,
@@ -477,7 +454,7 @@ wow_elo_change_tbl <- wow_elo_change %>%
   tab_header(title = paste0(season), " Week ", paste0(week), " Biggest Elo Movers",
              subtitle = "Largest changes in Elo") %>% 
   cols_label(home_conference = "Conference", avg.elo = "Average Opponent Elo") %>% 
-  fmt_number(vars(avg.elo), decimals = 2, use_seps = FALSE) %>% 
+  fmt_number(vars(avg.elo), decimals = 0, use_seps = FALSE) %>% 
   data_color(columns = vars(avg.elo), # Use a color scale on win prob
              colors = scales::col_numeric(
                palette = staturdays_palette,
