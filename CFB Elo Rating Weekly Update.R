@@ -300,6 +300,7 @@ joined_stats <- left_join(home_stats, away_stats, by = c("home_team" = "away_tea
 
 # Get just teams and conferences from 2019
 conf_most_recent <- elo_conf %>% 
+  group_by(team) %>% 
   filter(date == max(date)) %>% 
   select(team, conference) %>% 
   mutate(conference = if_else(is.na(conference) == T, "Non-FBS", conference))
@@ -307,7 +308,7 @@ conf_most_recent <- elo_conf %>%
 # Add conference to joined_stats
 joined_stats <- left_join(joined_stats, conf_most_recent, by = c("home_team" = "team"))
 
-# Preseason rankings - all teams
+# Rankings - all teams
 preseason_2020_rankings <- joined_stats %>% 
   arrange(desc(elo)) %>% 
   mutate(row_num = row_number()) %>% 
@@ -325,6 +326,10 @@ preseason_2020_rankings <- joined_stats %>%
                domain = NULL),
              alpha = 0.7) %>% 
   tab_source_note("@kylebeni012 | @staturdays — Data: @cfb_data")
+
+gtsave(data = preseason_2020_rankings, 
+       filename = paste0("preseason_2020_rankings_", str_replace_all(now(), ":", "."), ".png"),
+       path = "C:/Users/Kyle/Documents/Kyle/Staturdays/R Plots")
 
 # Top 25
 preseason_2020_top_25 <- joined_stats %>% 
