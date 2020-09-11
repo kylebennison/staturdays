@@ -280,14 +280,18 @@ Elo_head_to_head("LSU", "Alabama", 2010, 2020)
 
 ### Tables
 
-# Table of preseason Elo Ratings
+# Table of Elo Ratings - If the game is already played, use the actual result, and if not then use the win probability to get expected wins for the season
 home_stats <- upcoming.games %>% 
   group_by(home_team) %>% 
-  summarise(elo = max(home_elo), expected_wins = sum(home_pred_win_prob), n_games = n())
+  summarise(elo = max(home_elo), expected_wins = sum(case_when(is.na(home_points)==T ~ home_pred_win_prob,
+                                                               TRUE ~ game_outcome_home)), 
+            n_games = n())
 
 away_stats <- upcoming.games %>% 
   group_by(away_team) %>% 
-  summarise(elo = max(away_elo), expected_wins = sum(away_pred_win_prob), n_games = n())
+  summarise(elo = max(away_elo), expected_wins = sum(case_when(is.na(away_points)==T ~ away_pred_win_prob,
+                                                               TRUE ~ (1-game_outcome_home))), 
+            n_games = n())
 
 # Right now, I am removing games where the opponent's elo is NA, so the expected_win value is NA, but this needs to be resolved. Only affects 3 teams.
 joined_stats <- left_join(home_stats, away_stats, by = c("home_team" = "away_team")) %>% 
