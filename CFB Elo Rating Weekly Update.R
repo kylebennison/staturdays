@@ -81,7 +81,7 @@ for (j in 2020) {
 
 ## Update this value each week before running script
 week_of_games_just_played <- 1
-week_of_upcoming_games <- week_of_games_just_played + 2
+week_of_upcoming_games <- week_of_games_just_played + 1
 
 #Select variables we want
 cfb_games <- games.master %>% select(id, season, week, season_type, home_team, home_conference, away_team, away_conference, home_points, away_points, start_date) %>% 
@@ -433,7 +433,7 @@ win_probabilities_this_week <- upcoming.games %>%
   tab_source_note("@kylebeni012 | @staturdays — Data: @cfb_data")
 
 gtsave(data = win_probabilities_this_week, 
-       filename = "2020_w1_win_probabilities_this_week.png",
+       filename = paste0("win_probabilities_this_week_", week_of_upcoming_games, "_", str_replace_all(now(), ":", "."), ".png"),
        path = "C:/Users/Kyle/Documents/Kyle/Staturdays/R Plots")
 
 ## Calculate biggest upsets week-over-week by win prob and change in Elo
