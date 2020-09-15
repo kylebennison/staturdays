@@ -353,7 +353,7 @@ team_url <- "https://api.collegefootballdata.com/teams"
 team_info <- fromJSON(getURL(team_url))
   
 # Top plays in terms of EPA/PPA for the week (absolute value)
-wk <- 1
+wk <- 2
 
 plays.master.2020 <- left_join(plays.master.2020, team_info, by = c("offense" = "school"), suffix = c("", ".offense"))
 plays.master.2020 <- plays.master.2020 %>% select(-last_col(c(0:7))) %>% rename(offense_abb = abbreviation)
