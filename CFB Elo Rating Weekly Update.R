@@ -80,7 +80,7 @@ for (j in 2020) {
 }
 
 ## Update this value each week before running script
-week_of_games_just_played <- 1
+week_of_games_just_played <- 2
 week_of_upcoming_games <- week_of_games_just_played + 1
 
 #Select variables we want
@@ -222,6 +222,10 @@ k_optimization_temp <- current_week %>% mutate(HomeExpectedWin=calc_expected_sco
          home_field_val = home_field_advantage)
 
 # k_optimization <- k_optimization %>% bind_rows(k_optimization_temp)
+
+## Update Elo Table
+# Only update if the game was played (there are home points and away points) by filtering out those games before updating
+current_week <- current_week %>% filter(!is.na(home_points | away_points))
 
 #home team elo update
 updated_ratings_home <- current_week %>% select(home_team, home_conference, new_home_rating, week.x, season.x, game_date) %>% 
@@ -441,6 +445,8 @@ away_wow_elo_change <- elo_ratings %>%
 wow_elo_change <- rbind(home_wow_elo_change, away_wow_elo_change) %>% 
   select(1:8, home_team, away_team, home_points, away_points, game_outcome_home, home_pred_win_prob, away_pred_win_prob) %>% 
   mutate(home_surprise = game_outcome_home - home_pred_win_prob, away_surprise = (1-game_outcome_home) - away_pred_win_prob)
+
+wow_elo_change %>% arrange(desc(wow_change)) %>% filter(week == 2) %>% select(-date.x, -home_surprise, -away_surprise, -conference, -week, -season, -game_outcome_home) %>% View()
 
 # Table of movers
 
