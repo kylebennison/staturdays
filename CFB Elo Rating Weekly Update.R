@@ -80,7 +80,7 @@ for (j in 2020) {
 }
 
 ## Update this value each week before running script
-week_of_games_just_played <- 2
+week_of_games_just_played <- 3
 week_of_upcoming_games <- week_of_games_just_played + 1
 
 #Select variables we want
@@ -124,6 +124,7 @@ cfb_games <- temp_join %>% select(-date.y) %>% rename(date = date.x)
 rm(temp_join)
 
 # Predict Upcoming Week Outcomes ------------------------------------------
+upcoming.games <- tibble()
 upcoming.games = cfb_games
 # Save a version of this year's games for later
 lastweek.games <- upcoming.games
@@ -265,6 +266,16 @@ elo_ratings %>%
   filter(team %in% {elo_ratings %>% group_by(team) %>% summarise(avg_elo = mean(elo_rating)) %>% slice_max(order_by = avg_elo, n=10)}$team) %>% 
   ggplot(aes(date, elo_rating, colour = team)) +
   geom_line()
+
+# Top teams this year
+elo_ratings %>% 
+  filter(season == 2020) %>% 
+  group_by(team) %>% 
+  slice_max(date, n = 1) %>% 
+  ungroup() %>% 
+  slice_max(elo_rating, n = 10) %>% 
+  ggplot(aes(team, elo_rating)) +
+  geom_col()
 
 # Elo of Penn State
 elo_ratings %>% 
@@ -446,14 +457,14 @@ wow_elo_change <- rbind(home_wow_elo_change, away_wow_elo_change) %>%
   select(1:8, home_team, away_team, home_points, away_points, game_outcome_home, home_pred_win_prob, away_pred_win_prob) %>% 
   mutate(home_surprise = game_outcome_home - home_pred_win_prob, away_surprise = (1-game_outcome_home) - away_pred_win_prob)
 
-wow_elo_change %>% arrange(desc(wow_change)) %>% filter(week == 2) %>% select(-date.x, -home_surprise, -away_surprise, -conference, -week, -season, -game_outcome_home) %>% View()
+wow_elo_change %>% arrange(desc(wow_change)) %>% filter(week == week_of_games_just_played) %>% select(-date.x, -home_surprise, -away_surprise, -conference, -week, -season, -game_outcome_home) %>% View()
 
 # Table of movers
 
 wow_elo_change_tbl <- wow_elo_change %>% 
-  filter(season == max(season)) %>% 
-  filter(week == max(week)) %>% 
-  select(team, conference, elo_rating, wow_change) %>% 
+  arrange(desc(wow_change)) %>% 
+  filter(week == week_of_games_just_played) %>% 
+  select(-date.x, -home_surprise, -away_surprise, -conference, -week, -season, -game_outcome_home) %>% 
   ungroup() %>% 
   slice_max(order_by = wow_change, n = 10) %>% 
   gt() %>% 
