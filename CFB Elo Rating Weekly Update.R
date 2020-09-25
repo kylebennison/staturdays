@@ -188,7 +188,7 @@ upcoming.games <- upcoming.games %>% mutate(
 
 # Get win prob
 upcoming.games <- upcoming.games %>% 
-  mutate(home_pred_win_prob = calc_expected_score(home_elo, away_elo), away_pred_win_prob = 1 - home_pred_win_prob)
+  mutate(home_pred_win_prob = calc_expected_score(home_elo+home_field_advantage, away_elo), away_pred_win_prob = 1 - home_pred_win_prob)
 
 
 # Pull in Last Week Results and Update Elo --------------------------------
