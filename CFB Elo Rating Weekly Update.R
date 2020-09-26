@@ -396,6 +396,42 @@ gtsave(data = conf_non_conf_sos_tbl,
        filename = "2020_preseason_conf_non_conf_sos_tbl_8.31.20.png",
        path = "C:/Users/Kyle/Documents/Kyle/Staturdays/R Plots")
 
+
+# Weekly Win Probabilities and Bets ------------------------------------------------
+
+betting_url <- "https://api.collegefootballdata.com/lines?year=2020&"
+full_url_betting <- paste0(betting_url, "week=", as.character(week_of_upcoming_games))
+
+betting.master = data.frame()
+full_url_betting_encoded <- URLencode(full_url_betting)
+betting <- fromJSON(getURL(full_url_betting_encoded))
+betting <- as_tibble(betting)
+betting <- unnest(betting, cols = c(lines))
+betting.master = rbind(betting.master, betting)
+
+# Need to summarise lines for teams with multiple lines
+betting_consensus <- betting.master %>% mutate(spread = as.double(spread)) %>%
+  group_by(id) %>% 
+  mutate(count_id = n()) %>% # Count number of lines per game
+  filter(case_when(count_id > 1 ~ provider == "consensus", # If a team has multiple lines, get the consensus line
+                   TRUE ~ provider == provider)) %>% 
+  select(id, provider, c(spread:last_col(1)))
+
+win_probs <- upcoming.games %>% 
+  filter(week == week_of_upcoming_games) %>% 
+  select(id, home_team,home_elo, home_pred_win_prob, home_conference, away_team, away_elo, away_pred_win_prob, away_conference) %>%
+  arrange(desc(home_pred_win_prob))
+
+# Join Lines and find any mismatches between Elo and the Lines
+win_probs_w_lines <- win_probs %>% 
+  left_join(betting_consensus, by = "id") %>% 
+  mutate(home_favorite = case_when(str_detect(win_probs_w_lines$formattedSpread, win_probs_w_lines$home_team) ~ T, # Search if home team is favored
+                                   TRUE ~ F)) %>% 
+  mutate(elo_different = case_when(is.na(spread) == TRUE ~ F, # Check if Elo agrees or disagrees
+                                   (home_favorite == TRUE) & (home_pred_win_prob < 0.5) ~ T,
+                                   (home_favorite == FALSE) & (home_pred_win_prob >= 0.5) ~ T,
+                                   TRUE ~ F))
+
 # Table of win probabilities for the week
 win_probabilities_this_week <- upcoming.games %>% 
   filter(week == week_of_upcoming_games) %>% 
