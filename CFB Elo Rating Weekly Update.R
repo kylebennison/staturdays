@@ -433,9 +433,9 @@ win_probs_w_lines <- win_probs %>%
                                    TRUE ~ F))
 
 # Table of win probabilities for the week
-win_probabilities_this_week <- upcoming.games %>% 
-  filter(week == week_of_upcoming_games) %>% 
-  select(home_team,home_elo, home_pred_win_prob, home_conference, away_team, away_elo, away_pred_win_prob, away_conference) %>%
+win_probabilities_this_week <- win_probs_w_lines %>% 
+  mutate(elo_different = if_else(elo_different == T, "Yes", "No")) %>% 
+  select(home_team,home_elo, home_pred_win_prob, home_conference, away_team, away_elo, away_pred_win_prob, away_conference, formattedSpread, elo_different) %>%
   arrange(desc(home_pred_win_prob)) %>% 
   gt() %>% 
   tab_header(title = paste0(max(upcoming.games$season), " Week ", week_of_upcoming_games, " Win Probabilities"),
@@ -444,13 +444,21 @@ win_probabilities_this_week <- upcoming.games %>%
                 columns = vars(home_team,home_elo, home_pred_win_prob, home_conference)) %>% 
     tab_spanner(label = "Away", # Add a column spanning header
                 columns = vars(away_team, away_elo, away_pred_win_prob, away_conference)) %>% 
+    tab_spanner(label = "Betting",
+                columns = vars(formattedSpread, elo_different)) %>% 
   cols_label(home_team = "Team", home_elo = "Elo Rating", home_pred_win_prob = "Win Probability", home_conference = "Conference",
-             away_team = "Team", away_elo = "Elo Rating", away_pred_win_prob = "Win Probability", away_conference = "Conference") %>% 
+             away_team = "Team", away_elo = "Elo Rating", away_pred_win_prob = "Win Probability", away_conference = "Conference",
+             formattedSpread = "Spread", elo_different = "Elo Mismatch?") %>% 
   fmt_percent(columns = vars(home_pred_win_prob, away_pred_win_prob), decimals = 1) %>% 
   fmt_number(vars(home_elo, away_elo), decimals = 0, use_seps = FALSE) %>% 
   data_color(columns = vars(home_pred_win_prob, away_pred_win_prob), # Use a color scale on win prob
              colors = scales::col_numeric(
                palette = staturdays_palette,
+               domain = NULL),
+             alpha = 0.7) %>% 
+  data_color(columns = vars(elo_different),
+             colors = scales::col_factor(
+               palette = c(staturdays_colors("white"), staturdays_colors("orange")),
                domain = NULL),
              alpha = 0.7) %>% 
   tab_style( # Add a weighted line down the middle
@@ -463,7 +471,7 @@ win_probabilities_this_week <- upcoming.games %>%
     ),
     locations = list(
       cells_body(
-        columns = vars(away_team)
+        columns = vars(away_team, formattedSpread)
       )
     )
   ) %>% 
