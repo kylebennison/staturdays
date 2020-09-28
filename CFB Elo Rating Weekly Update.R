@@ -80,7 +80,7 @@ for (j in 2020) {
 }
 
 ## Update this value each week before running script
-week_of_games_just_played <- 3
+week_of_games_just_played <- 4
 week_of_upcoming_games <- week_of_games_just_played + 1
 
 #Select variables we want
@@ -298,12 +298,14 @@ Elo_head_to_head("LSU", "Alabama", 2010, 2020)
 # Table of Elo Ratings - If the game is already played, use the actual result, and if not then use the win probability to get expected wins for the season
 home_stats <- upcoming.games %>% 
   group_by(home_team) %>% 
-  summarise(elo = max(home_elo), expected_wins = sum(case_when(is.na(home_points)==T ~ home_pred_win_prob,
+  mutate(elo = if_else(date == max(date), home_elo, home_elo-1)) %>% 
+  summarise(elo = max(elo), expected_wins = sum(case_when(is.na(home_points)==T ~ home_pred_win_prob,
                                                                TRUE ~ game_outcome_home)), 
             n_games = n())
 
 away_stats <- upcoming.games %>% 
   group_by(away_team) %>% 
+  mutate(elo = if_else(date == max(date), away_elo, away_elo-1)) %>%
   summarise(elo = max(away_elo), expected_wins = sum(case_when(is.na(away_points)==T ~ away_pred_win_prob,
                                                                TRUE ~ (1-game_outcome_home))), 
             n_games = n())
