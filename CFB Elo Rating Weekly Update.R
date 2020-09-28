@@ -158,12 +158,19 @@ current_elo_ratings <- elo_ratings %>% group_by(team) %>% slice_max(order_by = d
 # Take just team and rating
 current_elo_ratings_only <- current_elo_ratings %>% select(team, elo_rating)
 
-# Join upcoming schedule with elo ratings for home and away teams
-upcoming.games <- left_join(upcoming.games, current_elo_ratings_only, by = c("home_team" = "team")) %>% 
+# Join cfb games with elo ratings for home and away teams by team name and date of rating/game
+upcoming.games <- left_join(upcoming.games, elo_ratings, by = c("home_team" = "team", "week", "season")) %>% 
   rename(home_elo = elo_rating)
 
-upcoming.games <- left_join(upcoming.games, current_elo_ratings_only, by = c("away_team" = "team")) %>% 
+upcoming.games <- left_join(upcoming.games, elo_ratings, by = c("home_team" = "team", "week", "season")) %>% 
   rename(away_elo = elo_rating)
+
+upcoming.games %>% # NOT DONE. Need to consider most recent may be home OR away.
+  group_by(home_team) %>% 
+  mutate(most_recent_elo = if_else(week == week_of_games_just_played, home_elo, home_elo - 1500),
+         home_elo = case_when(week > week_of_games_just_played ~ most_recent_elo,
+                              TRUE ~ home_elo)) %>% 
+  View()
 
 ## Add Elo rating for teams with NA elo rating (never been rated before)
 # Home
