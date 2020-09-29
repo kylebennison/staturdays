@@ -294,22 +294,24 @@ Elo_head_to_head("LSU", "Alabama", 2010, 2020)
 # Table of Elo Ratings - If the game is already played, use the actual result, and if not then use the win probability to get expected wins for the season
 home_stats <- upcoming.games %>% 
   group_by(home_team) %>% 
-  mutate(elo = if_else(date == max(date), home_elo, home_elo-1)) %>% 
+  mutate(elo = most_recent_elo_home) %>% 
   summarise(elo = max(elo), expected_wins = sum(case_when(is.na(home_points)==T ~ home_pred_win_prob,
                                                                TRUE ~ game_outcome_home)), 
             n_games = n())
 
 away_stats <- upcoming.games %>% 
   group_by(away_team) %>% 
-  mutate(elo = if_else(date == max(date), away_elo, away_elo-1)) %>%
-  summarise(elo = max(away_elo), expected_wins = sum(case_when(is.na(away_points)==T ~ away_pred_win_prob,
+  mutate(elo = most_recent_elo_away) %>%
+  summarise(elo = max(elo), expected_wins = sum(case_when(is.na(away_points)==T ~ away_pred_win_prob,
                                                                TRUE ~ (1-game_outcome_home))), 
             n_games = n())
 
 # Right now, I am removing games where the opponent's elo is NA, so the expected_win value is NA, but this needs to be resolved. Only affects 3 teams.
 joined_stats <- left_join(home_stats, away_stats, by = c("home_team" = "away_team")) %>% 
+  left_join(current_elo_ratings_only, by = c("home_team" = "team")) %>% 
+  rename(most_recent_elo = elo_rating) %>% 
   group_by(home_team) %>% 
-  summarise(elo = max(elo.x, elo.y), expected_wins = sum(expected_wins.x, expected_wins.y, na.rm = T), n_games = sum(n_games.x, n_games.y), win_rate = expected_wins / n_games)
+  summarise(elo = most_recent_elo, expected_wins = sum(expected_wins.x, expected_wins.y, na.rm = T), n_games = sum(n_games.x, n_games.y), win_rate = expected_wins / n_games)
 
 # Get just teams and conferences from 2019
 conf_most_recent <- elo_conf %>% 
