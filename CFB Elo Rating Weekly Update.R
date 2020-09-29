@@ -80,8 +80,8 @@ for (j in 2020) {
 }
 
 ## Update this value each week before running script
-week_of_games_just_played <- 4
-week_of_upcoming_games <- week_of_games_just_played + 1
+week_of_games_just_played <- games.master %>% filter(is.na(home_points) == F & is.na(away_points) == F) %>% group_by(season) %>% slice_max(order_by = start_date, n = 1) %>% pull(week)
+week_of_upcoming_games <- week_of_games_just_played + 1L
 
 #Select variables we want
 cfb_games <- games.master %>% select(id, season, week, season_type, home_team, home_conference, away_team, away_conference, home_points, away_points, start_date) %>% 
@@ -124,8 +124,7 @@ cfb_games <- temp_join %>% select(-date.y) %>% rename(date = date.x)
 rm(temp_join)
 
 # Predict Upcoming Week Outcomes ------------------------------------------
-upcoming.games <- tibble()
-upcoming.games = cfb_games
+upcoming.games <- tibble(cfb_games)
 # Save a version of this year's games for later
 lastweek.games <- upcoming.games
 # Read in historic Elo ratings
@@ -162,39 +161,29 @@ current_elo_ratings_only <- current_elo_ratings %>% select(team, elo_rating)
 upcoming.games <- left_join(upcoming.games, elo_ratings, by = c("home_team" = "team", "week", "season")) %>% 
   rename(home_elo = elo_rating)
 
-upcoming.games <- left_join(upcoming.games, elo_ratings, by = c("home_team" = "team", "week", "season")) %>% 
+upcoming.games <- left_join(upcoming.games, elo_ratings, by = c("away_team" = "team", "week", "season")) %>% 
   rename(away_elo = elo_rating)
 
-upcoming.games %>% # NOT DONE. Need to consider most recent may be home OR away.
-  group_by(home_team) %>% 
-  mutate(most_recent_elo = if_else(week == week_of_games_just_played, home_elo, home_elo - 1500),
-         home_elo = case_when(week > week_of_games_just_played ~ most_recent_elo,
+upcoming.tmp <- upcoming.games %>% # Get most recent Elo Rating
+  left_join(current_elo_ratings_only, by = c("home_team" = "team")) %>% 
+  rename(most_recent_elo_home = elo_rating) %>% 
+  left_join(current_elo_ratings_only, by = c("away_team" = "team")) %>% 
+  rename(most_recent_elo_away = elo_rating)
+
+upcoming.tmp2 <- upcoming.tmp %>% # Use most recent elo rating for current/future games. If they don't have one, use the means by conference.
+  mutate(home_elo = case_when(is.na(most_recent_elo_home) == F & is.na(home_elo) == T ~ most_recent_elo_home,
+                              is.na(most_recent_elo_home) == T & is.na(home_elo) == T ~ case_when(home_conference %in% power_5 ~ 1500,
+                                                                                                  home_conference %in% group_of_5 ~ g5,
+                                                                                                  TRUE ~ d3),
                               TRUE ~ home_elo)) %>% 
-  View()
-
-## Add Elo rating for teams with NA elo rating (never been rated before)
-# Home
-upcoming.games <- upcoming.games %>% mutate(
-  elo_final_home = 
-    case_when(is.na(home_elo) == T ~ case_when(home_conference %in% power_5 ~ 1500,
-                                                              home_conference %in% group_of_5 ~ g5,
-                                                              TRUE ~ d3),
-                             TRUE ~ home_elo)) %>% 
-  select(-home_elo) %>% 
-  rename(home_elo = elo_final_home)
-
-# Away
-upcoming.games <- upcoming.games %>% mutate(
-  elo_final_away = 
-    case_when(is.na(away_elo) == T ~ case_when(away_conference %in% power_5 ~ 1500,
-                                               away_conference %in% group_of_5 ~ g5,
-                                               TRUE ~ d3),
-              TRUE ~ away_elo)) %>% 
-  select(-away_elo) %>% 
-  rename(away_elo = elo_final_away)
+  mutate(away_elo = case_when(is.na(most_recent_elo_away) == F & is.na(away_elo) == T ~ most_recent_elo_away,
+                              is.na(most_recent_elo_away) == T & is.na(away_elo) == T ~ case_when(away_conference %in% power_5 ~ 1500,
+                                                                                                  away_conference %in% group_of_5 ~ g5,
+                                                                                                  TRUE ~ d3),
+                              TRUE ~ away_elo))
 
 # Get win prob
-upcoming.games <- upcoming.games %>% 
+upcoming.games <- upcoming.tmp2 %>% 
   mutate(home_pred_win_prob = calc_expected_score(home_elo+home_field_advantage, away_elo), away_pred_win_prob = 1 - home_pred_win_prob)
 
 
