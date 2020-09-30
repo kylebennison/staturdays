@@ -357,6 +357,32 @@ k_optimization %>% mutate(win_prob_bucket = round(HomeExpectedWin, 2), error = (
   group_by(win_prob_bucket) %>% 
   summarise(mean_point_spread = mean(home_spread), mean_elo_diff = mean(elo_diff), mse = mean(error), root_mse = sqrt(mse), count= n())
 
+# Calculate mean point spread by elo_diff
+spread_by_elo_diff <- k_optimization %>% mutate(elo_diff_bucket = (elo_diff%/%50)*50) %>% 
+  group_by(elo_diff_bucket) %>% 
+  summarise(mean_point_spread = mean(home_spread), sd_point_spread = sd(home_spread), count= n())
+
+# Scatter
+spread_by_elo_diff %>% 
+  ggplot(aes(x = elo_diff_bucket, y = mean_point_spread)) +
+  geom_point()
+
+# Linear Model
+bucket.lm <- summary(lm(mean_point_spread ~ elo_diff_bucket, spread_by_elo_diff)) # Built off buckets - higher r-square - i don't think you are allowed to do this.. use a summary to predict a summary, lose a lot of the true variance
+raw.lm <- summary(lm(home_spread ~ elo_diff, {k_optimization %>% mutate(elo_diff_bucket = (elo_diff%/%50)*50)})) # Built off raw data
+
+# Scatterplot of elo_diff and spread
+k_optimization %>% mutate(elo_diff_bucket = (elo_diff%/%50)*50) %>% 
+  ggplot(aes(x = elo_diff, y = home_spread)) +
+  geom_point(alpha = 0.1) +
+  geom_abline(slope = m, intercept = b)
+
+# Graph spreads
+k_optimization %>% mutate(elo_diff_bucket = (elo_diff%/%50)*50) %>% 
+  filter(elo_diff_bucket == 0) %>% 
+  ggplot() +
+  geom_histogram(aes(x = home_spread))
+
 summary(lm(home_spread ~ elo_diff, {k_optimization %>% filter(Year >= 2010)}))
 ### So this makes the implied spread formula (elo_diff (home - away) / 20.14) + 4.69. This would imply 4.7 points of home field advantage which seems high.
 
