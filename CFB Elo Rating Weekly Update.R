@@ -422,9 +422,11 @@ win_probs <- upcoming.games %>%
   select(id, home_team,home_elo, home_pred_win_prob, home_conference, away_team, away_elo, away_pred_win_prob, away_conference) %>%
   arrange(desc(home_pred_win_prob))
 
-# Join Lines and find any mismatches between Elo and the Lines
 win_probs_w_lines <- win_probs %>% 
-  left_join(betting_consensus, by = "id") %>% 
+  left_join(betting_consensus, by = "id")
+
+# Join Lines and find any mismatches between Elo and the Lines
+win_probs_w_lines <- win_probs_w_lines %>% 
   mutate(home_favorite = case_when(str_detect(win_probs_w_lines$formattedSpread, win_probs_w_lines$home_team) ~ T, # Search if home team is favored
                                    TRUE ~ F)) %>% 
   mutate(elo_different = case_when(is.na(spread) == TRUE ~ F, # Check if Elo agrees or disagrees
@@ -501,7 +503,7 @@ wow_elo_change <- rbind(home_wow_elo_change, away_wow_elo_change) %>%
   select(1:8, home_team, away_team, home_points, away_points, game_outcome_home, home_pred_win_prob, away_pred_win_prob) %>% 
   mutate(home_surprise = game_outcome_home - home_pred_win_prob, away_surprise = (1-game_outcome_home) - away_pred_win_prob)
 
-wow_elo_change %>% arrange(desc(wow_change)) %>% filter(week == week_of_games_just_played) %>% select(-date.x, -home_surprise, -away_surprise, -conference, -week, -season, -game_outcome_home) %>% View()
+wow_elo_change %>% arrange(desc(wow_change)) %>% filter(week == week_of_games_just_played) %>% select(-date.x.x, -home_surprise, -away_surprise, -conference, -week, -season, -game_outcome_home) %>% View()
 
 # Table of movers
 
