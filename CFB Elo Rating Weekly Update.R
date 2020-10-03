@@ -505,20 +505,38 @@ wow_elo_change <- rbind(home_wow_elo_change, away_wow_elo_change) %>%
 
 wow_elo_change %>% arrange(desc(wow_change)) %>% filter(week == week_of_games_just_played) %>% select(-date.x.x, -home_surprise, -away_surprise, -conference, -week, -season, -game_outcome_home) %>% View()
 
-# Table of movers
-
-wow_elo_change_tbl <- wow_elo_change %>% 
+wow_elo_change_top <- wow_elo_change %>% 
   arrange(desc(wow_change)) %>% 
   filter(week == week_of_games_just_played) %>% 
-  select(-date.x, -home_surprise, -away_surprise, -conference, -week, -season, -game_outcome_home) %>% 
+  select(-date.x.x, -home_surprise, -away_surprise, -conference, -game_outcome_home) %>% 
   ungroup() %>% 
-  slice_max(order_by = wow_change, n = 10) %>% 
+  slice_max(order_by = wow_change, n = 10)
+
+wow_elo_change_bottom <- wow_elo_change %>% 
+  arrange((wow_change)) %>% 
+  filter(week == week_of_games_just_played) %>% 
+  select(-date.x.x, -home_surprise, -away_surprise, -conference, -game_outcome_home) %>% 
+  ungroup() %>% 
+  slice_min(order_by = wow_change, n = 10)
+
+wow_elo_change_combined <- wow_elo_change_top %>% 
+  rbind(wow_elo_change_bottom) %>% 
+  arrange(desc(wow_change)) %>% 
+  mutate(opponent = if_else(is.na(home_team)==T, away_team, home_team)) %>% 
+  mutate(win_prob = if_else(is.na(home_team)==T, home_pred_win_prob, 1-home_pred_win_prob)) %>% 
+  select(-home_team, -away_team, -home_pred_win_prob)
+
+# Table of movers
+
+wow_elo_change_tbl <- wow_elo_change_combined %>% 
+  select(team, opponent, elo_rating, previous_elo, wow_change, win_prob) %>% 
   gt() %>% 
-  tab_header(title = paste0(season), " Week ", paste0(week), " Biggest Elo Movers",
+  tab_header(title = paste0(as.character(max(upcoming.games$season)), " Week ", as.character(week_of_games_just_played), " Biggest Elo Movers"),
              subtitle = "Largest changes in Elo") %>% 
-  cols_label(home_conference = "Conference", avg.elo = "Average Opponent Elo") %>% 
-  fmt_number(vars(avg.elo), decimals = 0, use_seps = FALSE) %>% 
-  data_color(columns = vars(avg.elo), # Use a color scale on win prob
+  cols_label(team = "Team", elo_rating = "New Elo", previous_elo = "Old Elo", wow_change = "Pct. Change", opponent = "Opponent", win_prob = "Win Probability") %>% 
+  fmt_number(vars(elo_rating, previous_elo), decimals = 0, use_seps = FALSE) %>% 
+  fmt_percent(vars(wow_change, win_prob), decimals = 1, use_seps = FALSE) %>% 
+  data_color(columns = vars(wow_change), # Use a color scale on win prob
              colors = scales::col_numeric(
                palette = staturdays_palette,
                domain = NULL),
