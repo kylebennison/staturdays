@@ -186,6 +186,15 @@ upcoming.tmp2 <- upcoming.tmp %>% # Use most recent elo rating for current/futur
 upcoming.games <- upcoming.tmp2 %>% 
   mutate(home_pred_win_prob = calc_expected_score(home_elo+home_field_advantage, away_elo), away_pred_win_prob = 1 - home_pred_win_prob)
 
+# Get pre-game Elo and win prob (since once the game is played, Elo for that week is technically the post-game Elo)
+# NOTE: This is only working for teams who have played a game this season.
+upcoming.games.with_pregame <- upcoming.games %>% 
+  group_by(home_team) %>% 
+  mutate(pre_game_home_elo = if_else(date <= today(), lag(home_elo, n = 1L, order_by = date), home_elo)) %>% 
+  group_by(away_team) %>% 
+  mutate(pre_game_away_elo = if_else(date <= today(), lag(away_elo, n = 1L, order_by = date), away_elo)) %>% 
+  ungroup() %>% 
+  mutate(pre_game_home_wp = calc_expected_score(pre_game_home_elo+home_field_advantage, pre_game_away_elo), away_pred_win_prob = 1 - pre_game_home_wp)
 
 # Pull in Last Week Results and Update Elo --------------------------------
 
