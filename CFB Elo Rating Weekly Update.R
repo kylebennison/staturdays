@@ -163,21 +163,32 @@ preseason_elo_ratings <- elo_ratings %>% group_by(team) %>% slice_max(order_by =
   select(team, elo_rating)
 
 # Mutate week of elo_ratings for joining purposes
-elO_ratings_tmp <- elo_ratings %>% 
+elo_ratings_tmp <- elo_ratings %>% 
   mutate(week = week + 1)
 
 # Join cfb games with elo ratings for home and away teams by team name and date of rating/game
-upcoming.games <- left_join(upcoming.games, elO_ratings_tmp, by = c("home_team" = "team", "week", "season")) %>% 
-  rename(home_elo = elo_rating)
+upcoming.games <- left_join(upcoming.games, elo_ratings_tmp, by = c("home_team" = "team", "week", "season")) %>% 
+  rename(home_elo = elo_rating) %>% 
+  rename(home_elo_date = date.y) %>% 
+  rename(game_date = date.x)
 
-upcoming.games <- left_join(upcoming.games, elO_ratings_tmp, by = c("away_team" = "team", "week", "season")) %>% 
-  rename(away_elo = elo_rating)
+upcoming.games <- left_join(upcoming.games, elo_ratings_tmp, by = c("away_team" = "team", "week", "season")) %>% 
+  rename(away_elo = elo_rating) %>% 
+  rename(away_elo_date = date)
 
 upcoming.tmp <- upcoming.games %>% # Get most recent Elo Rating
   left_join(current_elo_ratings_only, by = c("home_team" = "team")) %>% 
   rename(most_recent_elo_home = elo_rating) %>% 
+  mutate(most_recent_elo_home = case_when(is.na(most_recent_elo_home) == F ~ most_recent_elo_home,
+                                          is.na(most_recent_elo_home) == T ~ case_when(home_conference %in% power_5 ~ 1500,
+                                                                                       home_conference %in% group_of_5 ~ g5,
+                                                                                       TRUE ~ d3))) %>% 
   left_join(current_elo_ratings_only, by = c("away_team" = "team")) %>% 
-  rename(most_recent_elo_away = elo_rating)
+  rename(most_recent_elo_away = elo_rating) %>% 
+  mutate(most_recent_elo_away = case_when(is.na(most_recent_elo_away) == F ~ most_recent_elo_away,
+                                          is.na(most_recent_elo_away) == T ~ case_when(away_conference %in% power_5 ~ 1500,
+                                                                                       away_conference %in% group_of_5 ~ g5,
+                                                                                       TRUE ~ d3)))
 
 # Calculate which game in the season this is for each team (game 1, game 2... etc.)
 game_of_season <- cfb_games %>% 
@@ -196,8 +207,16 @@ upcoming.tmp2 <- upcoming.tmp %>%
 upcoming.tmp3 <- upcoming.tmp2 %>% 
   left_join(preseason_elo_ratings, by = c("home_team" = "team")) %>% 
   rename(home_preseason_elo = elo_rating) %>% 
+  mutate(home_preseason_elo = case_when(is.na(home_preseason_elo) == F ~ home_preseason_elo,
+                                        is.na(home_preseason_elo) == T ~ case_when(home_conference %in% power_5 ~ 1500,
+                                                                                   home_conference %in% group_of_5 ~ g5,
+                                                                                   TRUE ~ d3))) %>%
   left_join(preseason_elo_ratings, by = c("away_team" = "team")) %>% 
-  rename(away_preseason_elo = elo_rating)
+  rename(away_preseason_elo = elo_rating) %>% 
+  mutate(away_preseason_elo = case_when(is.na(away_preseason_elo) == F ~ away_preseason_elo,
+                                        is.na(away_preseason_elo) == T ~ case_when(away_conference %in% power_5 ~ 1500,
+                                                                                   away_conference %in% group_of_5 ~ g5,
+                                                                                   TRUE ~ d3)))
 
 upcoming.tmp4 <- upcoming.tmp3 %>% # Use most recent elo rating for current/future games. If they don't have one, use the means by conference.
   mutate(home_elo = case_when(home_game_of_season == 1 & is.na(home_preseason_elo) == F ~ home_preseason_elo,
@@ -205,54 +224,40 @@ upcoming.tmp4 <- upcoming.tmp3 %>% # Use most recent elo rating for current/futu
                               is.na(most_recent_elo_home) == T & is.na(home_elo) == T ~ case_when(home_conference %in% power_5 ~ 1500,
                                                                                                   home_conference %in% group_of_5 ~ g5,
                                                                                                   TRUE ~ d3),
-                              TRUE ~ home_elo)) %>% 
+                              TRUE ~ home_elo),
+         home_elo_date = case_when(is.na(home_elo_date) == T ~ {elo_ratings %>% filter(season == max(season)) %>% summarise(min_date = min(date)) %>% pull(min_date)},
+                                   is.na(home_elo_date) == F ~ home_elo_date)) %>% 
   mutate(away_elo = case_when(away_game_of_season == 1 & is.na(away_preseason_elo) == F ~ away_preseason_elo,
                               is.na(most_recent_elo_away) == F & is.na(away_elo) == T ~ most_recent_elo_away,
                               is.na(most_recent_elo_away) == T & is.na(away_elo) == T ~ case_when(away_conference %in% power_5 ~ 1500,
                                                                                                   away_conference %in% group_of_5 ~ g5,
                                                                                                   TRUE ~ d3),
-                              TRUE ~ away_elo))
+                              TRUE ~ away_elo),
+         away_elo_date = case_when(is.na(away_elo_date) == T ~ {elo_ratings %>% filter(season == max(season)) %>% summarise(min_date = min(date)) %>% pull(min_date)},
+                                   is.na(away_elo_date) == F ~ away_elo_date))
 
 # Get win prob
 upcoming.games <- upcoming.tmp4 %>% 
   mutate(home_pred_win_prob = calc_expected_score(home_elo+home_field_advantage, away_elo), away_pred_win_prob = 1 - home_pred_win_prob)
 
 rm(list = c("upcoming.tmp", "upcoming.tmp2", "upcoming.tmp3", "upcoming.tmp4"))
-# Get pre-game Elo and win prob (since once the game is played, Elo for that week is technically the post-game Elo)
-# NOTE: This is only working for teams who have played a game this season.
-upcoming.games.with_pregame <- upcoming.games %>% 
-  group_by(home_team) %>% 
-  mutate(pre_game_home_elo = if_else(date <= today(), lag(home_elo, n = 1L, order_by = date), home_elo)) %>% 
-  group_by(away_team) %>% 
-  mutate(pre_game_away_elo = if_else(date <= today(), lag(away_elo, n = 1L, order_by = date), away_elo)) %>% 
-  ungroup() %>% 
-  mutate(pre_game_home_wp = calc_expected_score(pre_game_home_elo+home_field_advantage, pre_game_away_elo), away_pred_win_prob = 1 - pre_game_home_wp)
-
 # Pull in Last Week Results and Update Elo --------------------------------
 
 # Rename games table
 cfb_games <- lastweek.games
 
 ### Start calculation for the week
-current_week <- cfb_games %>% filter(week == week_of_games_just_played)
-current_week <- current_week %>% left_join(current_elo_ratings,
-                                           by=c("home_team"="team")) %>% 
-  left_join(current_elo_ratings, by=c("away_team"="team")) %>% 
-  rename(home_rating = elo_rating.x) %>% 
-  rename(away_rating = elo_rating.y) %>% 
-  rename(game_date = date.x) %>% 
-  rename(home_rating_last_updated = date.y) %>%
-  rename(away_rating_last_updated = date)
+current_week <- upcoming.games %>% filter(week == week_of_games_just_played)
 
 # only run if it's not preseason, and make sure the results are not calculated twice (game date == last updated date)
-if(week_of_games_just_played > 0 & !any(current_week$game_date == current_week$home_rating_last_updated) & !any(current_week$game_date == current_week$away_rating_last_updated)){ #& (length(current_week$home_points) != length(is.na(current_week$home_points)))){
+if(week_of_games_just_played > 0 & !any(current_week$game_date == current_week$home_elo_date) & !any(current_week$game_date == current_week$away_elo_date)){ #& (length(current_week$home_points) != length(is.na(current_week$home_points)))){
 
 #calculate new ratings after game
-current_week <- current_week %>% mutate(new_home_rating = calc_new_elo_rating(home_rating, game_outcome_home, calc_expected_score((home_rating+home_field_advantage), away_rating),k),
-                                        new_away_rating = calc_new_elo_rating(away_rating, 1-game_outcome_home, calc_expected_score(away_rating, (home_rating+home_field_advantage)),k))
+current_week <- current_week %>% mutate(new_home_rating = calc_new_elo_rating(home_elo, game_outcome_home, calc_expected_score((home_elo+home_field_advantage), away_elo),k),
+                                        new_away_rating = calc_new_elo_rating(away_elo, 1-game_outcome_home, calc_expected_score(away_elo, (home_elo+home_field_advantage)),k))
 
 #keep track of predictions and actual results
-k_optimization_temp <- current_week %>% mutate(HomeExpectedWin=calc_expected_score((home_rating+home_field_advantage), away_rating)) %>% 
+k_optimization_temp <- current_week %>% mutate(HomeExpectedWin=calc_expected_score((home_elo+home_field_advantage), away_elo)) %>% 
   select(game_outcome_home, HomeExpectedWin) %>% 
   rename(HomeWin = game_outcome_home) %>% 
   mutate(Year=j,k_val = k,
@@ -266,21 +271,18 @@ k_optimization_temp <- current_week %>% mutate(HomeExpectedWin=calc_expected_sco
 current_week <- current_week %>% filter(!is.na(home_points | away_points))
 
 #home team elo update
-updated_ratings_home <- current_week %>% select(home_team, home_conference, new_home_rating, week.x, season.x, game_date) %>% 
+updated_ratings_home <- current_week %>% select(home_team, home_conference, new_home_rating, week, season, game_date) %>% 
   rename(team=home_team) %>% 
   rename(conference = home_conference) %>% 
   rename(elo_rating = new_home_rating) %>% 
-  rename(week = week.x) %>%
-  rename(season = season.x) %>% 
+  rename(season = season) %>% 
   rename(date = game_date)
 
 #away team elo update
-updated_ratings_away <- current_week %>% select(away_team, away_conference, new_away_rating, week.x, season.x, game_date) %>% 
+updated_ratings_away <- current_week %>% select(away_team, away_conference, new_away_rating, week, season, game_date) %>% 
   rename(team=away_team) %>% 
   rename(conference = away_conference) %>% 
   rename(elo_rating = new_away_rating) %>% 
-  rename(week = week.x) %>%
-  rename(season = season.x) %>% 
   rename(date = game_date)
 
 # Save updated home and away elo ratings for the completed week
@@ -544,19 +546,19 @@ wow_elo_change <- rbind(home_wow_elo_change, away_wow_elo_change) %>%
   select(1:8, home_team, away_team, home_points, away_points, game_outcome_home, home_pred_win_prob, away_pred_win_prob) %>% 
   mutate(home_surprise = game_outcome_home - home_pred_win_prob, away_surprise = (1-game_outcome_home) - away_pred_win_prob)
 
-wow_elo_change %>% arrange(desc(wow_change)) %>% filter(week == week_of_games_just_played) %>% select(-date.x.x, -home_surprise, -away_surprise, -conference, -week, -season, -game_outcome_home) %>% View()
+wow_elo_change %>% arrange(desc(wow_change)) %>% filter(week == week_of_games_just_played) %>% select(-game_date.x, -home_surprise, -away_surprise, -conference, -week, -season, -game_outcome_home) %>% View()
 
 wow_elo_change_top <- wow_elo_change %>% 
   arrange(desc(wow_change)) %>% 
   filter(week == week_of_games_just_played) %>% 
-  select(-date.x.x, -home_surprise, -away_surprise, -conference, -game_outcome_home) %>% 
+  select(-game_date.x, -home_surprise, -away_surprise, -conference, -game_outcome_home) %>% 
   ungroup() %>% 
   slice_max(order_by = wow_change, n = 10)
 
 wow_elo_change_bottom <- wow_elo_change %>% 
   arrange((wow_change)) %>% 
   filter(week == week_of_games_just_played) %>% 
-  select(-date.x.x, -home_surprise, -away_surprise, -conference, -game_outcome_home) %>% 
+  select(-game_date.x, -home_surprise, -away_surprise, -conference, -game_outcome_home) %>% 
   ungroup() %>% 
   slice_min(order_by = wow_change, n = 10)
 
