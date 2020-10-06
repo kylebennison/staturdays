@@ -551,14 +551,14 @@ wow_elo_change %>% arrange(desc(wow_change)) %>% filter(week == week_of_games_ju
 wow_elo_change_top <- wow_elo_change %>% 
   arrange(desc(wow_change)) %>% 
   filter(week == week_of_games_just_played) %>% 
-  select(-game_date.x, -home_surprise, -away_surprise, -conference, -game_outcome_home) %>% 
+  select(-date, -home_surprise, -away_surprise, -conference, -game_outcome_home) %>% 
   ungroup() %>% 
   slice_max(order_by = wow_change, n = 10)
 
 wow_elo_change_bottom <- wow_elo_change %>% 
   arrange((wow_change)) %>% 
   filter(week == week_of_games_just_played) %>% 
-  select(-game_date.x, -home_surprise, -away_surprise, -conference, -game_outcome_home) %>% 
+  select(-date, -home_surprise, -away_surprise, -conference, -game_outcome_home) %>% 
   ungroup() %>% 
   slice_min(order_by = wow_change, n = 10)
 
@@ -586,6 +586,9 @@ wow_elo_change_tbl <- wow_elo_change_combined %>%
              alpha = 0.7) %>% 
   tab_source_note("@kylebeni012 | @staturdays — Data: @cfb_data")
 
+gtsave(data = wow_elo_change_tbl, 
+       filename = paste0("wow_elo_change_tbl_", week_of_games_just_played, "_", str_replace_all(now(), ":", "."), ".png"),
+       path = "C:/Users/Kyle/Documents/Kyle/Staturdays/R Plots")
 ## Strength of Schedule
 
 lhs.tmp <- upcoming.games %>% group_by(home_team) %>% 
