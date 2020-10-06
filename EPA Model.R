@@ -294,10 +294,27 @@ plays.master.win_prob3 <- plays.master.win_prob2 %>% mutate(home_outcome = case_
 # Summarise by home_deficit, time left in game (rounded to 10 seconds), and home_elo
 win_prob_in_game <- plays.master.win_prob3 %>% 
   mutate(rnded_time_remaining = round(clock_in_seconds, -1)) %>% 
-  mutate(elo_deficit = round(home_elo - away_elo, -1)) %>% 
+  mutate(elo_deficit = ((home_elo - away_elo)%/%50)*50) %>% 
   group_by(home_score_lead_deficit, rnded_time_remaining, elo_deficit) %>% 
   summarise(home_result = mean(home_outcome), count = n())
-# Consider bucketing these further for leads, etc. or rounding elo by maybe 50 instead of 10s right now, seconds by 30 instead of 10, etc.
+
+# Summarise by home_deficit, time left in game (rounded to 30 seconds), down, and yards_to_goal
+win_prob_in_game_field_pos <- plays.master.win_prob3 %>% 
+  mutate(rnded_time_remaining = (clock_in_seconds%/%45)*45) %>% 
+  mutate(elo_deficit = round(home_elo - away_elo, -1)) %>% 
+  mutate(home_lead_deficit = case_when(home_score_lead_deficit >= 17 ~ "up_three_score",
+                                       home_score_lead_deficit < 17 & home_score_lead_deficit > 8 ~ "up_two_score",
+                                       home_score_lead_deficit < 9 & home_score_lead_deficit >= 4 ~ "up_one_score",
+                                       home_score_lead_deficit >= 1 & home_score_lead_deficit <= 3 ~ "up_field_goal",
+                                       home_score_lead_deficit == 0 ~ "tied",
+                                       home_score_lead_deficit < 0 & home_score_lead_deficit >= -3 ~ "down_field_goal",
+                                       home_score_lead_deficit < -3 & home_score_lead_deficit >= -8 ~ "down_one_score",
+                                       home_score_lead_deficit < -8 & home_score_lead_deficit > -17 ~ "down_two_score",
+                                       home_score_lead_deficit <= 17 ~ "down_three_score")) %>% 
+  group_by(home_lead_deficit, rnded_time_remaining, down, yards_to_goal) %>% 
+  summarise(home_result = mean(home_outcome), count = n())
+# Consider adding T/F if home_team has ball or not (is losing/winning team in possession), and 
+# bucketing yards_to_goal for "inside_5", "red_zone", "inside_50", "own_half", etc.
 
 ## EPA WIP
 # The thinking behind this model is to look at each drive per offense, and get the min offense score
