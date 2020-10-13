@@ -1,5 +1,5 @@
 # Libraries and Themes ----------------------------------------------------
-
+rm(list = ls())
 library(scales)
 library(tidyverse)
 library(RCurl)
@@ -298,40 +298,6 @@ elo_ratings <- elo_ratings %>%
 fwrite(elo_ratings_updated, file = "C:/Users/Kyle/Documents/Kyle/Staturdays/Staturdays Github/Github/staturdays/elo_ratings_historic.csv", append = TRUE, col.names = FALSE)
 }
 
-# Graphs ------------------------------------------------------------------
-
-# Elo of the top 10 teams in average Elo all-time
-elo_ratings %>% 
-  filter(team %in% {elo_ratings %>% group_by(team) %>% summarise(avg_elo = mean(elo_rating)) %>% slice_max(order_by = avg_elo, n=10)}$team) %>% 
-  ggplot(aes(date, elo_rating, colour = team)) +
-  geom_line()
-
-# Top teams this year
-elo_ratings %>% 
-  filter(season == 2020) %>% 
-  group_by(team) %>% 
-  slice_max(date, n = 1) %>% 
-  ungroup() %>% 
-  slice_max(elo_rating, n = 10) %>% 
-  ggplot(aes(team, elo_rating)) +
-  geom_col()
-
-# Elo of Penn State
-elo_ratings %>% 
-  filter(team %in% "Penn State") %>% 
-  ggplot(aes(date, elo_rating, colour = team)) +
-  geom_line()
-
-# Function that creates an Elo plot of two teams for a set date range
-Elo_head_to_head <- function(team_a, team_b, start_season=min(elo_ratings$season), end_season=max(elo_ratings$season)){
-  elo_ratings %>% 
-    filter(team %in% c(team_a, team_b), season >= start_season & season <= end_season) %>% 
-    ggplot(aes(date, elo_rating, colour = team)) +
-    geom_line()
-}
-
-Elo_head_to_head("LSU", "Alabama", 2010, 2020)
-
 ### Tables
 
 # Table of Elo Ratings - If the game is already played, use the actual result, and if not then use the win probability to get expected wins for the season
@@ -339,14 +305,14 @@ home_stats <- upcoming.games %>%
   group_by(home_team) %>% 
   mutate(elo = most_recent_elo_home) %>% 
   summarise(elo = max(elo), expected_wins = sum(case_when(is.na(home_points)==T ~ home_pred_win_prob,
-                                                               TRUE ~ game_outcome_home)), 
+                                                          TRUE ~ game_outcome_home)), 
             n_games = n())
 
 away_stats <- upcoming.games %>% 
   group_by(away_team) %>% 
   mutate(elo = most_recent_elo_away) %>%
   summarise(elo = max(elo), expected_wins = sum(case_when(is.na(away_points)==T ~ away_pred_win_prob,
-                                                               TRUE ~ (1-game_outcome_home))), 
+                                                          TRUE ~ (1-game_outcome_home))), 
             n_games = n())
 
 # Right now, I am removing games where the opponent's elo is NA, so the expected_win value is NA, but this needs to be resolved. Only affects 3 teams.
@@ -409,36 +375,11 @@ preseason_2020_top_25 <- joined_stats %>%
                palette = staturdays_palette,
                domain = NULL),
              alpha = 0.7) %>% 
-tab_source_note("@kylebeni012 | @staturdays — Data: @cfb_data")
+  tab_source_note("@kylebeni012 | @staturdays — Data: @cfb_data")
 
 gtsave(data = preseason_2020_top_25, 
        filename = paste0("preseason_2020_top_25_", str_replace_all(now(), ":", "."), ".png"),
        path = "C:/Users/Kyle/Documents/Kyle/Staturdays/R Plots")
-
-# See what conference has the toughest opponent elo ratings
-lhs.tmp <- upcoming.games %>% group_by(home_conference) %>% filter(home_conference != away_conference) %>% summarise(m_away_elo = mean(away_elo), count = n()) %>% arrange(m_away_elo)
-rhs.tmp <- upcoming.games %>% group_by(away_conference) %>% filter(home_conference != away_conference) %>% summarise(m_home_elo = mean(home_elo), count = n()) %>% arrange(m_home_elo)
-conf_non_conf_SOS <- left_join(lhs.tmp, rhs.tmp, by = c("home_conference" = "away_conference")) %>% mutate(avg.elo = (m_away_elo*count.x + m_home_elo*count.y)/(count.x+count.y)) %>% arrange(avg.elo)
-
-# Table
-conf_non_conf_sos_tbl <- conf_non_conf_SOS %>% 
-  select(home_conference, avg.elo) %>% 
-  gt() %>% 
-  tab_header(title = paste0(max(upcoming.games$season), " Non-Conference Strength of Schedule"),
-             subtitle = "Average Elo of opponents in non-conference games, by conference.") %>% 
-  cols_label(home_conference = "Conference", avg.elo = "Average Opponent Elo") %>% 
-  fmt_number(vars(avg.elo), decimals = 0, use_seps = FALSE) %>% 
-  data_color(columns = vars(avg.elo), # Use a color scale on win prob
-             colors = scales::col_numeric(
-               palette = staturdays_palette,
-               domain = NULL),
-             alpha = 0.7) %>% 
-tab_source_note("@kylebeni012 | @staturdays — Data: @cfb_data")
-
-gtsave(data = conf_non_conf_sos_tbl, 
-       filename = "2020_preseason_conf_non_conf_sos_tbl_8.31.20.png",
-       path = "C:/Users/Kyle/Documents/Kyle/Staturdays/R Plots")
-
 
 # Weekly Win Probabilities and Bets ------------------------------------------------
 
@@ -485,12 +426,12 @@ win_probabilities_this_week <- win_probs_w_lines %>%
   gt() %>% 
   tab_header(title = paste0(max(upcoming.games$season), " Week ", week_of_upcoming_games, " Win Probabilities"),
              subtitle = "Based on head-to-head Elo Ratings") %>% 
-    tab_spanner(label = "Home", # Add a column spanning header
-                columns = vars(home_team,home_elo, home_pred_win_prob, home_conference)) %>% 
-    tab_spanner(label = "Away", # Add a column spanning header
-                columns = vars(away_team, away_elo, away_pred_win_prob, away_conference)) %>% 
-    tab_spanner(label = "Betting",
-                columns = vars(formattedSpread, elo_different)) %>% 
+  tab_spanner(label = "Home", # Add a column spanning header
+              columns = vars(home_team,home_elo, home_pred_win_prob, home_conference)) %>% 
+  tab_spanner(label = "Away", # Add a column spanning header
+              columns = vars(away_team, away_elo, away_pred_win_prob, away_conference)) %>% 
+  tab_spanner(label = "Betting",
+              columns = vars(formattedSpread, elo_different)) %>% 
   cols_label(home_team = "Team", home_elo = "Elo Rating", home_pred_win_prob = "Win Probability", home_conference = "Conference",
              away_team = "Team", away_elo = "Elo Rating", away_pred_win_prob = "Win Probability", away_conference = "Conference",
              formattedSpread = "Spread", elo_different = "Elo Mismatch?") %>% 
@@ -588,60 +529,4 @@ wow_elo_change_tbl <- wow_elo_change_combined %>%
 
 gtsave(data = wow_elo_change_tbl, 
        filename = paste0("wow_elo_change_tbl_", week_of_games_just_played, "_", str_replace_all(now(), ":", "."), ".png"),
-       path = "C:/Users/Kyle/Documents/Kyle/Staturdays/R Plots")
-## Strength of Schedule
-
-lhs.tmp <- upcoming.games %>% group_by(home_team) %>% 
-  rename(opponent = away_team, team = home_team) %>% 
-  summarise(avg_opponent_elo = mean(away_elo), elo = mean(home_elo), count = n())
-
-rhs.tmp <- upcoming.games %>% group_by(away_team) %>% 
-  rename(opponent = home_team, team = away_team) %>% 
-  summarise(avg_opponent_elo = mean(home_elo), elo = mean(away_elo), count = n())
-
-team_strength_of_schedule <- left_join(lhs.tmp, rhs.tmp, by = "team") %>% 
-  group_by(team) %>% 
-  mutate(avg_opponent_elo = ((avg_opponent_elo.x*count.x)/(sum(count.x, count.y))) + ((avg_opponent_elo.y*count.y)/(sum(count.x, count.y))),
-         count = sum(count.x, count.y),
-         elo = elo.x) %>% 
-  select(team, elo, avg_opponent_elo, count) %>% 
-  arrange(desc(avg_opponent_elo)) %>% 
-  ungroup() %>% 
-  mutate(rank = row_number()) %>% 
-  mutate(difference = elo - avg_opponent_elo)
-
-team_strength_of_schedule_tbl <- team_strength_of_schedule %>% 
-  select(-count) %>% 
-  slice_max(order_by = avg_opponent_elo, n = 25) %>% 
-  gt() %>% 
-  tab_header(title = "2020 Strength of Schedule",
-             subtitle = "Average Opponent Elo Rating") %>% 
-  cols_label(team = "Team", elo = "Elo Rating", avg_opponent_elo = "Average Opponent Elo", difference = "Elo Advantage/Disadvantage", rank = "SOS Rank") %>% 
-  fmt_number(vars(elo, avg_opponent_elo, difference), decimals = 0, use_seps = FALSE) %>% 
-  data_color(columns = vars(avg_opponent_elo, difference), # Use a color scale on win prob
-             colors = scales::col_numeric(
-               palette = staturdays_palette,
-               domain = NULL),
-             alpha = 0.7) %>% 
-  tab_source_note("@kylebeni012 | @staturdays — Data: @cfb_data")
-
-team_difficultly_of_schedule_tbl <- team_strength_of_schedule %>% 
-  select(-count) %>% 
-  arrange(difference) %>% 
-  mutate(rank_difference = row_number()) %>% 
-  slice_min(order_by = difference, n = 25) %>% 
-  gt() %>% 
-  tab_header(title = "2020 Difficulty of Schedule (DOS)",
-             subtitle = "Difference between Elo Ratings and Average Opponent Elo Rating") %>% 
-  cols_label(team = "Team", elo = "Elo Rating", avg_opponent_elo = "Average Opponent Elo", difference = "Elo Advantage/Disadvantage", rank = "SOS Rank", rank_difference = "DOS Rank") %>% 
-  fmt_number(vars(elo, avg_opponent_elo, difference), decimals = 0, use_seps = FALSE) %>% 
-  data_color(columns = vars(avg_opponent_elo, difference), # Use a color scale on win prob
-             colors = scales::col_numeric(
-               palette = staturdays_palette,
-               domain = NULL),
-             alpha = 0.7) %>% 
-  tab_source_note("@kylebeni012 | @staturdays — Data: @cfb_data")
-
-gtsave(data = team_difficultly_of_schedule_tbl, 
-       filename = paste0("2020_team_difficultly_of_schedule_tbl__", str_replace_all(now(), ":", "."), ".png"),
        path = "C:/Users/Kyle/Documents/Kyle/Staturdays/R Plots")
