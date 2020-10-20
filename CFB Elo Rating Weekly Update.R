@@ -80,7 +80,7 @@ for (j in 2020) {
 }
 
 ## Update this value each week before running script
-week_of_games_just_played <- games.master %>% filter(is.na(home_points) == F & is.na(away_points) == F) %>% group_by(season) %>% slice_max(order_by = start_date, n = 1) %>% pull(week)
+week_of_games_just_played <- games.master %>% filter(is.na(home_points) == F & is.na(away_points) == F) %>% group_by(season) %>% slice_max(order_by = start_date, n = 1) %>% pull(week) %>% unique()
 week_of_upcoming_games <- week_of_games_just_played + 1L
 
 #Select variables we want
