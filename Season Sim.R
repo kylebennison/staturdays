@@ -5,6 +5,39 @@ library(RCurl)
 library(tidyverse)
 options(scipen=999)
 
+#Staturdays Colors
+{
+staturdays_col_list <- c(
+  lightest_blue = "#5c6272",
+  lighter_blue = "#4c5872",
+  light_blue = "#394871",
+  medium_blue = "#22345a",
+  dark_blue = "#041e42",
+  orange = "#de703b",
+  sign = "#1e1e1e",
+  white = "#FFFFFF"
+)
+
+staturdays_palette <- c("#041e42", "#22345a", "#394871", "#4c5872", "#5c6272", "#de703b")
+
+staturdays_colors <- function(...) {
+  cols <- c(...)
+  
+  if (is.null(cols))
+    return (staturdays_col_list)
+  
+  staturdays_col_list[cols]
+}
+
+staturdays_theme <- theme(plot.caption = element_text(size = 12, hjust = 1, color = staturdays_colors("orange")), 
+                          plot.title = element_text(color = staturdays_colors("dark_blue"), size = 30, face = "bold"),
+                          plot.subtitle = element_text(color = staturdays_colors("lightest_blue"), size = 20),
+                          axis.text = element_text(color = staturdays_colors("lightest_blue"), size = 15),
+                          axis.title = element_text(color = staturdays_colors("lightest_blue"), size = 15),
+                          legend.title = element_text(color = staturdays_colors("lightest_blue"), size = 15),
+                          legend.text = element_text(color = staturdays_colors("lightest_blue"), size = 15))
+}
+
 elo_ratings <- fread("https://raw.githubusercontent.com/kylebennison/staturdays/master/elo_ratings_historic.csv")
 cfb_schedule_url <- "https://api.collegefootballdata.com/games?year=2020&seasonType=regular"
 
@@ -23,6 +56,7 @@ already_played$home_result <- ifelse(already_played$home_points > already_played
 #make alread6y_played length of sims and add szn
 already_played_new <- data.table()
 for(szn in c(1:3000)){
+  message(paste0("Running Already Played Season ", szn))
   already_played$szn <- szn
   already_played_new <- rbind(already_played_new, already_played)
 }
@@ -107,10 +141,10 @@ combined_results_3 <- combined_results[,list(wins = mean(`1`),
 
 # Adding a 95th percentile confidence interval for wins and losses, assuming normal distribution
 combined_results_4 <- combined_results_3 %>% 
-  mutate(upper_95_wins = if_else(wins + std_dev_wins*1.645 > games, games, wins + std_dev_wins*1.645),
-         lower_95_wins = if_else(wins - std_dev_wins*1.645 < 0, 0, wins - std_dev_wins*1.645),
-         upper_95_losses = if_else(losses + std_dev_wins*1.645 > games, games, losses + std_dev_wins*1.645),
-         lower_95_losses = if_else(losses - std_dev_wins*1.645 < 0, 0, losses - std_dev_wins*1.645))
+  mutate(upper_95_wins = if_else(wins + std_dev_wins*1.96 > games, games, wins + std_dev_wins*1.96),
+         lower_95_wins = if_else(wins - std_dev_wins*1.96 < 0, 0, wins - std_dev_wins*1.96),
+         upper_95_losses = if_else(losses + std_dev_wins*1.96 > games, games, losses + std_dev_wins*1.96),
+         lower_95_losses = if_else(losses - std_dev_wins*1.96 < 0, 0, losses - std_dev_wins*1.96))
 
 # Add table-friendly win and loss range columns
 win_loss_tbl <- combined_results_4 %>% 
@@ -120,3 +154,60 @@ win_loss_tbl <- combined_results_4 %>%
          lower_95_losses = round(lower_95_losses, 1),
          win_range = paste0(lower_95_wins, " - ", upper_95_wins),
          loss_range = paste0(lower_95_losses, " - ", upper_95_losses))
+
+# Raw wins percentile based on the bootstrap results (not using z-score calculation)
+combined_results %>% group_by(team) %>% 
+  summarise(percentile_025 = quantile(`1`, .025),
+            percentile_975 = quantile(`1`, .975))
+
+# Plot of wins distribution for a team
+combined_results %>% 
+  filter(team == "Penn State") %>% 
+  ggplot(aes(x = `1`)) +
+  geom_histogram()
+
+# Get conferences
+conf <- fromJSON(getURL("https://api.collegefootballdata.com/teams/fbs?year=2020"))
+conf <- conf %>% select(school, conference)
+
+# GT Table
+win_loss_gt <- win_loss_tbl %>% 
+  select(team, wins, losses, win_perc, prob_undefeated, win_range, games, std_dev_wins) %>% 
+  arrange((team)) %>% 
+  left_join(conf, by = c("team" = "school")) %>% 
+  filter(conference == "Big Ten") %>% 
+  relocate(games, .before = win_range) %>% 
+  gt() %>% 
+  tab_header(title = md(paste0("**Big Ten - 2020 Season Sim**")),
+             subtitle = paste0("Results as of ", today())) %>% 
+  cols_hide(columns = vars(conference)) %>% 
+  cols_label(team = "Team", wins = "Expected Wins", losses = "Expected Losses", 
+             win_perc = "Win Percentage", prob_undefeated = "Undefeated Probability", 
+             win_range = "95% Wins", games = "Games", 
+             std_dev_wins = "Std. Dev.") %>% 
+  cols_align(align = "auto") %>% 
+  cols_align(align = "left", columns = vars(team)) %>% 
+  fmt_number(vars(wins, losses, std_dev_wins), decimals = 1, use_seps = FALSE) %>% 
+  fmt_percent(vars(win_perc, prob_undefeated), decimals = 1, use_seps = FALSE) %>% 
+  data_color(columns = vars(win_perc, prob_undefeated), # Use a color scale on win prob
+             colors = scales::col_numeric(
+               palette = staturdays_palette,
+               domain = NULL),
+             alpha = 0.7) %>% 
+  tab_style(style = list(cell_borders(
+    sides = "right",
+    color = staturdays_colors("dark_blue"),
+    weight = px(3)
+  )
+  ),
+  locations = list(
+    cells_body(
+      columns = vars(games)
+    )
+  )
+  ) %>% 
+  tab_source_note("@kylebeni012 | @staturdays — Data: @cfb_data")
+
+gtsave(data = win_loss_gt, 
+       filename = paste0("sim_win_loss_tbl_", str_replace_all(now(), ":", "."), ".png"),
+       path = "C:/Users/Kyle/Documents/Kyle/Staturdays/R Plots")
