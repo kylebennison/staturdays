@@ -99,7 +99,7 @@ base_url_games <- "https://api.collegefootballdata.com/games?" # Base URL for ga
 base_url_drives <- "https://api.collegefootballdata.com/drives?" # Base URL for drives data
 
 plays.master = data.frame()
-for (j in 2001:2019) {
+for (j in 2014:2019) {
   for (i in 1:15) {
     cat('Loading Plays', j, 'Week', i, '\n')
     full_url_plays <- paste0(base_url_plays, "seasonType=both&", "year=", as.character(j), "&","week=", as.character(i)) # Concatenating year and week
@@ -122,7 +122,7 @@ for (j in 2001:2019) {
 rm(clockcolumns, pass_rows, plays)
 
 games.master = data.frame()
-for (j in 2001:2019) {
+for (j in 2014:2019) {
   for (i in 1:15) {
     cat('Loading Games', j, 'Week', i, '\n')
     full_url_games <- paste0(base_url_games, "year=", as.character(j), "&week=", as.character(i), "&seasonType=both")
@@ -134,7 +134,7 @@ for (j in 2001:2019) {
 }
 
 drives.master = data.frame()
-for (j in 2001:2019) {
+for (j in 2014:2019) {
   cat('Loading Drives', j, '\n')
   full_url_drives <- paste0(base_url_drives, "seasonType=both&", "year=", as.character(j))
   full_url_drives_encoded <- URLencode(full_url_drives)
@@ -213,7 +213,7 @@ plays.master2 <- plays.master2 %>%
   mutate(success = 
            case_when(
              down == 1 & yards_gained >= 0.5 * distance ~ 1,
-             down == 2 & yards_gained >= 0.75 * distance ~ 1,
+             down == 2 & yards_gained >= 0.7 * distance ~ 1,
              down == 3 & yards_gained >= 1 * distance ~ 1,
              down == 4 & yards_gained >= 1 * distance ~ 1,
              str_detect(play_text, "1ST down?") == TRUE ~ 1,
@@ -244,10 +244,12 @@ rm(plays.master.temp)
 ## Garbage Time Indicator WIP
 
 plays.master.temp <- plays.master %>% 
-  mutate(garbageTime = 
+  mutate(garbage_time = 
            case_when(
-             period == 4 & minutes < 2 & abs(offense - defense) > 16 ~ 1,
-             period == 4 & minutes < 6 & minutes >= 2 & abs(offense - defense) > 24 ~ 1,
+             period == 2 & abs(offense_score - defense_score) > 38 ~ 1,
+             period == 3 & abs(offense_score - defense_score) > 28 ~ 1,
+             period == 4 & abs(offense_score - defense_score) > 22 ~ 1,
+             period == 4 & minutes < 2 & abs(offense_score - defense_score) > 16 ~ 1,
              TRUE ~ 0
            )
   )
@@ -279,6 +281,8 @@ elo_ratings <- read_csv(file = "https://raw.githubusercontent.com/kylebennison/s
                         col_types = list(col_character(), col_character(), col_double(), col_integer(), col_integer(), col_date(format = "%Y-%m-%d"))) %>% 
   select(team, elo_rating, week, season)
 
+elo_ratings_adj <- elo_ratings %>% mutate(week = week + 1)
+
 # Having an issue here where i end up with more rows than before. Join keys may not be unique i.e. multiple matches on rhs for certain plays on lhs
 plays.master.win_prob2 <- plays.master.win_prob %>% left_join(elo_ratings, by = c("home" = "team", "week", "year" = "season")) %>% 
   rename(home_elo = elo_rating) %>% 
@@ -290,6 +294,91 @@ plays.master.win_prob2 <- plays.master.win_prob %>% left_join(elo_ratings, by = 
 plays.master.win_prob3 <- plays.master.win_prob2 %>% mutate(home_outcome = case_when(home_points > away_points ~ 1,
                                                            home_points < away_points ~ 0,
                                                            TRUE ~ 0.5))
+
+# Add home_elo_diff
+plays.master.win_prob4 <- plays.master.win_prob3 %>% 
+  mutate(home_elo_diff = home_elo - away_elo)
+
+
+# Linear Model Test -------------------------------------------------------
+
+# Split data
+ind <- sample(2, nrow(plays.master.win_prob4), replace = TRUE, prob = c(0.8, 0.2))
+wp_train <- plays.master.win_prob4[ind == 1,]
+wp_test <- plays.master.win_prob4[ind == 2,]
+
+# Make prediction model
+win_pred <- glm(formula = home_outcome ~ home_score_lead_deficit + clock_in_seconds + distance + 
+                 yards_to_goal + home_elo_diff, 
+               data = wp_train,
+               family = binomial,
+               na.action = na.exclude)
+
+# evaluate model
+library(pROC)
+win_roc <- roc(wp_test$home_outcome, predict(win_pred, newdata = wp_test))
+win_auc <- toString(win_roc$auc)
+
+# plot
+ggwin_roc <- ggroc(win_roc)
+
+ggwin_roc +
+  geom_text(mapping = aes(x = 0.5, y = 0.5, label = paste0('AUC of ', round(as.double(win_auc), 2))))+
+  labs(title = "TD Logistic Model ROC Curve",
+       caption = "Data from @cfbscrapR and @CFB_Data | By: Conor McQuiston @ConorMcQ5")+
+  theme(plot.title = element_text(hjust = 0.5, size = 15))+
+  theme(panel.background = element_rect(color = "gray", size = 0.5, linetype = "solid"))+
+  theme(panel.grid.major.y = element_blank(),
+        panel.grid.major.x = element_blank())+
+  theme(panel.grid.minor=element_blank())
+
+# Predict Wins
+wp_test$pred_win <- predict(win_pred, newdata = wp_test, allow.new.levels = TRUE)
+wp_test$win_prob <- exp(wp_test$pred_win)/(1+exp(wp_test$pred_win))
+
+# Residuals
+wp_test$resid <- wp_test$home_outcome - wp_test$win_prob
+
+mean(abs(wp_test$resid), na.rm = T)
+
+# Test further
+test_wins <- wp_test %>% filter(home_outcome == 1)
+
+ggplot(data = test_wins)+
+  geom_histogram(mapping = aes(x = win_prob), fill = 'red')+
+  xlab('Win')+
+  ylab('Count')+
+  labs(title = 'Distribution of Predicted Drive Points on Touchdown Drives')+
+  theme(panel.background = element_rect(color = "gray", size = 0.5, linetype = "solid"))+
+  theme(panel.grid.major.y = element_blank(),
+        panel.grid.major.x = element_blank())+
+  theme(panel.grid.minor=element_blank())
+
+# Apply to all data
+plays.master.win_prob4$pred_win <- predict(win_pred, newdata = plays.master.win_prob4, allow.new.levels = TRUE)
+plays.master.win_prob4$win_prob <- exp(plays.master.win_prob4$pred_win)/(1+exp(plays.master.win_prob4$pred_win))
+
+rm(list = c("plays.master.win_prob", "plays.master.win_prob2", "plays.master.win_prob3"))
+
+# See how various factors in the model correlate to the resulting prediction
+plays.master.win_prob4 %>% 
+  ggplot(aes(x = home_elo_diff, win_prob)) +
+  geom_point()
+
+# Plot predicted vs. actual
+plays.master.win_prob4 %>% 
+  ggplot() +
+  geom_histogram(mapping = aes(x = win_prob), fill = "blue", alpha = 0.5) +
+  geom_histogram(mapping = aes(x = home_outcome), fill = "red", alpha = 0.5)
+
+# Plot distribution of residuals
+plays.master.win_prob4$resid <- plays.master.win_prob4$home_outcome - plays.master.win_prob4$win_prob
+
+plays.master.win_prob4 %>% 
+  ggplot() +
+  geom_histogram(mapping = aes(x = resid))
+
+# Rest of code ------------------------------------------------------------
 
 # Summarise by home_deficit, time left in game (rounded to 10 seconds), and home_elo
 win_prob_in_game <- plays.master.win_prob3 %>% 
