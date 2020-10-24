@@ -216,8 +216,8 @@ plays.master2 <- plays.master2 %>%
              down == 2 & yards_gained >= 0.7 * distance ~ 1,
              down == 3 & yards_gained >= 1 * distance ~ 1,
              down == 4 & yards_gained >= 1 * distance ~ 1,
-             str_detect(play_text, "1ST down?") == TRUE ~ 1,
-             str_detect(play_text, "TD?") == TRUE ~ 1,
+             str_detect(play_text, "1ST down") == TRUE ~ 1,
+             str_detect(play_text, "TD") == TRUE ~ 1,
              TRUE ~ 0
            )
   )
@@ -299,6 +299,11 @@ plays.master.win_prob3 <- plays.master.win_prob2 %>% mutate(home_outcome = case_
 plays.master.win_prob4 <- plays.master.win_prob3 %>% 
   mutate(home_elo_diff = home_elo - away_elo)
 
+# Add home possession flag if they have the ball or not
+plays.master.win_prob4 <- plays.master.win_prob4 %>% 
+  mutate(home_poss_flag = if_else(home == offense, 1, 0),
+         home_timeouts = if_else(home == offense, offense_timeouts, defense_timeouts),
+         away_timeouts = if_else(away == offense, offense_timeouts, defense_timeouts))
 
 # Linear Model Test -------------------------------------------------------
 
@@ -309,7 +314,7 @@ wp_test <- plays.master.win_prob4[ind == 2,]
 
 # Make prediction model
 win_pred <- glm(formula = home_outcome ~ home_score_lead_deficit + clock_in_seconds + distance + 
-                 yards_to_goal + home_elo_diff, 
+                 yards_to_goal + home_elo_diff + home_poss_flag + home_timeouts + away_timeouts, 
                data = wp_train,
                family = binomial,
                na.action = na.exclude)
@@ -347,6 +352,18 @@ test_wins <- wp_test %>% filter(home_outcome == 1)
 ggplot(data = test_wins)+
   geom_histogram(mapping = aes(x = win_prob), fill = 'red')+
   xlab('Win')+
+  ylab('Count')+
+  labs(title = 'Distribution of Predicted Drive Points on Touchdown Drives')+
+  theme(panel.background = element_rect(color = "gray", size = 0.5, linetype = "solid"))+
+  theme(panel.grid.major.y = element_blank(),
+        panel.grid.major.x = element_blank())+
+  theme(panel.grid.minor=element_blank())
+
+test_wins <- wp_test %>% filter(home_outcome == 0)
+
+ggplot(data = test_wins)+
+  geom_histogram(mapping = aes(x = win_prob), fill = 'red')+
+  xlab('Loss')+
   ylab('Count')+
   labs(title = 'Distribution of Predicted Drive Points on Touchdown Drives')+
   theme(panel.background = element_rect(color = "gray", size = 0.5, linetype = "solid"))+
