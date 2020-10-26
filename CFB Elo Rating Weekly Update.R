@@ -36,6 +36,15 @@ staturdays_colors <- function(...) {
   staturdays_col_list[cols]
 }
 
+staturdays_theme <- theme(plot.caption = element_text(size = 12, hjust = 1, color = staturdays_colors("orange")), 
+                          plot.title = element_text(color = staturdays_colors("dark_blue"), size = 30, face = "bold"),
+                          plot.subtitle = element_text(color = staturdays_colors("lightest_blue"), size = 20),
+                          axis.text = element_text(color = staturdays_colors("lightest_blue"), size = 15),
+                          axis.title = element_text(color = staturdays_colors("lightest_blue"), size = 15),
+                          legend.title = element_text(color = staturdays_colors("lightest_blue"), size = 15),
+                          legend.text = element_text(color = staturdays_colors("lightest_blue"), size = 15)
+)
+
 # Power 5 List
 
 power_5 <- c("ACC", "Big 12", "Big Ten", "Pac-12", "SEC", "FBS Independents")
@@ -634,3 +643,35 @@ wow_elo_change_tbl <- wow_elo_change_combined %>%
 gtsave(data = wow_elo_change_tbl, 
        filename = paste0("wow_elo_change_tbl_", week_of_games_just_played, "_", str_replace_all(now(), ":", "."), ".png"),
        path = "C:/Users/Kyle/Documents/Kyle/Staturdays/R Plots")
+
+# Latest Brier for the season
+brier <- upcoming.games %>% summarise(brier = mean((game_outcome_home - home_pred_win_prob)^2))
+
+# Evaluate Elo
+elo_brier_plot <- upcoming.games %>% 
+  filter(is.na(home_points) == F) %>% 
+  mutate(win_prob_bucket = round(home_pred_win_prob, 1)) %>% 
+  group_by(win_prob_bucket) %>% 
+  summarise(avg_actual_outcome = mean(game_outcome_home)) %>% 
+  ggplot(aes(x = win_prob_bucket, y = avg_actual_outcome)) +
+  geom_point(color = staturdays_colors("dark_blue"), size = 4, alpha = 0.7) +
+  geom_abline(linetype = "dashed", color = staturdays_colors("orange")) +
+  geom_label(aes(x = .75, y = .15, label = "Winning Less \nThan Expected"), 
+                 color = staturdays_colors("white"), fontface = "bold", size = 4, 
+             fill = staturdays_colors("orange")) +
+  geom_label(aes(x = .25, y = .85, label = "Winning More \nThan Expected"),
+             color = staturdays_colors("white"), fontface = "bold", size = 4, 
+             fill = staturdays_colors("orange")) +
+  staturdays_theme +
+  labs(title = paste0("Elo Predicted vs. Actual \nThrough Week ", week_of_games_just_played),
+       subtitle = paste0("Brier Score of ", round(brier, 2)),
+       caption = "@staturdays | @kylebeni012 - Data: @cfb_data",
+       x = "Predicted Win Probability",
+       y = "Actual Average Wins") +
+  scale_y_continuous(labels = percent) +
+  scale_x_continuous(labels = percent)
+
+ggsave(filename = paste0("elo_brier_plot_", str_replace_all(now(), ":", "."), ".png"), 
+       plot = elo_brier_plot,
+       path = "C:/Users/Kyle/Documents/Kyle/Staturdays/R Plots",
+       dpi = 300, width = 200, height = 200, units = "mm")
