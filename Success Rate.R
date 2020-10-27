@@ -471,18 +471,30 @@ explosive_plot <- explosive_rate %>%
   scale_x_continuous(labels = percent, limits = ) +
   scale_y_continuous(labels = percent) +
   geom_abline(linetype = "dashed", color = staturdays_colors("orange")) +
-  annotate(geom = "label", x = .02, y = .15, label = "Explosive \nRushing", 
+  annotate(geom = "label", x = .02, y = .18, label = "Explosive \nRushing", 
            fill = staturdays_colors("orange"), color = "white") +
-  annotate(geom = "label", x = .13, y = .02, label = "Explosive \nPassing", 
+  annotate(geom = "label", x = .14, y = .03, label = "Explosive \nPassing", 
            fill = staturdays_colors("orange"), color = "white") +
   labs(title = "Explosiveness on Offense",
-       subtitle = "Percent of explosive runs and passes",
+       subtitle = "Percent of explosive runs and passes,\ndefined as 90th percentile plays",
        caption = "@staturdays | @kylebeni012 - Data: @cfb_data",
-       x = "Explosive Pass Rate (>= 20 yds)",
-       y = "Explosive Rush Rate (>= 15 yds)") +
+       x = paste0("Explosive Pass Rate (>= ", explosive_pass," yds)"),
+       y = paste0("Explosive Rush Rate (>= ", explosive_rush," yds)")) +
   staturdays_theme
 
 ggsave(filename = paste0("explosive_plot", "_", str_replace_all(now(), ":", "."), ".png"),
        path = "C:/Users/Kyle/Documents/Kyle/Staturdays/R Plots",
        plot = explosive_plot,
        dpi = 300, width = 200, height = 200, units = "mm")
+
+# Turnover Yards Plot
+plays.master %>% 
+  filter(play_type %in% scrimmage_plays_turnover, offense_conference %in% power_5) %>% 
+  group_by(offense) %>% 
+  summarise(avg_turnover_yards = -mean(turnover_yards), count = n()) %>% 
+  left_join(team_colors, by = c("offense" = "school")) %>% 
+  ggplot(aes(x = avg_turnover_yards, y = count)) +
+  geom_image(aes(image = light), size = .1, by = "width", asp = 1, alpha = 0.8) +
+  theme(aspect.ratio = 1) +
+  annotate(geom = "label", x = 3, y = 14, label = "Turnovers in \nfavorable positions") +
+  annotate(geom = "label", x = -50, y = 14, label = "Turnovers in \nunfavorable positions")
