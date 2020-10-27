@@ -1,4 +1,4 @@
-# Get CFB Data API for Play by Play - Use to generate expected points added (EPA)
+{# Get CFB Data API for Play by Play - Use to generate expected points added (EPA)
 rm(list=ls())
 library(scales)
 library(tidyverse)
@@ -374,7 +374,7 @@ explosive_rate <- plays.master %>%
   mutate(team_explosive_rate = mean(explosive)) %>% 
   group_by(offense, offense_conference, pass_rush) %>% 
   summarise(explosive_rate = mean(explosive), team_explosive_rate = mean(team_explosive_rate), count = n())
-
+}
 # Plots -------------------------------------------------------------------
 
 # Team Success Rate Plot
