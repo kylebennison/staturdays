@@ -219,22 +219,50 @@ plays.master2 <- plays.master %>%
                       & lead(drive_id, n = 1, order_by = id) == drive_id 
                       & (!play_specifics %in% scrimmage_plays_turnover), TRUE, 
                       ifelse(play_specifics %in% c("Passing Touchdown", "Rushing Touchdown") 
-                             | ((str_detect(play_text, "TOUCHDOWN?") 
-                                 | str_detect(play_text, "1ST down?")) 
+                             | ((str_detect(play_text, "TOUCHDOWN") 
+                                 | str_detect(play_text, "1ST down")) 
                                 & (!play_specifics %in% scrimmage_plays_turnover)), TRUE, FALSE)),
              TRUE ~ NA
            )
   )
+# Calculate loss of yards on turnovers
+plays.master_temp <- plays.master %>% 
+  mutate(turnover_yards = case_when(play_type %in% scrimmage_plays_turnover ~ 70L - lead(yards_to_goal, order_by = id), #subtract starting field position of next drive from avg. starting field position to find how many yards that turnover cost you
+                                    TRUE ~ 0L))
+
+plays.master_temp <- plays.master_temp %>% mutate(yards_gained = case_when(play_type %in% scrimmage_plays_turnover ~ -turnover_yards,
+                                                                           TRUE ~ yards_gained))
+
+plays.master <- plays.master_temp
+rm(plays.master_temp)
+
+# Calculate avg. starting field pos on turnovers vs. normal
+drives.master %>% summarise(mean(start_yards_to_goal)) # 70 avg.
+
+plays.master %>% mutate(lead_start_yards_to_goal = 
+                          case_when(play_type %in% scrimmage_plays_turnover ~ lead(yards_to_goal, order_by = id),
+                                    TRUE ~ 0L)) %>% 
+  filter(play_type %in% scrimmage_plays_turnover) %>% 
+  group_by(play_type) %>% 
+  filter(!str_detect(play_type,"Touchdown")) %>% 
+  summarise(avg_yds_to_goal = mean(lead_start_yards_to_goal), count = n()) # 54.5 avg, so a turnover is worth -15.5 yds. vs. avg.
+
 # Classify the multiple play types into a simpler just rush or pass
 plays.master2$pass_rush[plays.master2$play_type %in% scrimmage_plays_pass] <- "Pass"
 plays.master2$pass_rush[plays.master2$play_type %in% scrimmage_plays_rush] <- "Rush"
 # Rush Fumble Rows
 rush_rows <- plays.master2 %>% 
-  filter(play_specifics %in% c("Fumble Recovery (Own)", "Fumble Recovery (Opponent)"), str_detect(play_text, "run?") & !str_detect(play_text, "kick?") & !str_detect(play_text, "punt?")) %>% 
+  filter(play_specifics %in% c("Fumble Recovery (Own)", 
+                               "Fumble Recovery (Opponent)", 
+                               "Fumble Return Touchdown", 
+                               "Safety"), 
+         str_detect(play_text, "run") 
+         & !str_detect(play_text, "kick") 
+         & !str_detect(play_text, "punt")) %>% 
   mutate(pass_rush = "Rush")
 # Pass Fumble Rows
 pass_rows <- plays.master2 %>% 
-  filter(play_specifics %in% c("Fumble Recovery (Own)", "Fumble Recovery (Opponent)"), str_detect(play_text, "pass?") | str_detect(play_text, "sack?")) %>% 
+  filter(play_specifics %in% c("Fumble Recovery (Own)", "Fumble Recovery (Opponent)"), str_detect(play_text, "pass") | str_detect(play_text, "sack")) %>% 
   mutate(pass_rush = "Pass")
 # Change fumbles to a pass or rush
 plays.master2[which(plays.master2$id %in% rush_rows$id), "pass_rush"] <- "Rush"
@@ -290,6 +318,15 @@ plays.master <- plays.master.temp
 rm(plays.master.temp)
 ##
 
+# Plays by percentile to help guide defining explosive
+percentile_explosiveness <- plays.master %>% group_by(pass_rush) %>% 
+  summarise(avg_yds = mean(yards_gained), 
+            stand_dev = sd(yards_gained), 
+            percentile = quantile(yards_gained, .90))
+
+explosive_pass <- as.numeric(percentile_explosiveness %>% filter(pass_rush == "Pass") %>% pull(percentile))
+explosive_rush <- as.numeric(percentile_explosiveness %>% filter(pass_rush == "Rush") %>% pull(percentile))
+
 # Passing vs. Standard Downs, Explosive Plays
 plays.master.temp <- plays.master %>% 
   mutate(passing_down = case_when(down == 2 & distance >= 7 ~ 1,
@@ -297,10 +334,10 @@ plays.master.temp <- plays.master %>%
                                   down == 4 & distance >= 5 ~ 1,
                                   TRUE ~ 0),
          explosive = case_when(play_specifics %in% scrimmage_plays_turnover ~ 0,
-                               yards_gained >= 20 
+                               yards_gained >= explosive_pass 
                                & play_specifics %in% scrimmage_plays_non_turnover 
                                & pass_rush == "Pass" ~ 1,
-                               yards_gained >= 15
+                               yards_gained >= explosive_rush
                                & play_specifics %in% scrimmage_plays_non_turnover 
                                & pass_rush == "Rush" ~ 1,
                                TRUE ~ 0))
