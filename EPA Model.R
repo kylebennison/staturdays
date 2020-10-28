@@ -352,7 +352,7 @@ plays.master.temp <- plays.master %>%
 plays.master <- plays.master.temp
 rm(plays.master.temp)
 
-# In-Game Win Probability Based on Score and Elo --------------------------
+# In-Game Win Probability Model Based on Game State Factors (no Elo) --------------------------
 games.temp <- games.master %>% 
   select(id, home_team, home_points, away_team, away_points)
 
@@ -481,6 +481,7 @@ plays.master.win_prob4 %>% filter(year == 2016, home == "Penn State", away == "O
   ggplot(aes(x = clock_in_seconds, y = win_prob)) +
   geom_line() +
   scale_x_reverse() +
+  scale_y_continuous(limits = c(0, 1), labels = percent) +
   labs(title = "OSU @ PSU - 2016")
 
 plays.master.win_prob4 %>% filter(year == 2016, home == "Penn State", away == "USC") %>% 
@@ -488,6 +489,7 @@ plays.master.win_prob4 %>% filter(year == 2016, home == "Penn State", away == "U
   ggplot(aes(x = clock_in_seconds, y = win_prob)) +
   geom_line() +
   scale_x_reverse() +
+  scale_y_continuous(limits = c(0, 1), labels = percent) +
   labs(title = "Rose Bowl: USC-PSU - 2016")
 
 plays.master.win_prob4 %>% filter(year == 2018, home == "Penn State", away == "Appalachian State") %>% 
@@ -495,6 +497,7 @@ plays.master.win_prob4 %>% filter(year == 2018, home == "Penn State", away == "A
   ggplot(aes(x = clock_in_seconds, y = win_prob)) +
   geom_line() +
   scale_x_reverse() +
+  scale_y_continuous(limits = c(0, 1), labels = percent) +
   labs(title = "App St. PSU OT Thriller")
 
 plays.master.win_prob4 %>% filter(year == 2017, home == "Penn State", away == "Rutgers") %>% 
@@ -502,6 +505,7 @@ plays.master.win_prob4 %>% filter(year == 2017, home == "Penn State", away == "R
   ggplot(aes(x = clock_in_seconds, y = win_prob)) +
   geom_line() +
   scale_x_reverse() +
+  scale_y_continuous(limits = c(0, 1), labels = percent) +
   labs(title = "Easy Win over Rutgers")
 
 rm(list = c("plays.master.win_prob", "plays.master.win_prob2", "plays.master.win_prob3"))
@@ -529,6 +533,19 @@ plays.master.win_prob4 %>%
        subtitle = "Win prob - actual result")
 
 # Rest of code ------------------------------------------------------------
+
+
+# Use Cases of Win Prob Model ---------------------------------------------
+
+# Most exciting games - > sum change in WP throughout the game
+
+# Decision making by down/distance/play_type/score (based on WPA pre-play vs. post-play)
+
+# Team offensive tendencies (struggle at making good plays in this situation)
+
+# Team defensive strengths/weaknesses (average negative WPA on 4th down runs, so opponent may try to pass)
+
+# Expected Win Probability ------------------------------------------------
 
 # Summarise by home_deficit, time left in game (rounded to 10 seconds), and home_elo
 win_prob_in_game <- plays.master.win_prob3 %>% 
