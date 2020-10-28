@@ -9,6 +9,7 @@ library(jsonlite)
 library(stringr)
 library(gt)
 library(lubridate)
+library(ggimage)
 
 #Staturdays Colors
 
@@ -33,6 +34,15 @@ staturdays_colors <- function(...) {
   
   staturdays_col_list[cols]
 }
+
+staturdays_theme <- theme(plot.caption = element_text(size = 12, hjust = 1, color = staturdays_colors("orange")), 
+                          plot.title = element_text(color = staturdays_colors("dark_blue"), size = 30, face = "bold"),
+                          plot.subtitle = element_text(color = staturdays_colors("lightest_blue"), size = 20),
+                          axis.text = element_text(color = staturdays_colors("lightest_blue"), size = 15),
+                          axis.title = element_text(color = staturdays_colors("lightest_blue"), size = 15),
+                          legend.title = element_text(color = staturdays_colors("lightest_blue"), size = 15),
+                          legend.text = element_text(color = staturdays_colors("lightest_blue"), size = 15)
+)
 
 # Power 5 List
 
@@ -73,7 +83,8 @@ scrimmage_plays_turnover <-
     "Pass Interception Return", 
     "Interception Return Touchdown", 
     "Fumble Recovery (Opponent)",
-    "Fumble Return Touchdown"
+    "Fumble Return Touchdown",
+    "Safety"
   )
 
 scrimmage_plays_pass <-
@@ -94,6 +105,26 @@ scrimmage_plays_rush <-
     "Rushing Touchdown"
   )
 
+no_action_plays <- 
+  c(
+    "Timeout",
+    "End Period",
+    "End of Half",
+    "End of Game",
+    "Kickoff"
+  )
+
+scrimmage_plays_kicks <- 
+  c(
+    "Punt",
+    "Blocked Punt",
+    "Blocked Punt Touchdown",
+    "Field Goal Missed",
+    "Field Goal Good",
+    "Blocked Field Goal",
+    "Missed Field Goal Return"
+  )
+
 base_url_plays <- "https://api.collegefootballdata.com/plays?" # Base URL to work off of
 base_url_games <- "https://api.collegefootballdata.com/games?" # Base URL for games data
 base_url_drives <- "https://api.collegefootballdata.com/drives?" # Base URL for drives data
@@ -106,20 +137,20 @@ for (j in 2014:2019) {
     full_url_plays_encoded <- URLencode(full_url_plays) # If there are spaces in query, formats them correctly
     plays <- fromJSON(getURL(full_url_plays_encoded)) # Pull in API using url
     if(is_empty(plays) == F){
-    clockcolumns <- plays %>% unnest_legacy(clock) # Takes clock data out as it's own columns
-    plays <- plays %>%
-      select(-clock) %>%
-      as_tibble() %>%
-      mutate(minutes = clockcolumns$minutes, seconds = clockcolumns$seconds) %>% # Drop old clock dataframe, make a tibble, and add on each individual column of minutes and seconds
-      mutate_at(c("minutes", "seconds"), ~replace(., is.na(.), 0)) # need to turn NAs in clock into 0s
-    plays <- tibble(plays)
-    plays$week = i
-    plays$year = j
-    plays.master = rbind(plays.master, plays, make.row.names=TRUE)
+      clockcolumns <- plays %>% unnest_legacy(clock) # Takes clock data out as it's own columns
+      plays <- plays %>%
+        select(-clock) %>%
+        as_tibble() %>%
+        mutate(minutes = clockcolumns$minutes, seconds = clockcolumns$seconds) %>% # Drop old clock dataframe, make a tibble, and add on each individual column of minutes and seconds
+        mutate_at(c("minutes", "seconds"), ~replace(., is.na(.), 0)) # need to turn NAs in clock into 0s
+      plays <- tibble(plays)
+      plays$week = i
+      plays$year = j
+      plays.master = rbind(plays.master, plays, make.row.names=TRUE)
     }
   }
 }
-rm(clockcolumns, pass_rows, plays)
+rm(clockcolumns, plays)
 
 games.master = data.frame()
 for (j in 2014:2019) {
@@ -139,9 +170,9 @@ for (j in 2014:2019) {
   full_url_drives <- paste0(base_url_drives, "seasonType=both&", "year=", as.character(j))
   full_url_drives_encoded <- URLencode(full_url_drives)
   drives <- fromJSON(getURL(full_url_drives_encoded))
-  start_time_columns <- as_tibble(unnest(drives$start_time)) # Takes clock data out as it's own columns
-  end_time_columns <- as_tibble(unnest(drives$end_time))
-  elapsed_time_columns <- as_tibble(unnest(drives$elapsed))
+  start_time_columns <- as_tibble(drives$start_time) # Takes clock data out as it's own columns
+  end_time_columns <- as_tibble(drives$end_time)
+  elapsed_time_columns <- as_tibble(drives$elapsed)
   drives <- drives %>% 
     select(-start_time, -end_time, -elapsed) %>% 
     as_tibble() %>% 
@@ -188,30 +219,60 @@ plays.master2 <- plays.master %>%
                       & lead(drive_id, n = 1, order_by = id) == drive_id 
                       & (!play_specifics %in% scrimmage_plays_turnover), TRUE, 
                       ifelse(play_specifics %in% c("Passing Touchdown", "Rushing Touchdown") 
-                             | ((str_detect(play_text, "TOUCHDOWN?") 
-                                 | str_detect(play_text, "1ST down?")) 
+                             | ((str_detect(play_text, "TOUCHDOWN") 
+                                 | str_detect(play_text, "1ST down")) 
                                 & (!play_specifics %in% scrimmage_plays_turnover)), TRUE, FALSE)),
              TRUE ~ NA
            )
   )
+# Calculate loss of yards on turnovers
+plays.master_temp <- plays.master %>% 
+  mutate(turnover_yards = case_when(play_type %in% scrimmage_plays_turnover ~ 70L - lead(yards_to_goal, order_by = id), #subtract starting field position of next drive from avg. starting field position to find how many yards that turnover cost you
+                                    TRUE ~ 0L))
+
+plays.master_temp <- plays.master_temp %>% mutate(yards_gained = case_when(play_type %in% scrimmage_plays_turnover ~ -turnover_yards,
+                                                                           TRUE ~ yards_gained))
+
+plays.master <- plays.master_temp
+rm(plays.master_temp)
+
+# Calculate avg. starting field pos on turnovers vs. normal
+drives.master %>% summarise(mean(start_yards_to_goal)) # 70 avg.
+
+plays.master %>% mutate(lead_start_yards_to_goal = 
+                          case_when(play_type %in% scrimmage_plays_turnover ~ lead(yards_to_goal, order_by = id),
+                                    TRUE ~ 0L)) %>% 
+  filter(play_type %in% scrimmage_plays_turnover) %>% 
+  group_by(play_type) %>% 
+  filter(!str_detect(play_type,"Touchdown")) %>% 
+  summarise(avg_yds_to_goal = mean(lead_start_yards_to_goal), count = n()) # 54.5 avg, so a turnover is worth -15.5 yds. vs. avg.
+
 # Classify the multiple play types into a simpler just rush or pass
-plays.master2$play_type[plays.master2$play_type %in% scrimmage_plays_pass] <- "Pass"
-plays.master2$play_type[plays.master2$play_type %in% scrimmage_plays_rush] <- "Rush"
+plays.master2$pass_rush[plays.master2$play_type %in% scrimmage_plays_pass] <- "Pass"
+plays.master2$pass_rush[plays.master2$play_type %in% scrimmage_plays_rush] <- "Rush"
 # Rush Fumble Rows
 rush_rows <- plays.master2 %>% 
-  filter(play_specifics %in% c("Fumble Recovery (Own)", "Fumble Recovery (Opponent)"), str_detect(play_text, "run?") & !str_detect(play_text, "kick?") & !str_detect(play_text, "punt?")) %>% 
-  mutate(play_type = "Rush")
+  filter(play_specifics %in% c("Fumble Recovery (Own)", 
+                               "Fumble Recovery (Opponent)", 
+                               "Fumble Return Touchdown", 
+                               "Safety"), 
+         str_detect(play_text, "run") 
+         & !str_detect(play_text, "kick") 
+         & !str_detect(play_text, "punt")) %>% 
+  mutate(pass_rush = "Rush")
 # Pass Fumble Rows
 pass_rows <- plays.master2 %>% 
-  filter(play_type %in% c("Fumble Recovery (Own)", "Fumble Recovery (Opponent)"), str_detect(play_text, "pass?") | str_detect(play_text, "sack?")) %>% 
-  mutate(play_type = "Pass")
+  filter(play_specifics %in% c("Fumble Recovery (Own)", "Fumble Recovery (Opponent)"), str_detect(play_text, "pass") | str_detect(play_text, "sack")) %>% 
+  mutate(pass_rush = "Pass")
 # Change fumbles to a pass or rush
-plays.master2[which(plays.master2$id %in% rush_rows$id), "play_type"] <- "Rush"
-plays.master2[which(plays.master2$id %in% pass_rows$id), "play_type"] <- "Pass"
+plays.master2[which(plays.master2$id %in% rush_rows$id), "pass_rush"] <- "Rush"
+plays.master2[which(plays.master2$id %in% pass_rows$id), "pass_rush"] <- "Pass"
+
 #Add Success Column
 plays.master2 <- plays.master2 %>% 
   mutate(success = 
            case_when(
+             play_type %in% scrimmage_plays_turnover ~ 0,
              down == 1 & yards_gained >= 0.5 * distance ~ 1,
              down == 2 & yards_gained >= 0.7 * distance ~ 1,
              down == 3 & yards_gained >= 1 * distance ~ 1,
@@ -230,10 +291,10 @@ rm(plays.master2)
 plays.master.temp <- plays.master %>% 
   mutate(lineYards = 
            case_when(
-             play_type == "Rush" & yards_gained < 0 ~ yards_gained * 1.2,
-             play_type == "Rush" & yards_gained > 0 & yards_gained <= 4 ~ yards_gained * 1,
-             play_type == "Rush" & yards_gained > 4 & yards_gained <= 10 ~ 4 + yards_gained * 0.5,
-             play_type == "Rush" & yards_gained > 10 ~ 7,
+             pass_rush == "Rush" & yards_gained < 0 ~ yards_gained * 1.2,
+             pass_rush == "Rush" & yards_gained > 0 & yards_gained <= 4 ~ yards_gained * 1,
+             pass_rush == "Rush" & yards_gained > 4 & yards_gained <= 10 ~ 4 + yards_gained * 0.5,
+             pass_rush == "Rush" & yards_gained > 10 ~ 7,
              TRUE ~ 0
            )
   )
@@ -257,13 +318,39 @@ plays.master <- plays.master.temp
 rm(plays.master.temp)
 ##
 
+# Plays by percentile to help guide defining explosive
+percentile_explosiveness <- plays.master %>% group_by(pass_rush) %>% 
+  summarise(avg_yds = mean(yards_gained), 
+            stand_dev = sd(yards_gained), 
+            percentile = quantile(yards_gained, .90))
+
+explosive_pass <- as.numeric(percentile_explosiveness %>% filter(pass_rush == "Pass") %>% pull(percentile))
+explosive_rush <- as.numeric(percentile_explosiveness %>% filter(pass_rush == "Rush") %>% pull(percentile))
+
+# Passing vs. Standard Downs, Explosive Plays
+plays.master.temp <- plays.master %>% 
+  mutate(passing_down = case_when(down == 2 & distance >= 7 ~ 1,
+                                  down == 3 & distance >= 5 ~ 1,
+                                  down == 4 & distance >= 5 ~ 1,
+                                  TRUE ~ 0),
+         explosive = case_when(play_specifics %in% scrimmage_plays_turnover ~ 0,
+                               yards_gained >= explosive_pass 
+                               & play_specifics %in% scrimmage_plays_non_turnover 
+                               & pass_rush == "Pass" ~ 1,
+                               yards_gained >= explosive_rush
+                               & play_specifics %in% scrimmage_plays_non_turnover 
+                               & pass_rush == "Rush" ~ 1,
+                               TRUE ~ 0))
+
+plays.master <- plays.master.temp
+rm(plays.master.temp)
+
 # Create a master clock completely in seconds
 plays.master.temp <- plays.master %>% 
   mutate(clock_in_seconds = 2700-(900*(period-1)) + minutes*60 + seconds)
 
 plays.master <- plays.master.temp
 rm(plays.master.temp)
-
 
 # In-Game Win Probability Based on Score and Elo --------------------------
 games.temp <- games.master %>% 
