@@ -400,7 +400,7 @@ wp_train <- plays.master.win_prob4[ind == 1,]
 wp_test <- plays.master.win_prob4[ind == 2,]
 
 # Make prediction model
-win_pred <- glm(formula = home_outcome ~ home_score_lead_deficit + clock_in_seconds + distance + 
+win_pred <- glm(formula = home_outcome ~ home_score_lead_deficit + clock_in_seconds + down + distance + 
                  yards_to_goal + home_poss_flag + home_timeouts + away_timeouts, 
                data = wp_train,
                family = binomial,
@@ -458,6 +458,19 @@ ggplot(data = test_wins)+
         panel.grid.major.x = element_blank())+
   theme(panel.grid.minor=element_blank())
 
+# Distribution of probs with clock == 0 (game over)
+test_wins <- wp_test %>% filter(clock_in_seconds == 0)
+
+ggplot(data = test_wins)+
+  geom_histogram(mapping = aes(x = win_prob), fill = 'red')+
+  xlab('Game Over')+
+  ylab('Count')+
+  labs(title = 'Distribution of Win Probability at the end of the game')+
+  theme(panel.background = element_rect(color = "gray", size = 0.5, linetype = "solid"))+
+  theme(panel.grid.major.y = element_blank(),
+        panel.grid.major.x = element_blank())+
+  theme(panel.grid.minor=element_blank())
+
 # Apply to all data
 plays.master.win_prob4$pred_win <- predict(win_pred, newdata = plays.master.win_prob4, allow.new.levels = TRUE)
 plays.master.win_prob4$win_prob <- exp(plays.master.win_prob4$pred_win)/(1+exp(plays.master.win_prob4$pred_win))
@@ -469,6 +482,27 @@ plays.master.win_prob4 %>% filter(year == 2016, home == "Penn State", away == "O
   geom_line() +
   scale_x_reverse() +
   labs(title = "OSU @ PSU - 2016")
+
+plays.master.win_prob4 %>% filter(year == 2016, home == "Penn State", away == "USC") %>% 
+  select(id, home, away, offense, defense, home_score, away_score, minutes, clock_in_seconds, seconds,play_text, pred_win, win_prob) %>% 
+  ggplot(aes(x = clock_in_seconds, y = win_prob)) +
+  geom_line() +
+  scale_x_reverse() +
+  labs(title = "Rose Bowl: USC-PSU - 2016")
+
+plays.master.win_prob4 %>% filter(year == 2018, home == "Penn State", away == "Appalachian State") %>% 
+  select(id, home, away, offense, defense, home_score, away_score, minutes, clock_in_seconds, seconds,play_text, pred_win, win_prob) %>% 
+  ggplot(aes(x = clock_in_seconds, y = win_prob)) +
+  geom_line() +
+  scale_x_reverse() +
+  labs(title = "App St. PSU OT Thriller")
+
+plays.master.win_prob4 %>% filter(year == 2017, home == "Penn State", away == "Rutgers") %>% 
+  select(id, home, away, offense, defense, home_score, away_score, minutes, clock_in_seconds, seconds,play_text, pred_win, win_prob) %>% 
+  ggplot(aes(x = clock_in_seconds, y = win_prob)) +
+  geom_line() +
+  scale_x_reverse() +
+  labs(title = "Easy Win over Rutgers")
 
 rm(list = c("plays.master.win_prob", "plays.master.win_prob2", "plays.master.win_prob3"))
 
