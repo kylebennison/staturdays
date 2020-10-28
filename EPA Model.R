@@ -401,7 +401,7 @@ wp_test <- plays.master.win_prob4[ind == 2,]
 
 # Make prediction model
 win_pred <- glm(formula = home_outcome ~ home_score_lead_deficit + clock_in_seconds + distance + 
-                 yards_to_goal + home_elo_diff + home_poss_flag + home_timeouts + away_timeouts, 
+                 yards_to_goal + home_poss_flag + home_timeouts + away_timeouts, 
                data = wp_train,
                family = binomial,
                na.action = na.exclude)
@@ -440,7 +440,7 @@ ggplot(data = test_wins)+
   geom_histogram(mapping = aes(x = win_prob), fill = 'red')+
   xlab('Win')+
   ylab('Count')+
-  labs(title = 'Distribution of Predicted Drive Points on Touchdown Drives')+
+  labs(title = 'Distribution of Win Probability on Wins')+
   theme(panel.background = element_rect(color = "gray", size = 0.5, linetype = "solid"))+
   theme(panel.grid.major.y = element_blank(),
         panel.grid.major.x = element_blank())+
@@ -452,7 +452,7 @@ ggplot(data = test_wins)+
   geom_histogram(mapping = aes(x = win_prob), fill = 'red')+
   xlab('Loss')+
   ylab('Count')+
-  labs(title = 'Distribution of Predicted Drive Points on Touchdown Drives')+
+  labs(title = 'Distribution of Win Probability on Losses')+
   theme(panel.background = element_rect(color = "gray", size = 0.5, linetype = "solid"))+
   theme(panel.grid.major.y = element_blank(),
         panel.grid.major.x = element_blank())+
@@ -462,25 +462,37 @@ ggplot(data = test_wins)+
 plays.master.win_prob4$pred_win <- predict(win_pred, newdata = plays.master.win_prob4, allow.new.levels = TRUE)
 plays.master.win_prob4$win_prob <- exp(plays.master.win_prob4$pred_win)/(1+exp(plays.master.win_prob4$pred_win))
 
+# Check PSU OSU Game
+plays.master.win_prob4 %>% filter(year == 2016, home == "Penn State", away == "Ohio State") %>% 
+  select(id, home, away, offense, defense, home_score, away_score, minutes, clock_in_seconds, seconds,play_text, pred_win, win_prob) %>% 
+  ggplot(aes(x = clock_in_seconds, y = win_prob)) +
+  geom_line() +
+  scale_x_reverse() +
+  labs(title = "OSU @ PSU - 2016")
+
 rm(list = c("plays.master.win_prob", "plays.master.win_prob2", "plays.master.win_prob3"))
 
 # See how various factors in the model correlate to the resulting prediction
 plays.master.win_prob4 %>% 
   ggplot(aes(x = home_elo_diff, win_prob)) +
-  geom_point()
+  geom_point(alpha = 0.1)
 
 # Plot predicted vs. actual
 plays.master.win_prob4 %>% 
   ggplot() +
   geom_histogram(mapping = aes(x = win_prob), fill = "blue", alpha = 0.5) +
-  geom_histogram(mapping = aes(x = home_outcome), fill = "red", alpha = 0.5)
+  geom_histogram(mapping = aes(x = home_outcome), fill = "red", alpha = 0.5) +
+  labs(title = "Predicted win prob vs. actual result",
+       subtitle = "Blue are win probabilities")
 
 # Plot distribution of residuals
 plays.master.win_prob4$resid <- plays.master.win_prob4$home_outcome - plays.master.win_prob4$win_prob
 
 plays.master.win_prob4 %>% 
   ggplot() +
-  geom_histogram(mapping = aes(x = resid))
+  geom_histogram(mapping = aes(x = resid)) +
+  labs(title = "Win probability residuals",
+       subtitle = "Win prob - actual result")
 
 # Rest of code ------------------------------------------------------------
 
