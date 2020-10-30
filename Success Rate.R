@@ -386,11 +386,11 @@ team_succ_rate <- left_join(top, bottom, by = c("offense" = "defense", "down")) 
 
 # Starting Field Position
 off_field_pos <- drives.master %>% 
-  group_by(offense) %>% 
+  group_by(offense, offense_conference) %>% 
   summarise(avg_start_field_pos = mean(start_yards_to_goal))
 
 def_field_pos <- drives.master %>% 
-  group_by(defense) %>% 
+  group_by(defense, defense_conference) %>% 
   summarise(avg_start_field_pos = mean(start_yards_to_goal))
 
 field_pos <- left_join(off_field_pos, def_field_pos, by = c("offense" = "defense"), suffix = c("_off", "_def")) %>% 
@@ -424,20 +424,21 @@ plays.master_succ %>%
   geom_hline(yintercept = plays.master_succ$avg_succ_rate, linetype = "dashed", color = staturdays_colors("orange")) +
   geom_label(aes(x = down, y = succ_rate, label = paste0("Plays: ", count)))
 
-conf_name <- "ACC"
-down_num <- 4
+conf_name <- "Big Ten"
+down_num <- 1
 
-# All Teams Rate Plot
+# All Teams Offense Success Rate Plot
 team_succ_rate %>% 
   ungroup() %>% 
-  filter(conference == conf_name, down == down_num) %>% 
+  filter(conference == conf_name) %>% 
+  group_by(down) %>% 
   mutate(first_rank = rank(desc(off_succ_rate), ties.method = "min")) %>% 
   group_by(team) %>% 
   ggplot(aes(x = first_rank, y = off_succ_rate, fill = color)) +
   geom_col(position = "dodge") +
   geom_image(aes(image = light), size = .1, by = "width", asp = 1, nudge_y = .01) +
   theme(aspect.ratio = 1) +
-  lims(y = c(0, 1)) +
+  facet_wrap(vars(down)) +
   scale_x_reverse() +
   scale_fill_identity() +
   geom_label(aes(label = off_play_count), nudge_y = -.25, size = 3, fill = "white") +
@@ -447,9 +448,36 @@ team_succ_rate %>%
        x = "Ranking",
        y = "Success Rate") +
   staturdays_theme +
-  scale_y_continuous(labels = percent)
+  scale_y_continuous(labels = percent, limits = c(0, 1))
 
-ggsave(filename = paste0("success", str_replace_all(now(), ":", "."), ".png"),
+ggsave(filename = paste0("success", "_", str_replace_all(now(), ":", "."), ".png"),
+       path = "C:/Users/Kyle/Documents/Kyle/Staturdays/R Plots",
+       dpi = 300, width = 200, height = 200, units = "mm")
+
+# All Teams Defense Success Rate Plot
+team_succ_rate %>% 
+  ungroup() %>% 
+  filter(conference == conf_name) %>% 
+  group_by(down) %>% 
+  mutate(first_rank = rank((def_succ_rate), ties.method = "min")) %>% 
+  group_by(team) %>% 
+  ggplot(aes(x = first_rank, y = def_succ_rate, fill = color)) +
+  geom_col(position = "dodge") +
+  geom_image(aes(image = light), size = .1, by = "width", asp = 1, nudge_y = .01) +
+  theme(aspect.ratio = 1) +
+  facet_wrap(vars(down)) +
+  scale_x_reverse(breaks = c(1,5,10,14)) +
+  scale_fill_identity() +
+  geom_label(aes(label = def_play_count), nudge_y = -.25, size = 3, fill = "white") +
+  labs(title = paste0(conf_name," Defense Success Rate on Down ", down_num),
+       subtitle = "Percent of plays successful and # of Plays\nLower is better",
+       caption = "@staturdays | @kylebeni012 - Data: @cfb_data",
+       x = "Ranking",
+       y = "Success Rate") +
+  staturdays_theme +
+  scale_y_continuous(labels = percent, limits = c(0, 1))
+
+ggsave(filename = paste0("def_success", "_", str_replace_all(now(), ":", "."), ".png"),
        path = "C:/Users/Kyle/Documents/Kyle/Staturdays/R Plots",
        dpi = 300, width = 200, height = 200, units = "mm")
 
@@ -464,7 +492,7 @@ pass_down_success %>%
 explosive_plot <- explosive_rate %>% 
   pivot_wider(names_from = pass_rush, values_from = c(explosive_rate, count)) %>% 
   left_join(team_colors, by = c("offense" = "school")) %>% 
-  filter(conference %in% power_5) %>% 
+  filter(conference %in% "Big Ten") %>% 
   ggplot(aes(x = explosive_rate_Pass, y = explosive_rate_Rush)) +
   geom_image(aes(image = light), size = .1, by = "width", asp = 1, alpha = 0.8) +
   theme(aspect.ratio = 1) +
@@ -489,7 +517,7 @@ ggsave(filename = paste0("explosive_plot", "_", str_replace_all(now(), ":", ".")
 
 # Turnover Yards Plot
 plays.master %>% 
-  filter(play_type %in% scrimmage_plays_turnover, offense_conference %in% power_5) %>% 
+  filter(play_type %in% scrimmage_plays_turnover, offense_conference %in% "Big Ten") %>% 
   group_by(offense) %>% 
   summarise(avg_turnover_yards = -mean(turnover_yards), count = n()) %>% 
   left_join(team_colors, by = c("offense" = "school")) %>% 
@@ -498,3 +526,29 @@ plays.master %>%
   theme(aspect.ratio = 1) +
   annotate(geom = "label", x = 3, y = 14, label = "Turnovers in \nfavorable positions") +
   annotate(geom = "label", x = -50, y = 14, label = "Turnovers in \nunfavorable positions")
+
+# Net Field Position Plot
+field_pos_plot <- field_pos %>% 
+  filter(offense_conference %in% "Big Ten") %>% 
+  group_by(offense) %>% 
+  left_join(team_colors, by = c("offense" = "school")) %>% 
+  ungroup() %>% 
+  mutate(first_rank = rank(desc(net_field_pos), ties.method = "min")) %>% 
+  ggplot(aes(x = net_field_pos, y = first_rank)) +
+  geom_image(aes(image = light), size = .1, by = "width", asp = 1, alpha = 0.8) +
+  theme(aspect.ratio = 1) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = staturdays_colors("orange")) +
+  annotate(geom = "label", x = -7, y = 4, label = "Worse field position \nthan opponents",
+           fill = staturdays_colors("orange"), color = "white") +
+  annotate(geom = "label", x = 7, y = 12, label = "Better field position \nthan opponents",
+           fill = staturdays_colors("orange"), color = "white") +
+  labs(title = "Net Field Positions",
+       subtitle = "Negative is bad",
+       x = "Net Field Position",
+       y = "Rank") +
+  staturdays_theme
+
+ggsave(filename = paste0("field_pos_plot", "_", str_replace_all(now(), ":", "."), ".png"),
+       path = "C:/Users/Kyle/Documents/Kyle/Staturdays/R Plots",
+       plot = field_pos_plot,
+       dpi = 300, width = 200, height = 200, units = "mm")
