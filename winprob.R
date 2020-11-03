@@ -294,3 +294,12 @@ res <- cbind(x.train.copy, x.train.leftover)
 x <- res %>% filter(year==2019, week==14, home=="Nebraska", away=="Iowa") %>% 
   ggplot(aes(x=-clock_in_seconds, y=winprob)) +geom_line() + #rollmean(winprob, 5, na.pad = TRUE))
   ylim(0,1)
+
+# Plot predicted vs. actual
+res %>% 
+  mutate(win_prob_bucket = round(winprob, digits = 2)) %>% 
+  group_by(win_prob_bucket) %>% 
+  summarise(mean_actual = mean(home_outcome)) %>% 
+  ggplot(aes(x = win_prob_bucket, y = mean_actual)) +
+  geom_point() +
+  geom_abline()
