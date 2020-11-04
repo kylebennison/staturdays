@@ -417,6 +417,9 @@ explosive_rate <- plays.master %>%
 }
 # Plots -------------------------------------------------------------------
 
+conf_name <- "Big Ten"
+down_num <- 1
+
 # Team Success Rate Plot
 plays.master_succ %>% 
   filter(offense == "Penn State") %>% 
@@ -426,9 +429,6 @@ plays.master_succ %>%
   geom_col(aes(x = down, y = succ_rate)) +
   geom_hline(yintercept = plays.master_succ$avg_succ_rate, linetype = "dashed", color = staturdays_colors("orange")) +
   geom_label(aes(x = down, y = succ_rate, label = paste0("Plays: ", count)))
-
-conf_name <- "Big Ten"
-down_num <- 1
 
 # All Teams Offense Success Rate Plot
 team_succ_rate %>% 
