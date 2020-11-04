@@ -4,6 +4,7 @@ library(lubridate)
 library(jsonlite)
 library(RCurl)
 library(tidyverse)
+library(gt)
 options(scipen=999)
 
 #Staturdays Colors
