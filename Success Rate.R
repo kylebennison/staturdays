@@ -208,7 +208,7 @@ for (j in 2020:2020) {
 #   mutate(start_yardline = if_else(offense.x != home, 100 - start_yardline, as.double(start_yardline)), end_yardline = if_else(offense.x != home, 100 - end_yardline, as.double(end_yardline)))
 
 ## Mutate Plays with First Downs (Smart), Pass/Rush, Success
-plays.master2 <- plays.master %>% 
+plays.master_temp <- plays.master %>% 
   mutate(play_specifics = play_type) %>% 
   mutate(first_down = 
            case_when(
@@ -225,6 +225,9 @@ plays.master2 <- plays.master %>%
              TRUE ~ NA
            )
   )
+
+plays.master <- plays.master_temp
+rm(plays.master_temp)
 # Calculate loss of yards on turnovers
 plays.master_temp <- plays.master %>% 
   mutate(turnover_yards = case_when(play_type %in% scrimmage_plays_turnover ~ 70L - lead(yards_to_goal, order_by = id), #subtract starting field position of next drive from avg. starting field position to find how many yards that turnover cost you
@@ -248,10 +251,10 @@ plays.master %>% mutate(lead_start_yards_to_goal =
   summarise(avg_yds_to_goal = mean(lead_start_yards_to_goal), count = n()) # 54.5 avg, so a turnover is worth -15.5 yds. vs. avg.
 
 # Classify the multiple play types into a simpler just rush or pass
-plays.master2$pass_rush[plays.master2$play_type %in% scrimmage_plays_pass] <- "Pass"
-plays.master2$pass_rush[plays.master2$play_type %in% scrimmage_plays_rush] <- "Rush"
+plays.master$pass_rush[plays.master$play_type %in% scrimmage_plays_pass] <- "Pass"
+plays.master$pass_rush[plays.master$play_type %in% scrimmage_plays_rush] <- "Rush"
 # Rush Fumble Rows
-rush_rows <- plays.master2 %>% 
+rush_rows <- plays.master %>% 
   filter(play_specifics %in% c("Fumble Recovery (Own)", 
                                "Fumble Recovery (Opponent)", 
                                "Fumble Return Touchdown", 
@@ -261,15 +264,15 @@ rush_rows <- plays.master2 %>%
          & !str_detect(play_text, "punt")) %>% 
   mutate(pass_rush = "Rush")
 # Pass Fumble Rows
-pass_rows <- plays.master2 %>% 
+pass_rows <- plays.master %>% 
   filter(play_specifics %in% c("Fumble Recovery (Own)", "Fumble Recovery (Opponent)"), str_detect(play_text, "pass") | str_detect(play_text, "sack")) %>% 
   mutate(pass_rush = "Pass")
 # Change fumbles to a pass or rush
-plays.master2[which(plays.master2$id %in% rush_rows$id), "pass_rush"] <- "Rush"
-plays.master2[which(plays.master2$id %in% pass_rows$id), "pass_rush"] <- "Pass"
+plays.master[which(plays.master$id %in% rush_rows$id), "pass_rush"] <- "Rush"
+plays.master[which(plays.master$id %in% pass_rows$id), "pass_rush"] <- "Pass"
 
 #Add Success Column
-plays.master2 <- plays.master2 %>% 
+plays.master_temp <- plays.master %>% 
   mutate(success = 
            case_when(
              play_type %in% scrimmage_plays_turnover ~ 0,
@@ -282,8 +285,8 @@ plays.master2 <- plays.master2 %>%
              TRUE ~ 0
            )
   )
-plays.master <- plays.master2
-rm(plays.master2)
+plays.master <- plays.master_temp
+rm(plays.master_temp)
 ##
 
 ## Add Line Yards Stat
@@ -442,7 +445,7 @@ team_succ_rate %>%
   scale_x_reverse() +
   scale_fill_identity() +
   geom_label(aes(label = off_play_count), nudge_y = -.25, size = 3, fill = "white") +
-  labs(title = paste0(conf_name," Success Rate on Down ", down_num),
+  labs(title = paste0(conf_name," Success Rate through \nWeek 2"),
        subtitle = "Percent of plays successful and # of Plays",
        caption = "@staturdays | @kylebeni012 - Data: @cfb_data",
        x = "Ranking",
@@ -450,7 +453,7 @@ team_succ_rate %>%
   staturdays_theme +
   scale_y_continuous(labels = percent, limits = c(0, 1))
 
-ggsave(filename = paste0("success", "_", str_replace_all(now(), ":", "."), ".png"),
+ggsave(filename = paste0(conf_name, "_success", "_", str_replace_all(now(), ":", "."), ".png"),
        path = "C:/Users/Kyle/Documents/Kyle/Staturdays/R Plots",
        dpi = 300, width = 200, height = 200, units = "mm")
 
@@ -469,7 +472,7 @@ team_succ_rate %>%
   scale_x_reverse(breaks = c(1,5,10,14)) +
   scale_fill_identity() +
   geom_label(aes(label = def_play_count), nudge_y = -.25, size = 3, fill = "white") +
-  labs(title = paste0(conf_name," Defense Success Rate on Down ", down_num),
+  labs(title = paste0(conf_name," Defense Success Rate through \nWeek 2"),
        subtitle = "Percent of plays successful and # of Plays\nLower is better",
        caption = "@staturdays | @kylebeni012 - Data: @cfb_data",
        x = "Ranking",
@@ -477,7 +480,7 @@ team_succ_rate %>%
   staturdays_theme +
   scale_y_continuous(labels = percent, limits = c(0, 1))
 
-ggsave(filename = paste0("def_success", "_", str_replace_all(now(), ":", "."), ".png"),
+ggsave(filename = paste0(conf_name, "_def_success", "_", str_replace_all(now(), ":", "."), ".png"),
        path = "C:/Users/Kyle/Documents/Kyle/Staturdays/R Plots",
        dpi = 300, width = 200, height = 200, units = "mm")
 
@@ -492,17 +495,17 @@ pass_down_success %>%
 explosive_plot <- explosive_rate %>% 
   pivot_wider(names_from = pass_rush, values_from = c(explosive_rate, count)) %>% 
   left_join(team_colors, by = c("offense" = "school")) %>% 
-  filter(conference %in% "Big Ten") %>% 
+  filter(conference %in% conf_name) %>% 
   ggplot(aes(x = explosive_rate_Pass, y = explosive_rate_Rush)) +
   geom_image(aes(image = light), size = .1, by = "width", asp = 1, alpha = 0.8) +
   theme(aspect.ratio = 1) +
-  scale_x_continuous(labels = percent, limits = ) +
-  scale_y_continuous(labels = percent) +
+  scale_x_continuous(labels = percent, limits = c(0, .2)) +
+  scale_y_continuous(labels = percent, limits = c(0, .2)) +
   geom_abline(linetype = "dashed", color = staturdays_colors("orange")) +
   annotate(geom = "label", x = .02, y = .18, label = "Explosive \nRushing", 
-           fill = staturdays_colors("orange"), color = "white") +
-  annotate(geom = "label", x = .14, y = .03, label = "Explosive \nPassing", 
-           fill = staturdays_colors("orange"), color = "white") +
+           fill = staturdays_colors("orange"), color = "white", alpha = .75) +
+  annotate(geom = "label", x = .16, y = .02, label = "Explosive \nPassing", 
+           fill = staturdays_colors("orange"), color = "white", alpha = .75) +
   labs(title = "Explosiveness on Offense",
        subtitle = "Percent of explosive runs and passes,\ndefined as 90th percentile plays",
        caption = "@staturdays | @kylebeni012 - Data: @cfb_data",
@@ -510,26 +513,43 @@ explosive_plot <- explosive_rate %>%
        y = paste0("Explosive Rush Rate (>= ", explosive_rush," yds)")) +
   staturdays_theme
 
-ggsave(filename = paste0("explosive_plot", "_", str_replace_all(now(), ":", "."), ".png"),
+ggsave(filename = paste0(conf_name, "_explosive_plot", "_", str_replace_all(now(), ":", "."), ".png"),
        path = "C:/Users/Kyle/Documents/Kyle/Staturdays/R Plots",
        plot = explosive_plot,
        dpi = 300, width = 200, height = 200, units = "mm")
 
 # Turnover Yards Plot
-plays.master %>% 
-  filter(play_type %in% scrimmage_plays_turnover, offense_conference %in% "Big Ten") %>% 
+turnover_yards <- plays.master %>% 
+  filter(play_type %in% scrimmage_plays_turnover, offense_conference %in% conf_name) %>% 
   group_by(offense) %>% 
   summarise(avg_turnover_yards = -mean(turnover_yards), count = n()) %>% 
   left_join(team_colors, by = c("offense" = "school")) %>% 
   ggplot(aes(x = avg_turnover_yards, y = count)) +
   geom_image(aes(image = light), size = .1, by = "width", asp = 1, alpha = 0.8) +
   theme(aspect.ratio = 1) +
-  annotate(geom = "label", x = 3, y = 14, label = "Turnovers in \nfavorable positions") +
-  annotate(geom = "label", x = -50, y = 14, label = "Turnovers in \nunfavorable positions")
+  scale_x_continuous() +
+  scale_y_continuous(limits = c(0, 15)) +
+  annotate(geom = "label", x = -10, y = 14, label = "Turnovers in \nfavorable positions",
+           fill = staturdays_colors("orange"), color = "white", alpha = 0.75) +
+  annotate(geom = "label", x = -40, y = 14, label = "Turnovers in \nunfavorable positions",
+           fill = staturdays_colors("orange"), color = "white", alpha = 0.75) +
+  annotate(geom = "label", x = -25, y = 10, label = "Average starting field position is at \nown 30. A turnover that puts opponent at \ntheir own 40 would be -10 Turnover Yds.",
+           fill = staturdays_colors("light_blue"), color = "white", alpha = 0.75, size = 3) +  
+  staturdays_theme +
+  labs(title = paste0(conf_name, " Average Turnover Yards"),
+       subtitle = "Free yards given up to opponents\non turnovers",
+       caption = "@staturdays | @kylebeni012 - Data: @cfb_data",
+       x = "Average Net Yards on Turnovers",
+       y = "# of Turnovers")
+
+ggsave(filename = paste0(conf_name, "_turnover_yards", "_", str_replace_all(now(), ":", "."), ".png"),
+       path = "C:/Users/Kyle/Documents/Kyle/Staturdays/R Plots",
+       plot = turnover_yards,
+       dpi = 300, width = 200, height = 200, units = "mm")
 
 # Net Field Position Plot
 field_pos_plot <- field_pos %>% 
-  filter(offense_conference %in% "Big Ten") %>% 
+  filter(offense_conference %in% conf_name) %>% 
   group_by(offense) %>% 
   left_join(team_colors, by = c("offense" = "school")) %>% 
   ungroup() %>% 
@@ -542,13 +562,13 @@ field_pos_plot <- field_pos %>%
            fill = staturdays_colors("orange"), color = "white") +
   annotate(geom = "label", x = 7, y = 12, label = "Better field position \nthan opponents",
            fill = staturdays_colors("orange"), color = "white") +
-  labs(title = "Net Field Positions",
+  labs(title = paste0(conf_name, " Net Field Positions"),
        subtitle = "Negative is bad",
        x = "Net Field Position",
        y = "Rank") +
   staturdays_theme
 
-ggsave(filename = paste0("field_pos_plot", "_", str_replace_all(now(), ":", "."), ".png"),
+ggsave(filename = paste0(conf_name, "_field_pos_plot", "_", str_replace_all(now(), ":", "."), ".png"),
        path = "C:/Users/Kyle/Documents/Kyle/Staturdays/R Plots",
        plot = field_pos_plot,
        dpi = 300, width = 200, height = 200, units = "mm")
