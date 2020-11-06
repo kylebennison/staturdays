@@ -43,9 +43,11 @@ staturdays_theme <- theme(plot.caption = element_text(size = 12, hjust = 1, colo
                           axis.text = element_text(color = staturdays_colors("lightest_blue"), size = 14),
                           axis.title = element_text(color = staturdays_colors("lighter_blue"), size = 16, face = "bold"),
                           legend.title = element_text(color = staturdays_colors("lighter_blue"), size = 16, face = "bold"),
-                          legend.text = element_text(color = staturdays_colors("lightest_blue"), size = 14)#,
-                          #panel.background = element_blank(),
-                          #panel.grid = element_line(color = staturdays_colors("lightest_blue"))
+                          legend.text = element_text(color = staturdays_colors("lightest_blue"), size = 14),
+                          panel.background = element_blank(),
+                          panel.grid = element_line(color = "#d6d6d6"),
+                          panel.grid.minor = element_blank(),
+                          axis.ticks = element_line(color = "#d6d6d6")
 )
 
 # Logo
