@@ -10,6 +10,8 @@ library(stringr)
 library(gt)
 library(lubridate)
 library(ggimage)
+library(grid)
+library(png)
 
 #Staturdays Colors
 
@@ -45,6 +47,9 @@ staturdays_theme <- theme(plot.caption = element_text(size = 12, hjust = 1, colo
                           #panel.background = element_blank(),
                           #panel.grid = element_line(color = staturdays_colors("lightest_blue"))
 )
+
+# Logo
+logo <- grid::rasterGrob(png::readPNG("C:/Users/Kyle/Documents/Kyle/Staturdays/Logo Final/4thdownmarkerlogo.png"), interpolate = T)
 
 # Power 5 List
 
@@ -514,12 +519,15 @@ explosive_plot <- explosive_rate %>%
        caption = "@staturdays | @kylebeni012 - Data: @cfb_data",
        x = paste0("Explosive Pass Rate (>= ", explosive_pass," yds)"),
        y = paste0("Explosive Rush Rate (>= ", explosive_rush," yds)")) +
-  staturdays_theme
+  staturdays_theme +
+  annotation_custom(logo, xmin = .2, xmax = .28, ymin = -.05, ymax = 0.02) +
+  coord_cartesian(clip = "off") +
+  theme(plot.margin = unit(c(1,1.5,1,1), "lines"))
 
 ggsave(filename = paste0(conf_name, "_explosive_plot", "_", str_replace_all(now(), ":", "."), ".png"),
        path = "C:/Users/Kyle/Documents/Kyle/Staturdays/R Plots",
        plot = explosive_plot,
-       dpi = 300, width = 200, height = 200, units = "mm")
+       dpi = 300, width = 250, height = 200, units = "mm")
 
 # Turnover Yards Plot
 turnover_yards <- plays.master %>% 
