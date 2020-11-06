@@ -424,7 +424,7 @@ explosive_rate <- plays.master %>%
 }
 # Plots -------------------------------------------------------------------
 
-conf_name <- "Big Ten"
+conf_name <- "Pac-12"
 down_num <- 1
 
 # Team Success Rate Plot
@@ -449,16 +449,16 @@ team_succ_rate %>%
   geom_image(aes(image = light), size = .1, by = "width", asp = 1, nudge_y = .01) +
   theme(aspect.ratio = 1) +
   facet_wrap(vars(down)) +
-  scale_x_reverse() +
+  scale_x_reverse(breaks = seq(1:16)) +
   scale_fill_identity() +
   geom_label(aes(label = off_play_count), nudge_y = -.25, size = 3, fill = "white") +
-  labs(title = paste0(conf_name," Success Rate through \nWeek 2"),
+  labs(title = paste0(conf_name," Success Rate - ", max(plays.master$year)),
        subtitle = "Percent of plays successful and # of Plays",
        caption = "@staturdays | @kylebeni012 - Data: @cfb_data",
        x = "Ranking",
        y = "Success Rate") +
   staturdays_theme +
-  scale_y_continuous(labels = percent, limits = c(0, 1)) +
+  scale_y_continuous(labels = percent, limits = c(0, 1))
   
 
 ggsave(filename = paste0(conf_name, "_success", "_", str_replace_all(now(), ":", "."), ".png"),
@@ -477,10 +477,10 @@ team_succ_rate %>%
   geom_image(aes(image = light), size = .1, by = "width", asp = 1, nudge_y = .01) +
   theme(aspect.ratio = 1) +
   facet_wrap(vars(down)) +
-  scale_x_reverse(breaks = c(1,5,10,14)) +
+  scale_x_reverse(breaks = seq(1:12)) +
   scale_fill_identity() +
   geom_label(aes(label = def_play_count), nudge_y = -.25, size = 3, fill = "white") +
-  labs(title = paste0(conf_name," Defense Success Rate through \nWeek 2"),
+  labs(title = paste0(conf_name," Defense Success Rate\n", max(plays.master$year)),
        subtitle = "Percent of plays successful and # of Plays\nLower is better",
        caption = "@staturdays | @kylebeni012 - Data: @cfb_data",
        x = "Ranking",
@@ -507,12 +507,12 @@ explosive_plot <- explosive_rate %>%
   ggplot(aes(x = explosive_rate_Pass, y = explosive_rate_Rush)) +
   geom_image(aes(image = light), size = .1, by = "width", asp = 1, alpha = 0.8) +
   theme(aspect.ratio = 1) +
-  scale_x_continuous(labels = percent, limits = c(0, .2)) +
-  scale_y_continuous(labels = percent, limits = c(0, .2)) +
+  scale_x_continuous(labels = percent, limits = c(.05, .17)) +
+  scale_y_continuous(labels = percent, limits = c(.05, .17)) +
   geom_abline(linetype = "dashed", color = staturdays_colors("orange")) +
-  annotate(geom = "label", x = .02, y = .18, label = "Explosive \nRushing", 
+  annotate(geom = "label", x = .06, y = .16, label = "Explosive \nRushing", 
            fill = staturdays_colors("orange"), color = "white", alpha = .75) +
-  annotate(geom = "label", x = .16, y = .02, label = "Explosive \nPassing", 
+  annotate(geom = "label", x = .15, y = .06, label = "Explosive \nPassing", 
            fill = staturdays_colors("orange"), color = "white", alpha = .75) +
   labs(title = "Explosiveness on Offense",
        subtitle = "Percent of explosive runs and passes,\ndefined as 90th percentile plays",
@@ -520,7 +520,7 @@ explosive_plot <- explosive_rate %>%
        x = paste0("Explosive Pass Rate (>= ", explosive_pass," yds)"),
        y = paste0("Explosive Rush Rate (>= ", explosive_rush," yds)")) +
   staturdays_theme +
-  annotation_custom(logo, xmin = .2, xmax = .28, ymin = -.05, ymax = 0.02) +
+  annotation_custom(logo, xmin = .16, xmax = .24, ymin = .02, ymax = 0.07) +
   coord_cartesian(clip = "off") +
   theme(plot.margin = unit(c(1,1.5,1,1), "lines"))
 
@@ -539,24 +539,27 @@ turnover_yards <- plays.master %>%
   geom_image(aes(image = light), size = .1, by = "width", asp = 1, alpha = 0.8) +
   theme(aspect.ratio = 1) +
   scale_x_continuous() +
-  scale_y_continuous(limits = c(0, 15)) +
-  annotate(geom = "label", x = -10, y = 14, label = "Turnovers in \nfavorable positions",
+  scale_y_continuous() +
+  annotate(geom = "label", x = 0, y = 22, label = "Turnovers in \nfavorable positions",
            fill = staturdays_colors("orange"), color = "white", alpha = 0.75) +
-  annotate(geom = "label", x = -40, y = 14, label = "Turnovers in \nunfavorable positions",
+  annotate(geom = "label", x = -25, y = 22, label = "Turnovers in \nunfavorable positions",
            fill = staturdays_colors("orange"), color = "white", alpha = 0.75) +
-  annotate(geom = "label", x = -25, y = 10, label = "Average starting field position is at \nown 30. A turnover that puts opponent at \ntheir own 40 would be -10 Turnover Yds.",
+  annotate(geom = "label", x = 0, y = 17, label = "Average starting field position is at \nown 30. A turnover that puts opponent at \ntheir own 40 would be -10 Turnover Yds.",
            fill = staturdays_colors("light_blue"), color = "white", alpha = 0.75, size = 3) +  
   staturdays_theme +
   labs(title = paste0(conf_name, " Average Turnover Yards"),
        subtitle = "Free yards given up to opponents\non turnovers",
        caption = "@staturdays | @kylebeni012 - Data: @cfb_data",
        x = "Average Net Yards on Turnovers",
-       y = "# of Turnovers")
+       y = "# of Turnovers") +
+  annotation_custom(logo, xmin = 1, xmax = 10, ymin = 2, ymax = 7) +
+  coord_cartesian(clip = "off") +
+  theme(plot.margin = unit(c(1,1.5,1,1), "lines"))
 
 ggsave(filename = paste0(conf_name, "_turnover_yards", "_", str_replace_all(now(), ":", "."), ".png"),
        path = "C:/Users/Kyle/Documents/Kyle/Staturdays/R Plots",
        plot = turnover_yards,
-       dpi = 300, width = 200, height = 200, units = "mm")
+       dpi = 300, width = 250, height = 200, units = "mm")
 
 # Net Field Position Plot
 field_pos_plot <- field_pos %>% 
@@ -569,17 +572,20 @@ field_pos_plot <- field_pos %>%
   geom_image(aes(image = light), size = .1, by = "width", asp = 1, alpha = 0.8) +
   theme(aspect.ratio = 1) +
   geom_vline(xintercept = 0, linetype = "dashed", color = staturdays_colors("orange")) +
-  annotate(geom = "label", x = -7, y = 4, label = "Worse field position \nthan opponents",
+  annotate(geom = "label", x = -4, y = 3, label = "Worse field position \nthan opponents",
            fill = staturdays_colors("orange"), color = "white") +
-  annotate(geom = "label", x = 7, y = 12, label = "Better field position \nthan opponents",
+  annotate(geom = "label", x = 5, y = 11, label = "Better field position \nthan opponents",
            fill = staturdays_colors("orange"), color = "white") +
   labs(title = paste0(conf_name, " Net Field Positions"),
        subtitle = "Negative is bad",
        x = "Net Field Position",
        y = "Rank") +
-  staturdays_theme
+  staturdays_theme +
+  annotation_custom(logo, xmin = 7.5, xmax = 11.5, ymin = -1.5, ymax = 2.5) +
+  coord_cartesian(clip = "off") +
+  theme(plot.margin = unit(c(1,1.5,1,1), "lines"))
 
 ggsave(filename = paste0(conf_name, "_field_pos_plot", "_", str_replace_all(now(), ":", "."), ".png"),
        path = "C:/Users/Kyle/Documents/Kyle/Staturdays/R Plots",
        plot = field_pos_plot,
-       dpi = 300, width = 200, height = 200, units = "mm")
+       dpi = 300, width = 250, height = 200, units = "mm")
