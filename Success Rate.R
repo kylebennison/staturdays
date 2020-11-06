@@ -37,11 +37,13 @@ staturdays_colors <- function(...) {
 
 staturdays_theme <- theme(plot.caption = element_text(size = 12, hjust = 1, color = staturdays_colors("orange")), 
                           plot.title = element_text(color = staturdays_colors("dark_blue"), size = 30, face = "bold"),
-                          plot.subtitle = element_text(color = staturdays_colors("lightest_blue"), size = 20),
-                          axis.text = element_text(color = staturdays_colors("lightest_blue"), size = 15),
-                          axis.title = element_text(color = staturdays_colors("lightest_blue"), size = 15),
-                          legend.title = element_text(color = staturdays_colors("lightest_blue"), size = 15),
-                          legend.text = element_text(color = staturdays_colors("lightest_blue"), size = 15)
+                          plot.subtitle = element_text(color = staturdays_colors("light_blue"), size = 20),
+                          axis.text = element_text(color = staturdays_colors("lightest_blue"), size = 14),
+                          axis.title = element_text(color = staturdays_colors("lighter_blue"), size = 16, face = "bold"),
+                          legend.title = element_text(color = staturdays_colors("lighter_blue"), size = 16, face = "bold"),
+                          legend.text = element_text(color = staturdays_colors("lightest_blue"), size = 14)#,
+                          #panel.background = element_blank(),
+                          #panel.grid = element_line(color = staturdays_colors("lightest_blue"))
 )
 
 # Power 5 List
@@ -451,7 +453,8 @@ team_succ_rate %>%
        x = "Ranking",
        y = "Success Rate") +
   staturdays_theme +
-  scale_y_continuous(labels = percent, limits = c(0, 1))
+  scale_y_continuous(labels = percent, limits = c(0, 1)) +
+  
 
 ggsave(filename = paste0(conf_name, "_success", "_", str_replace_all(now(), ":", "."), ".png"),
        path = "C:/Users/Kyle/Documents/Kyle/Staturdays/R Plots",
