@@ -410,7 +410,7 @@ ui <- navbarPage(title = "Staturdays | CFB Stats and Analysis",
                               numericInput(inputId = "startweek", label = "Start Week", value = 1, min = 1, max = max(plays.master$week), step = 1),
                               numericInput(inputId = "endweek", label = "End Week", value = max(plays.master$week), min = 1, max = max(plays.master$week), step = 1)
                             ),
-                            mainPanel(plotOutput(outputId = "success_rate_off", width = "100%", height = "500px"),
+                            mainPanel(plotOutput(outputId = "success_rate_off", width = "100%", height = "1000px"),
                                       plotOutput(outputId = "success_rate_def"),
                                       plotOutput(outputId = "explosiveness"),
                                       tags$p("A shiny app by ",
@@ -458,7 +458,7 @@ server <- function(input, output) {
       geom_col(position = "dodge") +
       geom_image(aes(image = light), size = .1, by = "width", asp = 2, nudge_y = .01) +
       theme(aspect.ratio = 1/2) +
-      facet_wrap(vars(down)) +
+      facet_wrap(vars(down), nrow = 4) +
       scale_x_reverse(breaks = seq(1:max(succ_rate_off()$rank))) +
       scale_fill_identity() +
       geom_label(aes(label = off_play_count), nudge_y = -.25, size = 3, fill = "white") +
