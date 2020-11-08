@@ -406,13 +406,20 @@ ui <- navbarPage(title = "Staturdays | CFB Stats and Analysis",
                           sidebarLayout(
                             sidebarPanel(
                               selectizeInput(inputId = "conference", label = "Choose which conferences to plot", 
-                                             choices = unique(plays.master$offense_conference)),
+                                             choices = unique(plays.master$offense_conference),
+                                             selected = "Big Ten"),
                               numericInput(inputId = "startweek", label = "Start Week", value = 1, min = 1, max = max(plays.master$week), step = 1),
                               numericInput(inputId = "endweek", label = "End Week", value = max(plays.master$week), min = 1, max = max(plays.master$week), step = 1)
                             ),
-                            mainPanel(plotOutput(outputId = "success_rate_off", width = "100%", height = "1000px"),
-                                      plotOutput(outputId = "success_rate_def", width = "100%", height = "1000px"),
-                                      plotOutput(outputId = "explosiveness"),
+                            mainPanel(fluidRow(
+                              column(
+                                h1("Offense"), plotOutput(outputId = "success_rate_off", width = "100%", height = "1000px"), width = 6
+                              ),
+                              column(
+                                h1("Defense"), plotOutput(outputId = "success_rate_def", width = "100%", height = "1000px"), width = 6
+                              )
+                              ),
+                              plotOutput(outputId = "explosiveness"),
                                       tags$p("A shiny app by ",
                                              tags$a("Kyle Bennison", href="https://www.linkedin.com/in/kylebennison", target="_blank"), 
                                              " - ", 
