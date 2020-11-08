@@ -411,7 +411,7 @@ ui <- navbarPage(title = "Staturdays | CFB Stats and Analysis",
                               numericInput(inputId = "endweek", label = "End Week", value = max(plays.master$week), min = 1, max = max(plays.master$week), step = 1)
                             ),
                             mainPanel(plotOutput(outputId = "success_rate_off", width = "100%", height = "1000px"),
-                                      plotOutput(outputId = "success_rate_def"),
+                                      plotOutput(outputId = "success_rate_def", width = "100%", height = "1000px"),
                                       plotOutput(outputId = "explosiveness"),
                                       tags$p("A shiny app by ",
                                              tags$a("Kyle Bennison", href="https://www.linkedin.com/in/kylebennison", target="_blank"), 
@@ -443,14 +443,17 @@ server <- function(input, output) {
   }
   )
   # Defense
-  re_succ_rate_def <- reactive({
-    succ_rate_def <- plays.master %>% 
-    filter(down != 0, defense_conference %in% input$conference, week >= input$startweek, week <= input$endweek) %>% 
-    group_by(defense, down) %>% 
-    summarise(succ_rate = mean(success), def_play_count = n())
+  succ_rate_def <- reactive({
+    plays.master %>% 
+      filter(down != 0, defense_conference %in% input$conference, week >= input$startweek, week <= input$endweek) %>% 
+      group_by(defense, down) %>% 
+      summarise(succ_rate = mean(success), def_play_count = n()) %>% 
+      group_by(down) %>% 
+      mutate(rank = rank(succ_rate, ties.method = "min")) %>% 
+      left_join(team_colors, by = c("defense" = "school"))
   }
   )
-  # Success Rate Plot
+  # Success Rate Plot - OFF
   output$success_rate_off <- renderPlot({
     succ_rate_off() %>% 
       group_by(offense) %>% 
@@ -470,6 +473,28 @@ server <- function(input, output) {
       staturdays_theme +
       scale_y_continuous(labels = percent)
       
+  })
+  
+  # Success Rate Plot - DEF
+  output$success_rate_def <- renderPlot({
+    succ_rate_def() %>% 
+      group_by(defense) %>% 
+      ggplot(aes(x = rank, y = succ_rate, fill = color)) +
+      geom_col(position = "dodge") +
+      geom_image(aes(image = light), size = .1, by = "width", asp = 2, nudge_y = .01) +
+      theme(aspect.ratio = 1/2) +
+      facet_wrap(vars(down), nrow = 4) +
+      scale_x_reverse(breaks = seq(1:max(succ_rate_def()$rank))) +
+      scale_fill_identity() +
+      geom_label(aes(label = def_play_count), nudge_y = -.25, size = 3, fill = "white") +
+      labs(title = paste0(input$conference," Success Rate - ", max(plays.master$year)),
+           subtitle = "Percent of plays successful and # of Plays",
+           caption = "@staturdays | @kylebeni012 - Data: @cfb_data",
+           x = "Ranking",
+           y = "Success Rate") +
+      staturdays_theme +
+      scale_y_continuous(labels = percent)
+    
   })
   
 }
