@@ -12,6 +12,8 @@ library(lubridate)
 library(ggimage)
 library(grid)
 library(png)
+library(bit64)
+  
 
 #Staturdays Colors
 
@@ -138,9 +140,23 @@ base_url_plays <- "https://api.collegefootballdata.com/plays?" # Base URL to wor
 base_url_games <- "https://api.collegefootballdata.com/games?" # Base URL for games data
 base_url_drives <- "https://api.collegefootballdata.com/drives?" # Base URL for drives data
 
+# Read in existing 2020 plays data
+plays.historic <- fread("https://raw.githubusercontent.com/kylebennison/staturdays/master/2020_plays_ytd.csv")
+
+# Make ids characters
+plays.master.temp <- plays.historic %>% 
+  mutate(id = as.character(id, game_id, drive_id))
+
+plays.historic <- plays.master.temp
+rm(plays.master.temp)
+
+# Get max week from data to see what to check for from the cfbdata API
+max_week <- plays.historic %>% pull(week) %>% max()
+start_week <- max_week + 1
+
 plays.master = data.frame()
 for (j in 2020:2020) {
-  for (i in 1:15) {
+  for (i in start_week:15) {
     cat('Loading Plays', j, 'Week', i, '\n')
     full_url_plays <- paste0(base_url_plays, "seasonType=both&", "year=", as.character(j), "&","week=", as.character(i)) # Concatenating year and week
     full_url_plays_encoded <- URLencode(full_url_plays) # If there are spaces in query, formats them correctly
@@ -163,7 +179,7 @@ rm(clockcolumns, plays)
 
 games.master = data.frame()
 for (j in 2020:2020) {
-  for (i in 1:15) {
+  for (i in start_week:15) {
     cat('Loading Games', j, 'Week', i, '\n')
     full_url_games <- paste0(base_url_games, "year=", as.character(j), "&week=", as.character(i), "&seasonType=both")
     full_url_games_encoded <- URLencode(full_url_games)
@@ -195,26 +211,7 @@ for (j in 2020:2020) {
   drives.master = rbind(drives.master, drives)
 }
 
-# # Join Plays with Games to get additional info
-# games.temp <- games.master
-# games.temp <- mutate(games.temp, id = as.character(id))
-# plays.temp <- plays.master
-# plays.temp <- mutate(plays.temp, playid = id, id = substr(playid, 1, 9))
-# plays_games_joined.master <- left_join(plays.master, games.temp, by = 'id') # Get regular or post season from games data
-# games.temp <- data.frame()
-
-# # Join Plays with Drives to Get Start Yardline
-# drives.temp <- drives.master
-# drives.temp <- mutate(drives.temp, id = as.character(id))
-# plays.temp <- plays.master
-# plays.temp <- mutate(plays.temp, playid = id, driveid = substr(playid, 1, 10))
-# plays_drives.master <- left_join(plays.temp, drives.temp, by = c("drive_id" = "id"))
-# drives.temp <- data.frame()
-# plays.temp <- data.frame()
-
-# Adjust yards_gained and start_yardline stats
-# plays_drives.master <- plays_drives.master %>% 
-#   mutate(start_yardline = if_else(offense.x != home, 100 - start_yardline, as.double(start_yardline)), end_yardline = if_else(offense.x != home, 100 - end_yardline, as.double(end_yardline)))
+if(is_empty(plays.master) == F){
 
 ## Mutate Plays with First Downs (Smart), Pass/Rush, Success
 plays.master_temp <- plays.master %>% 
@@ -331,7 +328,7 @@ rm(plays.master.temp)
 ##
 
 # Plays by percentile to help guide defining explosive
-percentile_explosiveness <- plays.master %>% group_by(pass_rush) %>% 
+percentile_explosiveness <- plays.historic %>% group_by(pass_rush) %>% 
   summarise(avg_yds = mean(yards_gained), 
             stand_dev = sd(yards_gained), 
             percentile = quantile(yards_gained, .90))
@@ -364,7 +361,27 @@ plays.master.temp <- plays.master %>%
 plays.master <- plays.master.temp
 rm(plays.master.temp)
 
+# Read in expected success rates
+success_expected <- readRDS(file = "C:/Users/Kyle/Documents/Kyle/Staturdays/Data/success_expected.rds")
 
+# Join to plays
+plays.master_temp <- plays.master %>% 
+  left_join(success_expected, by = c("down", "distance")) %>% 
+  select(-count)
+
+plays.master <- plays.master_temp
+rm(plays.master_temp)
+}
+# Initial write of 2020 plays to csv
+# fwrite(plays.master, file = "C:/Users/Kyle/Documents/Kyle/Staturdays/Staturdays Github/Github/staturdays/2020_plays_ytd.csv", append = FALSE, col.names = TRUE)
+
+# Write update from current week to github
+if(is_empty(plays.master) == F){
+fwrite(plays.master, file = "C:/Users/Kyle/Documents/Kyle/Staturdays/Staturdays Github/Github/staturdays/2020_plays_ytd.csv", append = TRUE, col.names = FALSE)
+}
+
+# Join historic and new plays locally for the rest of the code
+plays.master <- rbind(plays.historic, plays.master)
 # Summary Stats -----------------------------------------------------------
 team_colors <- fromJSON(getURL("https://api.collegefootballdata.com/teams/fbs?year=2020"))
 
