@@ -1,17 +1,17 @@
 ### Load necessary packages ###
 library(shiny)
+library(plotly)
 library(tidyverse)
 library(lubridate)
 library(scales)
 library(DT)
+#library(rjson)
 library(jsonlite)
-library(plotly)
 library(htmlwidgets)
 library(gt)
 library(data.table)
 library(RCurl)
 library(XML)
-library(rjson)
 library(stringr)
 library(ggimage)
 library(grid)
@@ -30,6 +30,15 @@ rm(plays.master.temp)
 
 # Get max week from data to see what to check for from the cfbdata API
 max_week <- plays.historic %>% pull(week) %>% max()
+
+# Plays by percentile to help guide defining explosive
+percentile_explosiveness <- plays.historic %>% group_by(pass_rush) %>% 
+  summarise(avg_yds = mean(yards_gained), 
+            stand_dev = sd(yards_gained), 
+            percentile = quantile(yards_gained, .90))
+
+explosive_pass <- as.numeric(percentile_explosiveness %>% filter(pass_rush == "Pass") %>% pull(percentile))
+explosive_rush <- as.numeric(percentile_explosiveness %>% filter(pass_rush == "Rush") %>% pull(percentile))
 
 
 # Required Themes and Data ------------------------------------------------
@@ -346,15 +355,6 @@ plays.master <- plays.master.temp
 rm(plays.master.temp)
 ##
 
-# Plays by percentile to help guide defining explosive
-percentile_explosiveness <- plays.historic %>% group_by(pass_rush) %>% 
-  summarise(avg_yds = mean(yards_gained), 
-            stand_dev = sd(yards_gained), 
-            percentile = quantile(yards_gained, .90))
-
-explosive_pass <- as.numeric(percentile_explosiveness %>% filter(pass_rush == "Pass") %>% pull(percentile))
-explosive_rush <- as.numeric(percentile_explosiveness %>% filter(pass_rush == "Rush") %>% pull(percentile))
-
 # Passing vs. Standard Downs, Explosive Plays
 plays.master.temp <- plays.master %>% 
   mutate(passing_down = case_when(down == 2 & distance >= 7 ~ 1,
@@ -460,6 +460,19 @@ server <- function(input, output) {
       left_join(team_colors, by = c("defense" = "school"))
   }
   )
+  
+  # Explosiveness
+  explosiveness <- reactive({
+    plays.master %>% 
+      filter(!play_specifics %in% no_action_plays, is.na(pass_rush) == F) %>% 
+      filter(!play_specifics %in% c("Punt", "Blocked Punt", "Blocked Punt Touchdown")) %>% 
+      filter(offense_conference %in% input$conference) %>% 
+      group_by(offense, offense_conference) %>% 
+      mutate(team_explosive_rate = mean(explosive)) %>% 
+      group_by(offense, offense_conference, pass_rush) %>% 
+      summarise(explosive_rate = mean(explosive), team_explosive_rate = mean(team_explosive_rate), count = n())
+  })
+  
   # Success Rate Plot - OFF
   output$success_rate_off <- renderPlot({
     succ_rate_off() %>% 
@@ -472,8 +485,8 @@ server <- function(input, output) {
       scale_x_reverse(breaks = seq(1:max(succ_rate_off()$rank))) +
       scale_fill_identity() +
       geom_label(aes(label = off_play_count), nudge_y = -.25, size = 3, fill = "white") +
-      labs(title = paste0(input$conference," Success Rate - ", max(plays.master$year)),
-           subtitle = "Percent of plays successful and # of Plays",
+      labs(title = paste0(input$conference," \nSuccess Rate - ", max(plays.master$year)),
+           subtitle = "Percent of plays successful \nand # of Plays",
            caption = "@staturdays | @kylebeni012 - Data: @cfb_data",
            x = "Ranking",
            y = "Success Rate") +
@@ -494,14 +507,39 @@ server <- function(input, output) {
       scale_x_reverse(breaks = seq(1:max(succ_rate_def()$rank))) +
       scale_fill_identity() +
       geom_label(aes(label = def_play_count), nudge_y = -.25, size = 3, fill = "white") +
-      labs(title = paste0(input$conference," Success Rate - ", max(plays.master$year)),
-           subtitle = "Percent of plays successful and # of Plays",
+      labs(title = paste0(input$conference," \nSuccess Rate - ", max(plays.master$year)),
+           subtitle = "Percent of plays successful \nand # of Plays",
            caption = "@staturdays | @kylebeni012 - Data: @cfb_data",
            x = "Ranking",
            y = "Success Rate") +
       staturdays_theme +
       scale_y_continuous(labels = percent)
     
+  })
+  
+  output$explosiveness <- renderPlot({
+    explosiveness() %>% 
+      pivot_wider(names_from = pass_rush, values_from = c(explosive_rate, count)) %>% 
+      left_join(team_colors, by = c("offense" = "school")) %>% 
+      ggplot(aes(x = explosive_rate_Pass, y = explosive_rate_Rush)) +
+      geom_image(aes(image = light), size = .1, by = "width", asp = 1.5, alpha = 0.8) +
+      theme(aspect.ratio = 1/1.5) +
+      scale_x_continuous(labels = percent, limits = c(0, max(explosiveness()$explosive_rate))) +
+      scale_y_continuous(labels = percent, limits = c(0, max(explosiveness()$explosive_rate))) +
+      geom_abline(linetype = "dashed", color = staturdays_colors("orange")) +
+      annotate(geom = "label", x = max(explosiveness()$explosive_rate) * (1/6), y = max(explosiveness()$explosive_rate) * (5/6), label = "Explosive \nRushing", 
+               fill = staturdays_colors("orange"), color = "white", alpha = .75) +
+      annotate(geom = "label", x = max(explosiveness()$explosive_rate) * (5/6), y = max(explosiveness()$explosive_rate) * (1/6), label = "Explosive \nPassing", 
+               fill = staturdays_colors("orange"), color = "white", alpha = .75) +
+      labs(title = "Explosiveness on \nOffense",
+           subtitle = "Percent of explosive \nruns and passes,\ndefined as 90th percentile plays",
+           caption = "@staturdays | @kylebeni012 - Data: @cfb_data",
+           x = paste0("Explosive Pass Rate (>= ", explosive_pass," yds)"),
+           y = paste0("Explosive Rush Rate (>= ", explosive_rush," yds)")) +
+      staturdays_theme +
+      #annotation_custom(logo, xmin = .16, xmax = .24, ymin = .02, ymax = 0.07) +
+      coord_cartesian(clip = "off") +
+      theme(plot.margin = unit(c(1,1,1,1), "lines"))
   })
   
 }
