@@ -397,6 +397,36 @@ plays.master <- plays.master.temp
 rm(plays.master.temp)
 rm(plays.historic)
 
+
+# Calculate Summary Tables ------------------------------------------------
+succ_rate_off <- plays.master %>% 
+  filter(down != 0) %>% 
+  group_by(offense, offense_conference, down) %>% 
+  summarise(succ_rate = mean(success), off_play_count = n()) %>% 
+  left_join(team_colors, by = c("offense" = "school"))
+
+succ_rate_def <- plays.master %>% 
+  filter(down != 0) %>% 
+  group_by(defense, defense_conference, down) %>% 
+  summarise(succ_rate = mean(success), def_play_count = n()) %>% 
+  left_join(team_colors, by = c("defense" = "school"))
+
+# Explosiveness
+explosive_summary <- plays.master %>% 
+  filter(!play_specifics %in% no_action_plays, is.na(pass_rush) == F) %>% 
+  filter(!play_specifics %in% c("Punt", "Blocked Punt", "Blocked Punt Touchdown")) %>% 
+  group_by(offense) %>% 
+  mutate(team_explosive_rate = mean(explosive)) %>% 
+  group_by(offense, offense_conference, pass_rush) %>% 
+  summarise(explosive_rate = mean(explosive), team_explosive_rate = mean(team_explosive_rate), count = n())
+
+# Turnover Yards
+turnover_yds <- plays.master %>% 
+  filter(play_type %in% scrimmage_plays_turnover) %>% 
+  group_by(offense) %>% 
+  summarise(avg_turnover_yards = -mean(turnover_yards), offense_conference, count = n()) %>% 
+  left_join(team_colors, by = c("offense" = "school"))
+
 # Starting Field Position
 off_field_pos <- drives.master %>% 
   group_by(offense, offense_conference) %>% 
@@ -405,6 +435,12 @@ off_field_pos <- drives.master %>%
 def_field_pos <- drives.master %>% 
   group_by(defense, defense_conference) %>% 
   summarise(avg_start_field_pos = mean(start_yards_to_goal))
+
+field_pos <- left_join(off_field_pos, def_field_pos, by = c("offense" = "defense"), suffix = c("_off", "_def")) %>% 
+  mutate(net_field_pos = avg_start_field_pos_def - avg_start_field_pos_off) %>% 
+  group_by(offense) %>% 
+  left_join(team_colors, by = c("offense" = "school")) %>% 
+  ungroup()
 
 # UI ----------------------------------------------------------------------
 
@@ -434,7 +470,9 @@ ui <- navbarPage(title = "Staturdays | CFB Stats and Analysis",
                                              " - ", 
                                              tags$a("@kylebeni012", href="https://www.twitter.com/kylebeni012", target="_blank")),
                                       tags$p("Data - ", 
-                                             tags$a("@CFB_Data" , href="https://www.collegefootballdata.com", target="_blank"))
+                                             tags$a("@CFB_Data" , href="https://www.collegefootballdata.com", target="_blank")),
+                                      tags$p("For more college football stats and analytics visit ", 
+                                            tags$a("Staturdays.com" , href="https://www.staturdays.com", target="_blank")),
                                       )
                           )
                           )
@@ -448,56 +486,38 @@ server <- function(input, output) {
   
   ## Success Rate
   # Offense
-  succ_rate_off <- reactive({
-  plays.master %>% 
-    filter(down != 0, offense_conference %in% input$conference, week >= input$startweek, week <= input$endweek) %>% 
-    group_by(offense, down) %>% 
-    summarise(succ_rate = mean(success), off_play_count = n()) %>% 
-    group_by(down) %>% 
-    mutate(rank = rank(desc(succ_rate), ties.method = "min")) %>% 
-    left_join(team_colors, by = c("offense" = "school"))
+  success_rate_offense <- reactive({
+    succ_rate_off %>% 
+      filter(offense_conference %in% input$conference) %>% 
+      group_by(down) %>% 
+      mutate(rank = rank(desc(succ_rate), ties.method = "min"))
   }
   )
   # Defense
-  succ_rate_def <- reactive({
-    plays.master %>% 
-      filter(down != 0, defense_conference %in% input$conference, week >= input$startweek, week <= input$endweek) %>% 
-      group_by(defense, down) %>% 
-      summarise(succ_rate = mean(success), def_play_count = n()) %>% 
+  success_rate_defense <- reactive({
+    succ_rate_def %>% 
+      filter(defense_conference %in% input$conference) %>% 
       group_by(down) %>% 
-      mutate(rank = rank(succ_rate, ties.method = "min")) %>% 
-      left_join(team_colors, by = c("defense" = "school"))
+      mutate(rank = rank(succ_rate, ties.method = "min"))
   }
   )
   
   # Explosiveness
   explosiveness <- reactive({
-    plays.master %>% 
-      filter(!play_specifics %in% no_action_plays, is.na(pass_rush) == F) %>% 
-      filter(!play_specifics %in% c("Punt", "Blocked Punt", "Blocked Punt Touchdown")) %>% 
-      filter(offense_conference %in% input$conference) %>% 
-      group_by(offense, offense_conference) %>% 
-      mutate(team_explosive_rate = mean(explosive)) %>% 
-      group_by(offense, offense_conference, pass_rush) %>% 
-      summarise(explosive_rate = mean(explosive), team_explosive_rate = mean(team_explosive_rate), count = n())
+    explosive_summary %>% 
+      filter(offense_conference %in% input$conference)
   })
   
   # Turnover Yards
-  turnover_yards <- reactive({plays.master %>% 
-    filter(play_type %in% scrimmage_plays_turnover, offense_conference %in% input$conference) %>% 
-    group_by(offense) %>% 
-    summarise(avg_turnover_yards = -mean(turnover_yards), count = n()) %>% 
-    left_join(team_colors, by = c("offense" = "school"))
+  turnover_yards <- reactive({
+    turnover_yds %>% 
+      filter(offense_conference %in% input$conference)
   })
   
   # Field Position
   field_position <- reactive({
-    left_join(off_field_pos, def_field_pos, by = c("offense" = "defense"), suffix = c("_off", "_def")) %>% 
-      mutate(net_field_pos = avg_start_field_pos_def - avg_start_field_pos_off) %>% 
+    field_pos %>% 
       filter(offense_conference %in% input$conference) %>% 
-      group_by(offense) %>% 
-      left_join(team_colors, by = c("offense" = "school")) %>% 
-      ungroup() %>% 
       mutate(first_rank = rank(desc(net_field_pos), ties.method = "min"))
   })
 
@@ -505,14 +525,14 @@ server <- function(input, output) {
   
   # Success Rate Plot - OFF
   output$success_rate_off <- renderPlot({
-    succ_rate_off() %>% 
+    success_rate_offense() %>% 
       group_by(offense) %>% 
       ggplot(aes(x = rank, y = succ_rate, fill = color)) +
       geom_col(position = "dodge") +
       geom_image(aes(image = light), size = .1, by = "width", asp = 2, nudge_y = .01) +
       theme(aspect.ratio = 1/2) +
       facet_wrap(vars(down), nrow = 4) +
-      scale_x_reverse(breaks = seq(1:max(succ_rate_off()$rank))) +
+      scale_x_reverse(breaks = seq(1:max(success_rate_offense()$rank))) +
       scale_fill_identity() +
       geom_label(aes(label = off_play_count), nudge_y = -.25, size = 3, fill = "white") +
       labs(title = paste0(input$conference," \nSuccess Rate - ", max(plays.master$year)),
@@ -527,14 +547,14 @@ server <- function(input, output) {
   
   # Success Rate Plot - DEF
   output$success_rate_def <- renderPlot({
-    succ_rate_def() %>% 
+    success_rate_defense() %>% 
       group_by(defense) %>% 
       ggplot(aes(x = rank, y = succ_rate, fill = color)) +
       geom_col(position = "dodge") +
       geom_image(aes(image = light), size = .1, by = "width", asp = 2, nudge_y = .01) +
       theme(aspect.ratio = 1/2) +
       facet_wrap(vars(down), nrow = 4) +
-      scale_x_reverse(breaks = seq(1:max(succ_rate_def()$rank))) +
+      scale_x_reverse(breaks = seq(1:max(success_rate_defense()$rank))) +
       scale_fill_identity() +
       geom_label(aes(label = def_play_count), nudge_y = -.25, size = 3, fill = "white") +
       labs(title = paste0(input$conference," \nSuccess Rate - ", max(plays.master$year)),
