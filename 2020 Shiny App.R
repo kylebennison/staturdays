@@ -397,7 +397,14 @@ plays.master <- plays.master.temp
 rm(plays.master.temp)
 rm(plays.historic)
 
+# Starting Field Position
+off_field_pos <- drives.master %>% 
+  group_by(offense, offense_conference) %>% 
+  summarise(avg_start_field_pos = mean(start_yards_to_goal))
 
+def_field_pos <- drives.master %>% 
+  group_by(defense, defense_conference) %>% 
+  summarise(avg_start_field_pos = mean(start_yards_to_goal))
 
 # UI ----------------------------------------------------------------------
 
@@ -481,6 +488,17 @@ server <- function(input, output) {
     group_by(offense) %>% 
     summarise(avg_turnover_yards = -mean(turnover_yards), count = n()) %>% 
     left_join(team_colors, by = c("offense" = "school"))
+  })
+  
+  # Field Position
+  field_position <- reactive({
+    left_join(off_field_pos, def_field_pos, by = c("offense" = "defense"), suffix = c("_off", "_def")) %>% 
+      mutate(net_field_pos = avg_start_field_pos_def - avg_start_field_pos_off) %>% 
+      filter(offense_conference %in% input$conference) %>% 
+      group_by(offense) %>% 
+      left_join(team_colors, by = c("offense" = "school")) %>% 
+      ungroup() %>% 
+      mutate(first_rank = rank(desc(net_field_pos), ties.method = "min"))
   })
 
 # Plots -------------------------------------------------------------------
@@ -579,6 +597,24 @@ server <- function(input, output) {
   })
   
   # Field Position
+  output$field_position <- renderPlot({
+    field_position() %>% 
+      ggplot(aes(x = net_field_pos, y = first_rank)) +
+      geom_image(aes(image = light), size = .1, by = "width", asp = 1.5, alpha = 0.8) +
+      theme(aspect.ratio = 1/1.5) +
+      geom_vline(xintercept = 0, linetype = "dashed", color = staturdays_colors("orange")) +
+      annotate(geom = "label", x = min(field_position()$net_field_pos)*.8, y = 3, label = "Worse field position \nthan opponents",
+               fill = staturdays_colors("orange"), color = "white") +
+      annotate(geom = "label", x = max(field_position()$net_field_pos)*.8, y = max(field_position()$first_rank)*.8, label = "Better field position \nthan opponents",
+               fill = staturdays_colors("orange"), color = "white") +
+      labs(title = paste0(input$conference, " \nNet Field Positions"),
+           subtitle = "Negative is bad",
+           x = "Net Field Position",
+           y = "Rank") +
+      staturdays_theme +
+      coord_cartesian(clip = "off") +
+      theme(plot.margin = unit(c(1,1,1,1), "lines"))
+  })
 }
 
 # Run App -----------------------------------------------------------------
