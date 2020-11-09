@@ -420,6 +420,8 @@ ui <- navbarPage(title = "Staturdays | CFB Stats and Analysis",
                               )
                               ),
                               plotOutput(outputId = "explosiveness"),
+                              plotOutput(outputId = "turnover_yards"),
+                              plotOutput(outputId = "field_position"),
                                       tags$p("A shiny app by ",
                                              tags$a("Kyle Bennison", href="https://www.linkedin.com/in/kylebennison", target="_blank"), 
                                              " - ", 
@@ -472,6 +474,16 @@ server <- function(input, output) {
       group_by(offense, offense_conference, pass_rush) %>% 
       summarise(explosive_rate = mean(explosive), team_explosive_rate = mean(team_explosive_rate), count = n())
   })
+  
+  # Turnover Yards
+  turnover_yards <- reactive({plays.master %>% 
+    filter(play_type %in% scrimmage_plays_turnover, offense_conference %in% input$conference) %>% 
+    group_by(offense) %>% 
+    summarise(avg_turnover_yards = -mean(turnover_yards), count = n()) %>% 
+    left_join(team_colors, by = c("offense" = "school"))
+  })
+
+# Plots -------------------------------------------------------------------
   
   # Success Rate Plot - OFF
   output$success_rate_off <- renderPlot({
@@ -542,6 +554,31 @@ server <- function(input, output) {
       theme(plot.margin = unit(c(1,1,1,1), "lines"))
   })
   
+  # Turnover Yards
+  output$turnover_yards <- renderPlot({
+    turnover_yards() %>% 
+      ggplot(aes(x = avg_turnover_yards, y = count)) +
+      geom_image(aes(image = light), size = .1, by = "width", asp = 1.5, alpha = 0.8) +
+      theme(aspect.ratio = 1/1.5) +
+      scale_x_continuous() +
+      scale_y_continuous() +
+      annotate(geom = "label", x = max(turnover_yards()$avg_turnover_yards)*.8, y = max(turnover_yards()$count)*1.25, label = "Turnovers in \nfavorable positions",
+               fill = staturdays_colors("orange"), color = "white", alpha = 0.75) +
+      annotate(geom = "label", x = min(turnover_yards()$avg_turnover_yards)*.8, y = max(turnover_yards()$count)*1.25, label = "Turnovers in \nunfavorable positions",
+               fill = staturdays_colors("orange"), color = "white", alpha = 0.75) +
+      annotate(geom = "label", x = mean(turnover_yards()$avg_turnover_yards), y = max(turnover_yards()$count)*1.5, label = "Average starting field position is at \nown 30. A turnover that puts opponent at \ntheir own 40 would be -10 Turnover Yds.",
+               fill = staturdays_colors("light_blue"), color = "white", alpha = 0.75, size = 3) +  
+      staturdays_theme +
+      labs(title = paste0(input$conference, " Average \nTurnover Yards"),
+           subtitle = "Free yards given up \nto opponents on turnovers",
+           caption = "@staturdays | @kylebeni012 - Data: @cfb_data",
+           x = "Average Net Yards on Turnovers",
+           y = "# of Turnovers") +
+      coord_cartesian(clip = "off") +
+      theme(plot.margin = unit(c(1,1,1,1), "lines"))
+  })
+  
+  # Field Position
 }
 
 # Run App -----------------------------------------------------------------
