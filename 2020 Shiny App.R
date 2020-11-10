@@ -17,6 +17,7 @@ library(ggimage)
 library(grid)
 library(png)
 library(bit64)
+library(reactable)
 
 # Read in existing data for 2020 from Github
 plays.historic <- fread("https://raw.githubusercontent.com/kylebennison/staturdays/master/2020_plays_ytd.csv")
@@ -442,6 +443,24 @@ field_pos <- left_join(off_field_pos, def_field_pos, by = c("offense" = "defense
   left_join(team_colors, by = c("offense" = "school")) %>% 
   ungroup()
 
+# Pass and Rush Rates by Passing Down over Average
+pass_rate_vs_avg_by_down <- plays.master %>% group_by(passing_down) %>% 
+  filter(play_type %in% scrimmage_plays_all) %>% 
+  mutate(cfb_pass_rate = mean(pass_rush == "Pass")) %>% 
+  group_by(offense, offense_conference, passing_down) %>% 
+  summarise(pass_rate = mean(pass_rush == "Pass"), cfb_pass_rate = mean(cfb_pass_rate)) %>% 
+  mutate(pass_vs_avg = (pass_rate - cfb_pass_rate)/(cfb_pass_rate)) %>% 
+  pivot_wider(names_from = c("passing_down"), values_from = c("pass_rate", "cfb_pass_rate", "pass_vs_avg")) %>% 
+  select(offense,
+         offense_conference,
+         pass_rate_standard_downs = pass_rate_0,
+         cfb_pass_standard = cfb_pass_rate_0,
+         pass_vs_avg_standard = pass_vs_avg_0,
+         pass_rate_passing_downs = pass_rate_1,
+         cfb_pass_passing = cfb_pass_rate_1,
+         pass_vs_avg_passing = pass_vs_avg_1
+         )
+
 # UI ----------------------------------------------------------------------
 
 ui <- navbarPage(title = "Staturdays | CFB Stats and Analysis",
@@ -475,7 +494,9 @@ ui <- navbarPage(title = "Staturdays | CFB Stats and Analysis",
                                             tags$a("Staturdays.com" , href="https://www.staturdays.com", target="_blank")),
                                       )
                           )
-                          )
+                          ),
+                 tabPanel(title = "Competitive Tendencies",
+                          reactableOutput(outputId = "pass_rate"))
 )
 
 # Server ------------------------------------------------------------------
@@ -635,6 +656,30 @@ server <- function(input, output) {
       coord_cartesian(clip = "off") +
       theme(plot.margin = unit(c(1,1,1,1), "lines"))
   })
+  
+
+# Competitive Tendencies Tab ----------------------------------------------
+
+  # Pass Rate
+  output$pass_rate <- renderReactable({
+    reactable(pass_rate_vs_avg_by_down, 
+              columnGroups = list(
+                colGroup(name = "Standard Downs", columns = c("pass_rate_standard_downs", "cfb_pass_standard", "pass_vs_avg_standard")),
+                colGroup(name = "Passing Downs", columns = c("pass_rate_passing_downs", "cfb_pass_passing", "pass_vs_avg_passing"))
+              ),
+              columns = list(
+                offense = colDef(name = "Offense"), 
+                offense_conference = colDef(name = "Conference"), 
+                pass_rate_standard_downs = colDef(name = "Pass Rate", format = colFormat(percent = T, digits = 1)), 
+                cfb_pass_standard = colDef(name = "CFB Avg.", format = colFormat(percent = T, digits = 1)), 
+                pass_vs_avg_standard = colDef(name = "Diff. vs. Avg.", format = colFormat(percent = T, digits = 1)), 
+                pass_rate_passing_downs = colDef(name = "Pass Rate", format = colFormat(percent = T, digits = 1)), 
+                cfb_pass_passing = colDef(name = "CFB Avg.", format = colFormat(percent = T, digits = 1)),
+                pass_vs_avg_passing = colDef(name = "Diff vs. Avg.", format = colFormat(percent = T, digits = 1))),
+              searchable = T,
+              pagination = F)
+    })
+  
 }
 
 # Run App -----------------------------------------------------------------
