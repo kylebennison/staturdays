@@ -24,7 +24,7 @@ plays.historic <- fread("https://raw.githubusercontent.com/kylebennison/staturda
 
 # Make ids characters
 plays.master.temp <- plays.historic %>% 
-  mutate(id = as.character(id, game_id, drive_id))
+  mutate(id = as.character(id), game_id = as.character(game_id),drive_id = as.character(drive_id))
 
 plays.historic <- plays.master.temp
 rm(plays.master.temp)
