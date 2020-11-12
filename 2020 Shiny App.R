@@ -676,13 +676,8 @@ server <- function(input, output) {
                 cfb_pass_standard = colDef(name = "CFB Avg.", format = colFormat(percent = T, digits = 1)), 
                 pass_vs_avg_standard = colDef(name = "Diff. vs. Avg.", format = colFormat(percent = T, digits = 1),
                                               style = function(value) {
-                                                if(value > 0){
-                                                  color <- as.character(staturdays_colors("orange"))
-                                                } else if(value < 0){
-                                                  color <- as.character(staturdays_colors("dark_blue"))
-                                                } else {
-                                                  color <- "#000000"
-                                                }
+                                                normalized <- ((value - min(pass_rate_vs_avg_by_down$pass_vs_avg_standard)) / (max(pass_rate_vs_avg_by_down$pass_vs_avg_standard) - min(pass_rate_vs_avg_by_down$pass_vs_avg_standard)))
+                                                color <- staturdays_ramp(normalized)
                                                 list(background = color, color = "white")
                                               }), 
                 pass_rate_passing_downs = colDef(name = "Pass Rate", format = colFormat(percent = T, digits = 1)), 
