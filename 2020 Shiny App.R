@@ -57,7 +57,7 @@ staturdays_col_list <- c(
   white = "#FFFFFF"
 )
 
-staturdays_palette <- c("#041e42", "#22345a", "#394871", "#4c5872", "#5c6272", "#de703b")
+staturdays_palette <- c("#5c6272", "#ffffff", "#de703b")
 
 staturdays_ramp <- function(x) rgb(colorRamp(c(staturdays_palette))(x), maxColorValue = 255)
 
@@ -678,7 +678,7 @@ server <- function(input, output) {
                                               style = function(value) {
                                                 normalized <- ((value - min(pass_rate_vs_avg_by_down$pass_vs_avg_standard)) / (max(pass_rate_vs_avg_by_down$pass_vs_avg_standard) - min(pass_rate_vs_avg_by_down$pass_vs_avg_standard)))
                                                 color <- staturdays_ramp(normalized)
-                                                list(background = color, color = "white")
+                                                list(background = color, color = "black")
                                               }), 
                 pass_rate_passing_downs = colDef(name = "Pass Rate", format = colFormat(percent = T, digits = 1)), 
                 cfb_pass_passing = colDef(name = "CFB Avg.", format = colFormat(percent = T, digits = 1)),
@@ -686,7 +686,7 @@ server <- function(input, output) {
                                              style = function(value) {
                                                normalized <- ((value - min(pass_rate_vs_avg_by_down$pass_vs_avg_passing)) / (max(pass_rate_vs_avg_by_down$pass_vs_avg_passing) - min(pass_rate_vs_avg_by_down$pass_vs_avg_passing)))
                                                color <- staturdays_ramp(normalized)
-                                               list(background = color, color = "white")
+                                               list(background = color, color = "black")
                                              })),
               searchable = T,
               pagination = F,
