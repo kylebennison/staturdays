@@ -463,6 +463,44 @@ pass_rate_vs_avg_by_down <- plays.master %>% group_by(passing_down) %>%
          pass_vs_avg_passing = pass_vs_avg_1
          )
 
+# Yards per attempt on rush and pass
+yards_per_att_off <- plays.master %>% 
+  group_by(offense, pass_rush) %>% 
+  summarise(yards_per_attempt = mean(yards_gained)) %>% 
+  filter(pass_rush != "") %>% 
+  pivot_wider(names_from = "pass_rush", values_from = "yards_per_attempt", names_prefix = "ypa_")
+
+yards_per_att_def <- plays.master %>% 
+  group_by(defense, pass_rush) %>% 
+  summarise(yards_per_attempt = mean(yards_gained)) %>% 
+  filter(pass_rush != "") %>% 
+  pivot_wider(names_from = "pass_rush", values_from = "yards_per_attempt", names_prefix = "ypa_")
+
+yards_per_att_joined <- left_join(yards_per_att_off, yards_per_att_def, by = c("offense" = "defense"), suffix = c("_off", "_def"))
+
+# Pass Rate by Down
+pass_rate_by_down <- plays.master %>% group_by(down) %>% 
+  filter(play_type %in% scrimmage_plays_all) %>% 
+  mutate(cfb_pass_rate = mean(pass_rush == "Pass"), cfb_distance = mean(distance)) %>% 
+  group_by(offense, offense_conference, down) %>% 
+  summarise(pass_rate = mean(pass_rush == "Pass"),
+            avg_distance = mean(distance),
+            cfb_pass_rate = mean(cfb_pass_rate),
+            cfb_distance = mean(cfb_distance)) %>% 
+  mutate(pass_vs_avg = (pass_rate - cfb_pass_rate)/(cfb_pass_rate), 
+         distance_vs_avg = (avg_distance - cfb_distance)/(cfb_distance)) %>% 
+  pivot_wider(names_from = c("down"), values_from = c("pass_rate", "avg_distance", 
+                                                      "cfb_pass_rate", "cfb_distance", 
+                                                      "pass_vs_avg", "distance_vs_avg")) %>% 
+  select(offense,
+         offense_conference,
+         dplyr::contains("_1"),
+         dplyr::contains("_2"),
+         dplyr::contains("_3"),
+         dplyr::contains("_4"),
+         everything()
+  )
+
 # UI ----------------------------------------------------------------------
 
 ui <- navbarPage(title = "Staturdays | CFB Stats and Analysis",
