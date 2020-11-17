@@ -89,8 +89,8 @@ for (j in 2020) {
 }
 
 ## Update this value each week before running script
-week_of_games_just_played <- games.master %>% filter(is.na(home_points) == F & is.na(away_points) == F) %>% group_by(season) %>% slice_max(order_by = start_date, n = 1) %>% pull(week) %>% unique()
-week_of_upcoming_games <- week_of_games_just_played + 1L
+# week_of_games_just_played <- games.master %>% filter(is.na(home_points) == F & is.na(away_points) == F) %>% group_by(season) %>% slice_max(order_by = start_date, n = 1) %>% pull(week) %>% unique()
+# week_of_upcoming_games <- week_of_games_just_played + 1L
 
 #Select variables we want
 cfb_games <- games.master %>% select(id, season, week, season_type, home_team, home_conference, away_team, away_conference, home_points, away_points, start_date) %>% 
@@ -254,6 +254,11 @@ rm(list = c("upcoming.tmp", "upcoming.tmp2", "upcoming.tmp3", "upcoming.tmp4"))
 
 # Rename games table
 cfb_games <- lastweek.games
+
+# Calculate max week in elo so you can update the next week
+week_of_elo_last_updated <- elo_ratings %>% filter(season == max(season)) %>% slice_max(week, order_by = week, n = 1) %>% pull(week) %>% unique()
+week_of_games_just_played <- week_of_elo_last_updated + 1L
+week_of_upcoming_games <- week_of_games_just_played + 1L
 
 ### Start calculation for the week
 current_week <- upcoming.games %>% filter(week == week_of_games_just_played)
