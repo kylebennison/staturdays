@@ -97,6 +97,9 @@ cfb_games <- games.master %>% select(id, season, week, season_type, home_team, h
   mutate(date=ymd_hms(start_date)) %>%
   select(-start_date)
 
+# Get Week 1 epiweek for referencing later weeks
+week_1_epiweek <- cfb_games %>% filter(week == min(week)) %>% slice_min(date) %>% pull(date) %>% unique() %>% epiweek() %>% as.integer()
+
 # Add game outcome for home team
 cfb_games <- cfb_games %>% mutate(game_outcome_home = 
                 case_when(
@@ -106,31 +109,45 @@ cfb_games <- cfb_games %>% mutate(game_outcome_home =
 )
 )
 
-### Adjust postseason games to week 16
+# Figure out what week the first week of postseason play should be
+postseason_start_week <- cfb_games %>% filter(season_type == "regular", week == max(week)) %>% 
+  pull(week) %>% unique() %>% as.integer() + 1L
+
+postseason_start_epiweek <- cfb_games %>% filter(season_type == "postseason") %>% slice_min(date) %>% 
+  pull(date) %>% unique() %>% epiweek() %>% as.integer()
+
+if(is_empty(postseason_start_epiweek) == F){
+### Adjust postseason games to correct week
 cfb_games <- cfb_games %>%
-  mutate(week = if_else(season_type == "postseason", 16L, week))
+  mutate(week = if_else(season_type == "postseason", postseason_start_week + epiweek(date) - postseason_start_epiweek, week)) 
+}
+# The only problem with this solution is there could be some gap weeks if there happens
+# to be more than 1 epiweek between postseason games.if that ends up being the case, 
+# we can re-mutate week as a "rank" of weeks, to ensure no gaps
 
-# list of first playoff games each year, could left join cfb_games with this to create a new column to reference for calculating postseason week
-postseason_start_date <- cfb_games %>% 
-  filter(season_type == "postseason", id != 63847) %>% #filtered out that game since it was inaccurately marked as postseason and throws off the 2013 calculation
-  group_by(season) %>% 
-  slice_min(date) %>% 
-  select(season, date)
-
-temp_join <- left_join(cfb_games, postseason_start_date, by = "season")
-
-temp_join <- unique(temp_join)
-
-temp_join[,c("date.x", "date.y")] <- temp_join[,c("date.x", "date.y")] %>% lapply(as.Date) # Change datetime to just date (before it was counting seconds difference)
-
-temp_join <- temp_join %>% 
-  mutate(week = case_when(
-    season_type == "postseason" ~ 16L + as.integer(floor((date.x - date.y)/7L)),
-    TRUE ~ week)
-  ) # This works now
-
-cfb_games <- temp_join %>% select(-date.y) %>% rename(date = date.x)
-rm(temp_join)
+# The below code is no longer needed if the new week calculating function above works
+# 
+# # list of first playoff games each year, could left join cfb_games with this to create a new column to reference for calculating postseason week
+# postseason_start_date <- cfb_games %>% 
+#   filter(season_type == "postseason", id != 63847) %>% #filtered out that game since it was inaccurately marked as postseason and throws off the 2013 calculation
+#   group_by(season) %>% 
+#   slice_min(date) %>% 
+#   select(season, date)
+# 
+# temp_join <- left_join(cfb_games, postseason_start_date, by = "season")
+# 
+# temp_join <- unique(temp_join)
+# 
+# temp_join[,c("date.x", "date.y")] <- temp_join[,c("date.x", "date.y")] %>% lapply(as.Date) # Change datetime to just date (before it was counting seconds difference)
+# 
+# temp_join <- temp_join %>% 
+#   mutate(week = case_when(
+#     season_type == "postseason" ~ 16L + as.integer(floor((date.x - date.y)/7L)),
+#     TRUE ~ week)
+#   ) # This works now
+# 
+# cfb_games <- temp_join %>% select(-date.y) %>% rename(date = date.x)
+# rm(temp_join)
 
 # Predict Upcoming Week Outcomes ------------------------------------------
 upcoming.games <- tibble(cfb_games)
