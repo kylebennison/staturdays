@@ -509,7 +509,8 @@ ui <- navbarPage(title = "Staturdays | CFB Stats and Analysis",
                             sidebarPanel(
                               selectizeInput(inputId = "conference", label = "Choose which conferences to plot", 
                                              choices = unique(plays.master$offense_conference),
-                                             selected = "Big Ten"),
+                                             selected = "Big Ten",
+                                             multiple = T),
                               numericInput(inputId = "startweek", label = "Start Week", value = 1, min = 1, max = max(plays.master$week), step = 1),
                               numericInput(inputId = "endweek", label = "End Week", value = max(plays.master$week), min = 1, max = max(plays.master$week), step = 1)
                             ),
@@ -549,7 +550,7 @@ server <- function(input, output) {
   # Offense
   success_rate_offense <- reactive({
     succ_rate_off %>% 
-      filter(offense_conference %in% input$conference) %>% 
+      filter(offense_conference %in% c(input$conference)) %>% 
       group_by(down) %>% 
       mutate(rank = rank(desc(succ_rate), ties.method = "min"))
   }
@@ -557,7 +558,7 @@ server <- function(input, output) {
   # Defense
   success_rate_defense <- reactive({
     succ_rate_def %>% 
-      filter(defense_conference %in% input$conference) %>% 
+      filter(defense_conference %in% c(input$conference)) %>% 
       group_by(down) %>% 
       mutate(rank = rank(succ_rate, ties.method = "min"))
   }
@@ -596,7 +597,7 @@ server <- function(input, output) {
       scale_x_reverse(breaks = seq(1:max(success_rate_offense()$rank))) +
       scale_fill_identity() +
       geom_label(aes(label = off_play_count), nudge_y = -.25, size = 3, fill = "white") +
-      labs(title = paste0(input$conference," \nSuccess Rate - ", max(plays.master$year)),
+      labs(title = paste0(c(input$conference)," \nSuccess Rate - ", max(plays.master$year)),
            subtitle = "Percent of plays successful \nand # of Plays",
            caption = "@staturdays | @kylebeni012 - Data: @cfb_data",
            x = "Ranking",
