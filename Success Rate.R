@@ -551,6 +551,30 @@ ggsave(filename = paste0(conf_name, "_def_success", "_", str_replace_all(now(), 
        path = "C:/Users/Kyle/Documents/Kyle/Staturdays/R Plots",
        dpi = 300, width = 200, height = 200, units = "mm")
 
+# All Teams Defense Success Rate Plot - Facet by team
+team_succ_rate %>% 
+  ungroup() %>% 
+  filter(conference == conf_name) %>% 
+  mutate(first_rank = rank((def_succ_rate), ties.method = "min")) %>% 
+  group_by(team) %>% 
+  ggplot(aes(x = down, y = def_succ_rate, fill = color)) +
+  geom_col(position = "dodge") +
+  facet_wrap(vars(team), ncol = 2) +
+  scale_x_discrete(breaks = seq(1:max_rank)) +
+  scale_fill_identity() +
+  geom_text(aes(label = percent(round(def_succ_rate, 2), accuracy = 2)), nudge_y = -.1, size = 3, color = "white") +
+  labs(title = paste0(conf_name," \nDefense Success Rate - ", max(plays.master$year)),
+       subtitle = "Percent of plays successful\nLower is better",
+       caption = "@staturdays | @kylebeni012 - Data: @cfb_data",
+       x = "Down",
+       y = "Success Rate") +
+  staturdays_theme +
+  scale_y_continuous(labels = percent, limits = c(0, 1))
+
+ggsave(filename = paste0(conf_name, "_def_success_by_team", "_", str_replace_all(now(), ":", "."), ".png"),
+       path = "C:/Users/Kyle/Documents/Kyle/Staturdays/R Plots",
+       dpi = 300, width = 200, height = 400, units = "mm")
+
 # Passing Down Success Rate by Play Type Plot
 pass_down_success %>% 
   filter(offense_conference == "ACC", is.na(pass_rush) == F) %>% 
