@@ -13,6 +13,7 @@ library(ggimage)
 library(grid)
 library(png)
 library(bit64)
+library(data.table)
   
 
 #Staturdays Colors
@@ -145,7 +146,7 @@ plays.historic <- fread("https://raw.githubusercontent.com/kylebennison/staturda
 
 # Make ids characters
 plays.master.temp <- plays.historic %>% 
-  mutate(id = as.character(id, game_id, drive_id))
+  mutate(id = as.character(id), game_id = as.character(game_id), drive_id = as.character(drive_id))
 
 plays.historic <- plays.master.temp
 rm(plays.master.temp)
@@ -375,6 +376,12 @@ rm(plays.master_temp)
 # Initial write of 2020 plays to csv
 # fwrite(plays.master, file = "C:/Users/Kyle/Documents/Kyle/Staturdays/Staturdays Github/Github/staturdays/2020_plays_ytd.csv", append = FALSE, col.names = TRUE)
 
+# Convert plays.master ids to characters
+plays.master_temp <- plays.master %>% 
+  mutate(id = as.character(id), game_id = as.character(game_id), drive_id = as.character(drive_id))
+
+plays.master <- plays.master_temp
+rm(plays.master_temp)
 # Write update from current week to github
 if(is_empty(plays.master) == F){
 fwrite(plays.master, file = "C:/Users/Kyle/Documents/Kyle/Staturdays/Staturdays Github/Github/staturdays/2020_plays_ytd.csv", append = TRUE, col.names = FALSE)
@@ -411,7 +418,8 @@ bottom <- plays.master_succ %>%
 team_succ_rate <- left_join(top, bottom, by = c("offense" = "defense", "down")) %>% 
   mutate(net_success = off_succ_rate - def_succ_rate) %>% 
   rename(team = offense) %>% 
-  left_join(team_colors, by = c("team" = "school"))
+  left_join(team_colors, by = c("team" = "school")) %>% 
+  filter(down != 0)
 
 # Starting Field Position
 off_field_pos <- drives.master %>% 
@@ -443,8 +451,41 @@ explosive_rate <- plays.master %>%
 }
 # Plots -------------------------------------------------------------------
 
-conf_name <- "Pac-12"
+conf_name <- "Big Ten"
 down_num <- 1
+max_rank <- {team_succ_rate %>% filter(conference %in% conf_name) %>% 
+    group_by(down) %>% mutate(rank = rank(desc(off_succ_rate))) %>% pull(rank) %>% max()}
+max_expl <- explosive_rate %>% filter(offense_conference %in% conf_name) %>% pull(explosive_rate) %>% max()
+max_turnover_yds <- plays.master %>% 
+  filter(play_type %in% scrimmage_plays_turnover, offense_conference %in% conf_name) %>% 
+  group_by(offense) %>% 
+  summarise(avg_turnover_yards = -mean(turnover_yards), count = n()) %>% 
+  left_join(team_colors, by = c("offense" = "school")) %>% 
+  pull(avg_turnover_yards) %>% max()
+min_turnover_yds <- plays.master %>% 
+  filter(play_type %in% scrimmage_plays_turnover, offense_conference %in% conf_name) %>% 
+  group_by(offense) %>% 
+  summarise(avg_turnover_yards = -mean(turnover_yards), count = n()) %>% 
+  left_join(team_colors, by = c("offense" = "school")) %>% 
+  pull(avg_turnover_yards) %>% min()
+max_turnover_cnt <- plays.master %>% 
+  filter(play_type %in% scrimmage_plays_turnover, offense_conference %in% conf_name) %>% 
+  group_by(offense) %>% 
+  summarise(avg_turnover_yards = -mean(turnover_yards), count = n()) %>% 
+  left_join(team_colors, by = c("offense" = "school")) %>% 
+  pull(count) %>% max()
+min_turnover_cnt <- plays.master %>% 
+  filter(play_type %in% scrimmage_plays_turnover, offense_conference %in% conf_name) %>% 
+  group_by(offense) %>% 
+  summarise(avg_turnover_yards = -mean(turnover_yards), count = n()) %>% 
+  left_join(team_colors, by = c("offense" = "school")) %>% 
+  pull(count) %>% min()
+max_net_field_pos <- field_pos %>% 
+  filter(offense_conference %in% conf_name) %>% 
+  pull(net_field_pos) %>% max()
+min_net_field_pos <- field_pos %>% 
+  filter(offense_conference %in% conf_name) %>% 
+  pull(net_field_pos) %>% min()
 
 # Team Success Rate Plot
 plays.master_succ %>% 
@@ -468,7 +509,7 @@ team_succ_rate %>%
   geom_image(aes(image = light), size = .1, by = "width", asp = 1, nudge_y = .01) +
   theme(aspect.ratio = 1) +
   facet_wrap(vars(down)) +
-  scale_x_reverse(breaks = seq(1:16)) +
+  scale_x_reverse(breaks = seq(1:max_rank)) +
   scale_fill_identity() +
   geom_label(aes(label = off_play_count), nudge_y = -.25, size = 3, fill = "white") +
   labs(title = paste0(conf_name," Success Rate - ", max(plays.master$year)),
@@ -478,7 +519,6 @@ team_succ_rate %>%
        y = "Success Rate") +
   staturdays_theme +
   scale_y_continuous(labels = percent, limits = c(0, 1))
-  
 
 ggsave(filename = paste0(conf_name, "_success", "_", str_replace_all(now(), ":", "."), ".png"),
        path = "C:/Users/Kyle/Documents/Kyle/Staturdays/R Plots",
@@ -496,10 +536,10 @@ team_succ_rate %>%
   geom_image(aes(image = light), size = .1, by = "width", asp = 1, nudge_y = .01) +
   theme(aspect.ratio = 1) +
   facet_wrap(vars(down)) +
-  scale_x_reverse(breaks = seq(1:12)) +
+  scale_x_reverse(breaks = seq(1:max_rank)) +
   scale_fill_identity() +
   geom_label(aes(label = def_play_count), nudge_y = -.25, size = 3, fill = "white") +
-  labs(title = paste0(conf_name," Defense Success Rate\n", max(plays.master$year)),
+  labs(title = paste0(conf_name," \nDefense Success Rate - ", max(plays.master$year)),
        subtitle = "Percent of plays successful and # of Plays\nLower is better",
        caption = "@staturdays | @kylebeni012 - Data: @cfb_data",
        x = "Ranking",
@@ -526,12 +566,12 @@ explosive_plot <- explosive_rate %>%
   ggplot(aes(x = explosive_rate_Pass, y = explosive_rate_Rush)) +
   geom_image(aes(image = light), size = .1, by = "width", asp = 1, alpha = 0.8) +
   theme(aspect.ratio = 1) +
-  scale_x_continuous(labels = percent, limits = c(.05, .17)) +
-  scale_y_continuous(labels = percent, limits = c(.05, .17)) +
+  scale_x_continuous(labels = percent, limits = c(0, max_expl)) +
+  scale_y_continuous(labels = percent, limits = c(0, max_expl)) +
   geom_abline(linetype = "dashed", color = staturdays_colors("orange")) +
-  annotate(geom = "label", x = .06, y = .16, label = "Explosive \nRushing", 
+  annotate(geom = "label", x = 1/6*max_expl, y = 5/6*max_expl, label = "Explosive \nRushing", 
            fill = staturdays_colors("orange"), color = "white", alpha = .75) +
-  annotate(geom = "label", x = .15, y = .06, label = "Explosive \nPassing", 
+  annotate(geom = "label", x = 5/6*max_expl, y = 1/6*max_expl, label = "Explosive \nPassing", 
            fill = staturdays_colors("orange"), color = "white", alpha = .75) +
   labs(title = "Explosiveness on Offense",
        subtitle = "Percent of explosive runs and passes,\ndefined as 90th percentile plays",
@@ -539,7 +579,7 @@ explosive_plot <- explosive_rate %>%
        x = paste0("Explosive Pass Rate (>= ", explosive_pass," yds)"),
        y = paste0("Explosive Rush Rate (>= ", explosive_rush," yds)")) +
   staturdays_theme +
-  annotation_custom(logo, xmin = .16, xmax = .24, ymin = .02, ymax = 0.07) +
+  annotation_custom(logo, xmin = max_expl *.9, xmax = max_expl*1.2, ymin = -.03, ymax = .03) +
   coord_cartesian(clip = "off") +
   theme(plot.margin = unit(c(1,1.5,1,1), "lines"))
 
@@ -559,11 +599,11 @@ turnover_yards <- plays.master %>%
   theme(aspect.ratio = 1) +
   scale_x_continuous() +
   scale_y_continuous() +
-  annotate(geom = "label", x = 0, y = 22, label = "Turnovers in \nfavorable positions",
+  annotate(geom = "label", x = max_turnover_yds*.8, y = max_turnover_cnt*1.25, label = "Turnovers in \nfavorable positions",
            fill = staturdays_colors("orange"), color = "white", alpha = 0.75) +
-  annotate(geom = "label", x = -25, y = 22, label = "Turnovers in \nunfavorable positions",
+  annotate(geom = "label", x = min_turnover_yds*.8, y = max_turnover_cnt*1.25, label = "Turnovers in \nunfavorable positions",
            fill = staturdays_colors("orange"), color = "white", alpha = 0.75) +
-  annotate(geom = "label", x = 0, y = 17, label = "Average starting field position is at \nown 30. A turnover that puts opponent at \ntheir own 40 would be -10 Turnover Yds.",
+  annotate(geom = "label", x = mean(c(max_turnover_yds, min_turnover_yds)), y = max_turnover_cnt*1.5, label = "Average starting field position is at \nown 30. A turnover that puts opponent at \ntheir own 40 would be -10 Turnover Yds.",
            fill = staturdays_colors("light_blue"), color = "white", alpha = 0.75, size = 3) +  
   staturdays_theme +
   labs(title = paste0(conf_name, " Average Turnover Yards"),
@@ -571,7 +611,7 @@ turnover_yards <- plays.master %>%
        caption = "@staturdays | @kylebeni012 - Data: @cfb_data",
        x = "Average Net Yards on Turnovers",
        y = "# of Turnovers") +
-  annotation_custom(logo, xmin = 1, xmax = 10, ymin = 2, ymax = 7) +
+  annotation_custom(logo, xmin = max_turnover_yds, xmax = max_turnover_yds+10, ymin = min_turnover_cnt*.5, ymax = min_turnover_cnt*1.5) +
   coord_cartesian(clip = "off") +
   theme(plot.margin = unit(c(1,1.5,1,1), "lines"))
 
@@ -591,16 +631,16 @@ field_pos_plot <- field_pos %>%
   geom_image(aes(image = light), size = .1, by = "width", asp = 1, alpha = 0.8) +
   theme(aspect.ratio = 1) +
   geom_vline(xintercept = 0, linetype = "dashed", color = staturdays_colors("orange")) +
-  annotate(geom = "label", x = -4, y = 3, label = "Worse field position \nthan opponents",
+  annotate(geom = "label", x = min_net_field_pos*.8, y = 3, label = "Worse field position \nthan opponents",
            fill = staturdays_colors("orange"), color = "white") +
-  annotate(geom = "label", x = 5, y = 11, label = "Better field position \nthan opponents",
+  annotate(geom = "label", x = max_net_field_pos*.8, y = max_rank*.8, label = "Better field position \nthan opponents",
            fill = staturdays_colors("orange"), color = "white") +
   labs(title = paste0(conf_name, " Net Field Positions"),
        subtitle = "Negative is bad",
        x = "Net Field Position",
        y = "Rank") +
   staturdays_theme +
-  annotation_custom(logo, xmin = 7.5, xmax = 11.5, ymin = -1.5, ymax = 2.5) +
+  annotation_custom(logo, xmin = max_net_field_pos+1, xmax = max_net_field_pos + 7, ymin = -1.5, ymax = 2.5) +
   coord_cartesian(clip = "off") +
   theme(plot.margin = unit(c(1,1.5,1,1), "lines"))
 
