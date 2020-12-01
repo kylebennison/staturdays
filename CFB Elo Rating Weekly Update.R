@@ -280,8 +280,8 @@ week_of_upcoming_games <- week_of_games_just_played + 1L
 ### Start calculation for the week
 current_week <- upcoming.games %>% filter(week == week_of_games_just_played)
 
-# only run if it's not preseason, and make sure the results are not calculated twice (game date == last updated date)
-if(week_of_games_just_played > 0 & !any(current_week %>% filter(!(is.na(home_points) & is.na(away_points))) %>% pull(week) == elo_ratings %>% filter(season == max(season)) %>% filter(week == max(week)) %>% pull(week))){ #& (length(current_week$home_points) != length(is.na(current_week$home_points)))){
+# only run if it's not preseason, and make sure the results are not calculated twice (week num of current week where games have been played doesn't equal the max week already in the elo_historic github csv file)
+if(week_of_games_just_played > 0 & !any(current_week %>% filter(!(is.na(home_points) & is.na(away_points))) %>% pull(week) == elo_ratings %>% filter(season == max(season)) %>% filter(week == max(week)) %>% pull(week) %>% unique())){ #& (length(current_week$home_points) != length(is.na(current_week$home_points)))){
 
 #calculate new ratings after game
 current_week <- current_week %>% mutate(new_home_rating = calc_new_elo_rating(home_elo, game_outcome_home, calc_expected_score((home_elo+home_field_advantage), away_elo),k),
@@ -307,6 +307,7 @@ updated_ratings_home <- current_week %>% select(home_team, home_conference, new_
   rename(conference = home_conference) %>% 
   rename(elo_rating = new_home_rating) %>% 
   rename(season = season) %>% 
+  mutate(game_date = as.Date(game_date, format = "%Y-%m-%d")) %>% 
   rename(date = game_date)
 
 #away team elo update
@@ -314,6 +315,8 @@ updated_ratings_away <- current_week %>% select(away_team, away_conference, new_
   rename(team=away_team) %>% 
   rename(conference = away_conference) %>% 
   rename(elo_rating = new_away_rating) %>% 
+  rename(season = season) %>% 
+  mutate(game_date = as.Date(game_date, format = "%Y-%m-%d")) %>% 
   rename(date = game_date)
 
 # Save updated home and away elo ratings for the completed week
