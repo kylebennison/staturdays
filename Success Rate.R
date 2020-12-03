@@ -524,6 +524,30 @@ ggsave(filename = paste0(conf_name, "_success", "_", str_replace_all(now(), ":",
        path = "C:/Users/Kyle/Documents/Kyle/Staturdays/R Plots",
        dpi = 300, width = 200, height = 200, units = "mm")
 
+# All Teams Offense Success Rate Plot - Facet by team
+team_succ_rate %>% 
+  ungroup() %>% 
+  filter(conference == conf_name) %>% 
+  mutate(first_rank = rank((off_succ_rate), ties.method = "min")) %>% 
+  group_by(team) %>% 
+  ggplot(aes(x = down, y = off_succ_rate, fill = color)) +
+  geom_col(position = "dodge") +
+  facet_wrap(vars(team), ncol = 2) +
+  scale_x_discrete(breaks = seq(1:max_rank)) +
+  scale_fill_identity() +
+  geom_text(aes(label = percent(round(off_succ_rate, 2), accuracy = 2)), nudge_y = -.1, size = 3, color = "white") +
+  labs(title = paste0(conf_name," \nOffense Success Rate - ", max(plays.master$year)),
+       subtitle = "Percent of plays successful",
+       caption = "@staturdays | @kylebeni012 - Data: @cfb_data",
+       x = "Down",
+       y = "Success Rate") +
+  staturdays_theme +
+  scale_y_continuous(labels = percent, limits = c(0, 1))
+
+ggsave(filename = paste0(conf_name, "_off_success_by_team", "_", str_replace_all(now(), ":", "."), ".png"),
+       path = "C:/Users/Kyle/Documents/Kyle/Staturdays/R Plots",
+       dpi = 300, width = 200, height = 400, units = "mm")
+
 # All Teams Defense Success Rate Plot
 team_succ_rate %>% 
   ungroup() %>% 
@@ -603,7 +627,7 @@ explosive_plot <- explosive_rate %>%
        x = paste0("Explosive Pass Rate (>= ", explosive_pass," yds)"),
        y = paste0("Explosive Rush Rate (>= ", explosive_rush," yds)")) +
   staturdays_theme +
-  annotation_custom(logo, xmin = max_expl *.9, xmax = max_expl*1.2, ymin = -.03, ymax = .03) +
+  annotation_custom(logo, xmin = max_expl *.95, xmax = max_expl*1.25, ymin = -.03, ymax = .03) +
   coord_cartesian(clip = "off") +
   theme(plot.margin = unit(c(1,1.5,1,1), "lines"))
 
