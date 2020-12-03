@@ -78,7 +78,7 @@ base_url_games <- "https://api.collegefootballdata.com/games?" # Base URL for ga
 
 games.master = data.frame()
 for (j in 2020) {
-  for (i in 1:15) {
+  for (i in 1:20) {
     cat('Loading Games', j, 'Week', i, '\n')
     full_url_games <- paste0(base_url_games, "year=", as.character(j), "&week=", as.character(i), "&seasonType=both")
     full_url_games_encoded <- URLencode(full_url_games)
@@ -171,7 +171,7 @@ if (today()-max(elo_ratings$date) > 90){
            conference = conference,
            week = 0,
            season=j,
-           date=ymd(paste0(j,"-08-15"))) %>% 
+           date=ymd(paste0(lubridate::year(today()),"-08-15"))) %>% 
     select(-conference_class)
   elo_ratings <- elo_ratings %>% 
     bind_rows(preseason_elo)
