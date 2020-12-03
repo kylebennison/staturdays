@@ -212,6 +212,19 @@ for (j in 2020:2020) {
   drives.master = rbind(drives.master, drives)
 }
 
+##
+
+# Plays by percentile to help guide defining explosive
+percentile_explosiveness <- plays.historic %>% group_by(pass_rush) %>% 
+  summarise(avg_yds = mean(yards_gained), 
+            stand_dev = sd(yards_gained), 
+            percentile = quantile(yards_gained, .90))
+
+explosive_pass <- as.numeric(percentile_explosiveness %>% filter(pass_rush == "Pass") %>% pull(percentile))
+explosive_rush <- as.numeric(percentile_explosiveness %>% filter(pass_rush == "Rush") %>% pull(percentile))
+
+
+# If there are new plays from this past week of games, run all the below calculations
 if(is_empty(plays.master) == F){
 
 ## Mutate Plays with First Downs (Smart), Pass/Rush, Success
@@ -326,16 +339,6 @@ plays.master.temp <- plays.master %>%
   )
 plays.master <- plays.master.temp
 rm(plays.master.temp)
-##
-
-# Plays by percentile to help guide defining explosive
-percentile_explosiveness <- plays.historic %>% group_by(pass_rush) %>% 
-  summarise(avg_yds = mean(yards_gained), 
-            stand_dev = sd(yards_gained), 
-            percentile = quantile(yards_gained, .90))
-
-explosive_pass <- as.numeric(percentile_explosiveness %>% filter(pass_rush == "Pass") %>% pull(percentile))
-explosive_rush <- as.numeric(percentile_explosiveness %>% filter(pass_rush == "Rush") %>% pull(percentile))
 
 # Passing vs. Standard Downs, Explosive Plays
 plays.master.temp <- plays.master %>% 
@@ -372,7 +375,7 @@ plays.master_temp <- plays.master %>%
 
 plays.master <- plays.master_temp
 rm(plays.master_temp)
-}
+
 # Initial write of 2020 plays to csv
 # fwrite(plays.master, file = "C:/Users/Kyle/Documents/Kyle/Staturdays/Staturdays Github/Github/staturdays/2020_plays_ytd.csv", append = FALSE, col.names = TRUE)
 
@@ -382,6 +385,7 @@ plays.master_temp <- plays.master %>%
 
 plays.master <- plays.master_temp
 rm(plays.master_temp)
+}
 # Write update from current week to github
 if(is_empty(plays.master) == F){
 fwrite(plays.master, file = "C:/Users/Kyle/Documents/Kyle/Staturdays/Staturdays Github/Github/staturdays/2020_plays_ytd.csv", append = TRUE, col.names = FALSE)
@@ -627,7 +631,7 @@ explosive_plot <- explosive_rate %>%
        x = paste0("Explosive Pass Rate (>= ", explosive_pass," yds)"),
        y = paste0("Explosive Rush Rate (>= ", explosive_rush," yds)")) +
   staturdays_theme +
-  annotation_custom(logo, xmin = max_expl *.95, xmax = max_expl*1.25, ymin = -.03, ymax = .03) +
+  annotation_custom(logo, xmin = max_expl *1.05, xmax = max_expl*1.35, ymin = -.03, ymax = .03) +
   coord_cartesian(clip = "off") +
   theme(plot.margin = unit(c(1,1.5,1,1), "lines"))
 
@@ -688,7 +692,7 @@ field_pos_plot <- field_pos %>%
        x = "Net Field Position",
        y = "Rank") +
   staturdays_theme +
-  annotation_custom(logo, xmin = max_net_field_pos+1, xmax = max_net_field_pos + 7, ymin = -1.5, ymax = 2.5) +
+  annotation_custom(logo, xmin = max_net_field_pos*1.1, xmax = max_net_field_pos*2, ymin = -1.5, ymax = 2.5) +
   coord_cartesian(clip = "off") +
   theme(plot.margin = unit(c(1,1.5,1,1), "lines"))
 
