@@ -177,6 +177,18 @@ if (today()-max(elo_ratings$date) > 90){
     bind_rows(preseason_elo)
   fwrite(preseason_elo, file = "C:/Users/Kyle/Documents/Kyle/Staturdays/Staturdays Github/Github/staturdays/elo_ratings_historic.csv", append = TRUE, col.names = FALSE)
 }
+
+# Filter only games that haven't been rated yet
+elo_max_date <- elo_ratings$date %>% max()
+games_to_rate <- upcoming.games %>% filter(date > elo_max_date+1) %>% filter(is.na(home_points) == F & is.na(away_points) == F)
+game_weeks <- games_to_rate$date %>% as.Date() %>% unique()
+
+for(i_date in 1:length(game_weeks)){
+  message("Game Day ", game_weeks[i_date])
+
+# Reread clean upcoming.games
+upcoming.games <- tibble(cfb_games)
+
 # Get most updated rating for each team
 current_elo_ratings <- elo_ratings %>% group_by(team) %>% slice_max(order_by = date, n = 1)
 
@@ -192,8 +204,14 @@ preseason_elo_ratings <- elo_ratings %>% group_by(team) %>% slice_max(order_by =
 elo_ratings_tmp <- elo_ratings %>% 
   mutate(week = week + 1)
 
+# If there are two games played in one week, take only the most recent rating
+elo_ratings_tmp <- elo_ratings_tmp %>% 
+  filter(season == j) %>% 
+  group_by(team, season, week) %>% 
+  slice_max(order_by = date, n = 1)
+
 # Join cfb games with elo ratings for home and away teams by team name and date of rating/game
-upcoming.games <- left_join(upcoming.games, elo_ratings_tmp, by = c("home_team" = "team", "week", "season")) %>% 
+upcoming.games <- left_join(games_to_rate, elo_ratings_tmp, by = c("home_team" = "team", "week", "season")) %>% 
   rename(home_elo = elo_rating) %>% 
   rename(home_elo_date = date.y) %>% 
   rename(game_date = date.x)
@@ -278,10 +296,10 @@ week_of_games_just_played <- week_of_elo_last_updated + 1L
 week_of_upcoming_games <- week_of_games_just_played + 1L
 
 ### Start calculation for the week
-current_week <- upcoming.games %>% filter(week == week_of_games_just_played)
+current_week <- upcoming.games %>% filter(as.Date(game_date) == game_weeks[i_date])
 
 # only run if it's not preseason, and make sure the results are not calculated twice (week num of current week where games have been played doesn't equal the max week already in the elo_historic github csv file)
-if(week_of_games_just_played > 0 & !any(current_week %>% filter(!(is.na(home_points) & is.na(away_points))) %>% pull(week) == elo_ratings %>% filter(season == max(season)) %>% filter(week == max(week)) %>% pull(week) %>% unique())){ #& (length(current_week$home_points) != length(is.na(current_week$home_points)))){
+if(week_of_games_just_played > 0){# & !any(current_week %>% filter(!(is.na(home_points) & is.na(away_points))) %>% pull(week) == elo_ratings %>% filter(season == max(season)) %>% filter(week == max(week)) %>% pull(week) %>% unique())){ #& (length(current_week$home_points) != length(is.na(current_week$home_points)))){
 
 #calculate new ratings after game
 current_week <- current_week %>% mutate(new_home_rating = calc_new_elo_rating(home_elo, game_outcome_home, calc_expected_score((home_elo+home_field_advantage), away_elo),k),
@@ -331,7 +349,7 @@ elo_ratings <- elo_ratings %>%
 # Write new data to github
 fwrite(elo_ratings_updated, file = "C:/Users/Kyle/Documents/Kyle/Staturdays/Staturdays Github/Github/staturdays/elo_ratings_historic.csv", append = TRUE, col.names = FALSE)
 }
-
+}
 
 # Rebuild upcoming.games with new Elo Ratings before updating all  --------
 {
