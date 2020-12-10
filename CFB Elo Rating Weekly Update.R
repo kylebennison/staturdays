@@ -180,9 +180,10 @@ if (today()-max(elo_ratings$date) > 90){
 
 # Filter only games that haven't been rated yet
 elo_max_date <- elo_ratings$date %>% max()
-games_to_rate <- upcoming.games %>% filter(date > elo_max_date+1) %>% filter(is.na(home_points) == F & is.na(away_points) == F)
+games_to_rate <- upcoming.games %>% filter(date >= elo_max_date+1) %>% filter(is.na(home_points) == F & is.na(away_points) == F)
 game_weeks <- games_to_rate$date %>% as.Date() %>% unique()
 
+if(is_empty(game_weeks) == F){
 for(i_date in 1:length(game_weeks)){
   message("Game Day ", game_weeks[i_date])
 
@@ -350,7 +351,7 @@ elo_ratings <- elo_ratings %>%
 fwrite(elo_ratings_updated, file = "C:/Users/Kyle/Documents/Kyle/Staturdays/Staturdays Github/Github/staturdays/elo_ratings_historic.csv", append = TRUE, col.names = FALSE)
 }
 }
-
+}
 # Rebuild upcoming.games with new Elo Ratings before updating all  --------
 {
 upcoming.games <- tibble(cfb_games)
@@ -377,6 +378,16 @@ preseason_elo_ratings <- elo_ratings %>% group_by(team) %>% slice_max(order_by =
 # Mutate week of elo_ratings for joining purposes
 elo_ratings_tmp <- elo_ratings %>% 
   mutate(week = week + 1)
+
+# If there are two games played in one week, take only the most recent rating
+elo_ratings_tmp <- elo_ratings_tmp %>% 
+  filter(season == j) %>% 
+  group_by(team, season, week) %>% 
+  slice_max(order_by = date, n = 1)
+
+# Calculate max week in elo to tell plots/tables which week to show
+week_of_elo_last_updated <- elo_ratings %>% filter(season == max(season)) %>% slice_max(week, order_by = week, n = 1) %>% pull(week) %>% unique()
+week_of_upcoming_games <- week_of_elo_last_updated + 1L
 
 # Join cfb games with elo ratings for home and away teams by team name and date of rating/game
 upcoming.games <- left_join(upcoming.games, elo_ratings_tmp, by = c("home_team" = "team", "week", "season")) %>% 
@@ -643,18 +654,16 @@ wow_elo_change <- rbind(home_wow_elo_change, away_wow_elo_change) %>%
   select(1:8, home_team, away_team, home_points, away_points, game_outcome_home, home_pred_win_prob, away_pred_win_prob) %>% 
   mutate(home_surprise = game_outcome_home - home_pred_win_prob, away_surprise = (1-game_outcome_home) - away_pred_win_prob)
 
-wow_elo_change %>% arrange(desc(wow_change)) %>% filter(week == week_of_games_just_played) %>% select(-game_date.x, -home_surprise, -away_surprise, -conference, -week, -season, -game_outcome_home) %>% View()
-
 wow_elo_change_top <- wow_elo_change %>% 
   arrange(desc(wow_change)) %>% 
-  filter(week == week_of_games_just_played) %>% 
+  filter(week == week_of_elo_last_updated) %>% 
   select(-date, -home_surprise, -away_surprise, -conference, -game_outcome_home) %>% 
   ungroup() %>% 
   slice_max(order_by = wow_change, n = 10)
 
 wow_elo_change_bottom <- wow_elo_change %>% 
   arrange((wow_change)) %>% 
-  filter(week == week_of_games_just_played) %>% 
+  filter(week == week_of_elo_last_updated) %>% 
   select(-date, -home_surprise, -away_surprise, -conference, -game_outcome_home) %>% 
   ungroup() %>% 
   slice_min(order_by = wow_change, n = 10)
@@ -671,7 +680,7 @@ wow_elo_change_combined <- wow_elo_change_top %>%
 wow_elo_change_tbl <- wow_elo_change_combined %>% 
   select(team, opponent, elo_rating, previous_elo, wow_change, win_prob) %>% 
   gt() %>% 
-  tab_header(title = paste0(as.character(max(upcoming.games$season)), " Week ", as.character(week_of_games_just_played), " Biggest Elo Movers"),
+  tab_header(title = paste0(as.character(max(upcoming.games$season)), " Week ", as.character(week_of_elo_last_updated), " Biggest Elo Movers"),
              subtitle = "Largest changes in Elo") %>% 
   cols_label(team = "Team", elo_rating = "New Elo", previous_elo = "Old Elo", wow_change = "Pct. Change", opponent = "Opponent", win_prob = "Win Probability") %>% 
   fmt_number(vars(elo_rating, previous_elo), decimals = 0, use_seps = FALSE) %>% 
@@ -684,7 +693,7 @@ wow_elo_change_tbl <- wow_elo_change_combined %>%
   tab_source_note("@kylebeni012 | @staturdays — Data: @cfb_data")
 
 gtsave(data = wow_elo_change_tbl, 
-       filename = paste0("wow_elo_change_tbl_", week_of_games_just_played, "_", str_replace_all(now(), ":", "."), ".png"),
+       filename = paste0("wow_elo_change_tbl_", week_of_elo_last_updated, "_", str_replace_all(now(), ":", "."), ".png"),
        path = "C:/Users/Kyle/Documents/Kyle/Staturdays/R Plots")
 
 # Latest Brier for the season
@@ -706,7 +715,7 @@ elo_brier_plot <- upcoming.games %>%
              color = staturdays_colors("white"), fontface = "bold", size = 4, 
              fill = staturdays_colors("orange")) +
   staturdays_theme +
-  labs(title = paste0("Elo Predicted vs. Actual \nThrough Week ", week_of_games_just_played),
+  labs(title = paste0("Elo Predicted vs. Actual \nThrough Week ", week_of_elo_last_updated),
        subtitle = paste0("Brier Score of ", round(brier, 2)),
        caption = "@staturdays | @kylebeni012 - Data: @cfb_data",
        x = "Predicted Win Probability",
