@@ -425,6 +425,20 @@ team_succ_rate <- left_join(top, bottom, by = c("offense" = "defense", "down")) 
   left_join(team_colors, by = c("team" = "school")) %>% 
   filter(down != 0)
 
+# Overall Team Success Rate - not by down
+top <- plays.master_succ %>% 
+  group_by(offense) %>% 
+  summarise(off_succ_rate = mean(success), off_play_count = n())
+
+bottom <- plays.master_succ %>% 
+  group_by(defense) %>% 
+  summarise(def_succ_rate = mean(success), def_play_count = n())
+
+team_succ_rate_ovr <- left_join(top, bottom, by = c("offense" = "defense")) %>% 
+  mutate(net_success = off_succ_rate - def_succ_rate) %>% 
+  rename(team = offense) %>% 
+  left_join(team_colors, by = c("team" = "school"))
+
 # Starting Field Position
 off_field_pos <- drives.master %>% 
   group_by(offense, offense_conference) %>% 
@@ -700,3 +714,57 @@ ggsave(filename = paste0(conf_name, "_field_pos_plot", "_", str_replace_all(now(
        path = "C:/Users/Kyle/Documents/Kyle/Staturdays/R Plots",
        plot = field_pos_plot,
        dpi = 300, width = 250, height = 200, units = "mm")
+
+# Multiple Conference Plots -----------------------------------------------
+
+# All Teams Offense Success Rate Plot
+team_succ_rate_ovr %>% 
+  ungroup() %>% 
+  filter(team %in% c("Notre Dame", "Clemson", "Alabama", "Ohio State", "Texas A&M", "Florida",
+                     "Cincinnati", "Iowa State", "USC", "Oklahoma", "Indiana", "Northwestern")) %>% 
+  mutate(first_rank = rank(desc(off_succ_rate), ties.method = "min")) %>% 
+  group_by(team) %>% 
+  ggplot(aes(x = first_rank, y = off_succ_rate, fill = color)) +
+  geom_col(position = "dodge") +
+  geom_image(aes(image = light), size = .1, by = "width", asp = 1, nudge_y = .01) +
+  theme(aspect.ratio = 1) +
+  scale_x_reverse(breaks = seq(1:max_rank)) +
+  scale_fill_identity() +
+  geom_label(aes(label = off_play_count), nudge_y = -.25, size = 3, fill = "white") +
+  labs(title = paste0("Success Rate - ", max(plays.master$year)),
+       subtitle = "Percent of plays successful and # of Plays",
+       caption = "@staturdays | @kylebeni012 - Data: @cfb_data",
+       x = "Ranking",
+       y = "Success Rate") +
+  staturdays_theme +
+  scale_y_continuous(labels = percent, limits = c(0, 1))
+
+ggsave(filename = paste0("power_5_off_success", "_", str_replace_all(now(), ":", "."), ".png"),
+       path = "C:/Users/Kyle/Documents/Kyle/Staturdays/R Plots",
+       dpi = 300, width = 200, height = 200, units = "mm")
+
+# All Teams Defense Success Rate Plot
+team_succ_rate_ovr %>% 
+  ungroup() %>% 
+  filter(team %in% c("Notre Dame", "Clemson", "Alabama", "Ohio State", "Texas A&M", "Florida",
+                     "Cincinnati", "Iowa State", "USC", "Oklahoma", "Indiana", "Northwestern")) %>% 
+  mutate(first_rank = rank((def_succ_rate), ties.method = "min")) %>% 
+  group_by(team) %>% 
+  ggplot(aes(x = first_rank, y = def_succ_rate, fill = color)) +
+  geom_col(position = "dodge") +
+  geom_image(aes(image = light), size = .1, by = "width", asp = 1, nudge_y = .01) +
+  theme(aspect.ratio = 1) +
+  scale_x_reverse(breaks = seq(1:max_rank)) +
+  scale_fill_identity() +
+  geom_label(aes(label = def_play_count), nudge_y = -.25, size = 3, fill = "white") +
+  labs(title = paste0("Defense Success Rate - ", max(plays.master$year)),
+       subtitle = "Percent of plays successful and # of Plays\nLower is better",
+       caption = "@staturdays | @kylebeni012 - Data: @cfb_data",
+       x = "Ranking",
+       y = "Success Rate") +
+  staturdays_theme +
+  scale_y_continuous(labels = percent, limits = c(0, 1))
+
+ggsave(filename = paste0("power_5_def_success", "_", str_replace_all(now(), ":", "."), ".png"),
+       path = "C:/Users/Kyle/Documents/Kyle/Staturdays/R Plots",
+       dpi = 300, width = 200, height = 200, units = "mm")
