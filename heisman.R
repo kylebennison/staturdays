@@ -15,6 +15,50 @@ library(png)
 library(bit64)
 library(data.table)
 
+# Required Themes and Data ------------------------------------------------
+
+#Staturdays Colors
+
+staturdays_col_list <- c(
+  lightest_blue = "#5c6272",
+  lighter_blue = "#4c5872",
+  light_blue = "#394871",
+  medium_blue = "#22345a",
+  dark_blue = "#041e42",
+  orange = "#de703b",
+  sign = "#1e1e1e",
+  white = "#FFFFFF"
+)
+
+staturdays_palette <- c("#5c6272", "#ffffff", "#de703b")
+
+staturdays_ramp <- function(x) rgb(colorRamp(c(staturdays_palette))(x), maxColorValue = 255)
+
+staturdays_colors <- function(...) {
+  cols <- c(...)
+  
+  if (is.null(cols))
+    return (staturdays_col_list)
+  
+  staturdays_col_list[cols]
+}
+
+staturdays_theme <- theme(plot.caption = element_text(size = 12, hjust = 1, color = staturdays_colors("orange")), 
+                          plot.title = element_text(color = staturdays_colors("dark_blue"), size = 30, face = "bold"),
+                          plot.subtitle = element_text(color = staturdays_colors("light_blue"), size = 20),
+                          axis.text = element_text(color = staturdays_colors("lightest_blue"), size = 14),
+                          axis.title = element_text(color = staturdays_colors("lighter_blue"), size = 16, face = "bold"),
+                          legend.title = element_text(color = staturdays_colors("lighter_blue"), size = 16, face = "bold"),
+                          legend.text = element_text(color = staturdays_colors("lightest_blue"), size = 14),
+                          panel.background = element_blank(),
+                          panel.grid = element_line(color = "#d6d6d6"),
+                          panel.grid.minor = element_blank(),
+                          axis.ticks = element_line(color = "#d6d6d6")
+)
+
+
+# Read in all data --------------------------------------------------------
+
 passing_url <- "https://api.collegefootballdata.com/stats/player/season?seasonType=regular&category=passing&year="
 rushing_url <- "https://api.collegefootballdata.com/stats/player/season?seasonType=regular&category=rushing&year="
 receiving_url <- "https://api.collegefootballdata.com/stats/player/season?seasonType=regular&category=receiving&year="
@@ -115,10 +159,28 @@ heisman_stats <- heisman_stats %>%
          YDS_rushperGame = YDS_rush/total.games,
          total_TDsperGame = total_TDs/total.games,
          YDSperGame = YDS/total.games,
-         total_YDsperGame = total_YDs/total.games)
+         total_YDsperGame = total_YDs/total.games) %>% 
+  group_by(playerId, year) %>% 
+  mutate(position = case_when(max(ATT, CAR, REC) == ATT ~ "QB",
+                              max(ATT, CAR, REC) == CAR ~ "RB",
+                              max(ATT, CAR, REC) == REC ~ "WR",
+                              TRUE ~ "DUAL")) %>% 
+  ungroup()
+
+# Add z-score for each player above/below average for their position and year
+heisman_stats <- heisman_stats %>% 
+  group_by(year, position) %>% 
+  mutate(total_TDs_z = (total_TDs-mean(total_TDs))/sd(total_TDs),
+         rush_yds_z = (YDS_rush-mean(YDS_rush))/sd(YDS_rush),
+         INT_z = (INT-mean(INT))/sd(INT)) %>% 
+  filter(position != "DUAL")
 
 model <- glm(heisman_winner ~ INTperGame + YDS_rushperGame + total_TDsperGame + YDSperGame + total_YDsperGame + PowerFive + QBFlag + RBFlag + WRFlag + winPerc, data = heisman_stats, family = "binomial", na.action = na.pass)
 # Other model options
+model_sig_only <- glm(heisman_winner ~ rush_yds_z + total_TDsperGame + winPerc, data = heisman_stats, family = "binomial", na.action = na.pass)
+summary(model_sig_only)
+# Extract p-values
+pvals <- tibble(coef(summary(model_sig_only))[,4])
 # total_TDs + INT + YDS_rush
 summary <- summary(model)
 summary
@@ -155,6 +217,16 @@ ep_test %>%
   ggplot(aes(x = YDS_pass)) +
   geom_point(aes(y = heisman_prob, size = as.factor(heisman_winner)), colour = "blue", alpha = 0.1)
 
+library(pROC)
+heis_roc <- roc(ep_test$heisman_winner, predict(heisman_model, newdata = ep_test))
+heis_auc <- toString(heis_roc$auc)
+
+# plot of AUC
+ggwin_roc <- ggroc(heis_roc)
+
+ggwin_roc +
+  geom_text(mapping = aes(x = 0.5, y = 0.5, label = paste0('AUC of ', round(as.double(heis_auc), 5))))
+
 # Apply to full data
 heisman_final <- heisman_stats
 
@@ -168,20 +240,139 @@ heisman_cumulative <- heisman_final %>% select(year, heisman_prob) %>%
 heisman_final <- heisman_final %>% left_join(heisman_cumulative, by="year") %>% 
   mutate(heisman_prob = heisman_prob/totalprob)
 
+# Average Prob for Heisman Winners vs. Non-Winners
+heisman_final %>% 
+  group_by(heisman_winner) %>% 
+  summarise(mean_prob = mean(heisman_prob)) %>% 
+  ggplot(aes(x = as.factor(heisman_winner), y = mean_prob)) +
+  geom_col(alpha = 0.5, fill = staturdays_colors("orange")) +
+  staturdays_theme
+
+# Only for top 5 per year
+heisman_final %>% 
+  group_by(year) %>% 
+  slice_max(heisman_prob, n = 5) %>% 
+  group_by(heisman_winner) %>% 
+  summarise(mean_prob = mean(heisman_prob)) %>% 
+  ggplot(aes(x = as.factor(heisman_winner), y = mean_prob)) +
+  geom_col(alpha = 0.5, fill = staturdays_colors("orange")) +
+  scale_y_continuous(label = percent_format(accuracy = 1)) +
+  scale_x_discrete("Heisman Winner", labels = c("0" = "No","1" = "Yes")) +
+  staturdays_theme +
+  labs(title = "Heisman Win Probabilities",
+       subtitle = "Average Probability of Top 5 Contenders Each Season",
+       y = "Heisman Probability")
+
+ggsave(filename = "heisman_top_5_winner_vs_non_winner.png", 
+       path = "C:/Users/Kyle/Documents/Kyle/Staturdays/R Plots",
+       plot = last_plot(),
+       width = 200,
+       height = 200,
+       units = "mm",
+       dpi = 300)
 
 heisman_final %>% 
   ggplot(aes(x = as.factor(heisman_winner), y = heisman_prob)) +
-  geom_point(alpha = 0.1)
+  geom_point(alpha = 0.5, color = staturdays_colors("orange")) +
+  staturdays_theme
 
+# Total TDs -> Heisman Prob
 heisman_final %>% 
   ggplot(aes(x = total_TDs)) +
   geom_point(aes(y = heisman_prob, colour = as.factor(heisman_winner)), alpha = 0.5) +
-  ggrepel::geom_text_repel(aes(x = total_TDs, y = heisman_prob, label = player), data = {heisman_final %>% filter(heisman_prob >.5)}) +
-  scale_color_manual(values = c("red", "blue"))
+  ggrepel::geom_text_repel(aes(x = total_TDs, y = heisman_prob, label = player), data = {heisman_final %>% filter(heisman_winner == 1)}) +
+  scale_color_manual(values = c("red", "blue")) +
+  staturdays_theme +
+  labs(title = "Total TDs (Regular Season)",
+       subtitle = "Total TDs are the most predictive stat",
+       x = "Total TDs (Regular Season)",
+       y = "Heisman Probability") +
+  scale_y_continuous(label = percent_format(accuracy = 1)) +
+  theme(legend.position = "none")
+
+
+ggsave(filename = "total_tds_heisman_prob_v2.png", 
+       path = "C:/Users/Kyle/Documents/Kyle/Staturdays/R Plots",
+       plot = last_plot(),
+       width = 200,
+       height = 200,
+       units = "mm",
+       dpi = 300)
+
+# Just 2020 Top 10 Odds - Total TDs/Game -> Heisman Prob
+heisman_final %>% filter(year == 2020) %>% ungroup() %>% slice_max(heisman_prob, n = 10) %>% 
+  ggplot(aes(x = total_TDsperGame)) +
+  geom_point(aes(y = heisman_prob, size = rush_yds_z, fill = winPerc), shape = 21, alpha = 0.9) +
+  ggrepel::geom_text_repel(aes(y = heisman_prob, label = player), data = {heisman_final %>% ungroup() %>% filter(year == 2020) %>% slice_max(heisman_prob, n = 10)}) +
+  staturdays_theme +
+  labs(title = "2020 Heisman Frontrunners",
+       subtitle = "Looking at the most predictive stats",
+       x = "Total TDs Per Game",
+       y = "Heisman Probability",
+       size = "Rush Yard Z-Score",
+       fill = "Win %") +
+  scale_y_continuous(label = percent_format(accuracy = 1)) +
+  scale_fill_gradient(label = percent_format(accuracy = 1), high = staturdays_colors("orange"), low = staturdays_colors("lightest_blue"))
+
+ggsave(filename = "2020_heisman_frontrunners.png", 
+       path = "C:/Users/Kyle/Documents/Kyle/Staturdays/R Plots",
+       plot = last_plot(),
+       width = 200,
+       height = 200,
+       units = "mm",
+       dpi = 300)
+
+# Total TDs/Game -> Heisman Prob
+heisman_final %>% 
+  ggplot(aes(x = total_TDsperGame)) +
+  geom_point(aes(y = heisman_prob, colour = as.factor(heisman_winner)), alpha = 0.5) +
+  ggrepel::geom_text_repel(aes(x = total_TDsperGame, y = heisman_prob, label = player), data = {heisman_final %>% filter(heisman_prob >.5)}) +
+  scale_color_manual(values = c("red", "blue")) + 
+  labs(title = "Total TDs Per Game")
+
+# Rush Yards Z-Score -> Heisman Prob
+heisman_final %>% 
+  filter(position == "RB") %>% 
+  ggplot(aes(x = rush_yds_z)) +
+  geom_point(aes(y = heisman_prob, colour = as.factor(heisman_winner)), alpha = 0.5) +
+  ggrepel::geom_text_repel(aes(x = rush_yds_z, y = heisman_prob, label = player), data = {heisman_final %>% filter(heisman_prob >.15, position == "RB")}) +
+  scale_color_manual(values = c("red", "blue")) + 
+  labs(title = "Rush Yards Z-Score",
+       subtitle = "For Season at Position\nRBs Only")
+
+# 
+heisman_final %>% 
+  ggplot(aes(x = total_TDs, y = YDS_rush)) +
+  geom_point(aes(colour = as.factor(heisman_winner)), alpha = 0.5) +
+  ggrepel::geom_text_repel(aes(x = total_TDs, label = player), data = {heisman_final %>% filter(heisman_prob >.5)}) +
+  scale_color_manual(values = c("red", "blue")) +
+  labs(title = "Total TDs vs. Rush Yards")
+
+heisman_final %>% 
+  filter(position != "WR") %>% 
+  ggplot(aes(x = total_TDs, y = rush_yds_z)) +
+  geom_point(aes(colour = as.factor(heisman_winner)), alpha = 0.5) +
+  ggrepel::geom_text_repel(aes(x = total_TDs, label = player), data = {heisman_final %>% filter(heisman_prob >.5)}) +
+  scale_color_manual(values = c("red", "blue")) +
+  labs(title = "Total TDs vs. Rush Yds. Z-Score")
+
+heisman_final %>% 
+  ggplot(aes(x = total_TDs, y = winPerc)) +
+  geom_point(aes(colour = as.factor(heisman_winner)), alpha = 0.5) +
+  ggrepel::geom_text_repel(aes(x = total_TDs, label = player), data = {heisman_final %>% filter(heisman_winner == 1)}) +
+  scale_color_manual(values = c("red", "blue")) +
+  labs(title = "Total TDs vs. Win Perc")
+
+heisman_final %>% 
+  ggplot(aes(x = total_TDs, y = INT)) +
+  geom_point(aes(colour = as.factor(heisman_winner)), alpha = 0.5) +
+  ggrepel::geom_text_repel(aes(x = total_TDs, label = player), data = {heisman_final %>% filter(heisman_winner == 1 & position == "QB")}) +
+  scale_color_manual(values = c("red", "blue")) +
+  labs(title = "Total TDs vs. INTs")
 
 # See top 5 in terms of heisman prob each year
 heisman_final %>% group_by(year) %>% slice_max(heisman_prob, n = 5)
-heisman_final %>% filter(year == 2020) %>% slice_max(heisman_prob, n = 5) %>% select(player, heisman_prob)
+heisman_final %>% filter(year == 2020) %>% ungroup() %>%  slice_max(heisman_prob, n = 5) %>% select(player, heisman_prob, total_TDs, total_TDsperGame, YDS_rushperGame, rush_yds_z, winPerc)
 
 ep_test_cumulative <- sum(ep_test$heisman_prob)
 
