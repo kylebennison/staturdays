@@ -299,6 +299,42 @@ ggsave(filename = "total_tds_heisman_prob_v2.png",
        units = "mm",
        dpi = 300)
 
+# Coulda/shoulda won
+heisman_final %>% 
+  ggplot(aes(x = total_TDs)) +
+  geom_point(aes(y = heisman_prob, colour = as.factor(heisman_winner)), alpha = 0.5) +
+  ggrepel::geom_text_repel(aes(x = total_TDs, y = heisman_prob, label = player), data = {heisman_final %>% filter(heisman_prob > .3 & heisman_winner == 0)}) +
+  scale_color_manual(values = c("red", "blue")) +
+  staturdays_theme +
+  labs(title = "Close, but no cigar",
+       subtitle = "Heisman coulda/shoulda wons",
+       x = "Total TDs (Regular Season)",
+       y = "Heisman Probability") +
+  scale_y_continuous(label = percent_format(accuracy = 1)) +
+  theme(legend.position = "none")
+
+# Highest prob by year
+heisman_final %>% 
+  ggplot(aes(x = year)) +
+  geom_point(aes(y = heisman_prob, colour = as.factor(heisman_winner)), alpha = 0.5) +
+  ggrepel::geom_text_repel(aes(x = year, y = heisman_prob, label = player), data = {heisman_final %>% group_by(year) %>% slice_max(heisman_prob, n = 1)}) +
+  scale_color_manual(values = c("red", "blue")) +
+  staturdays_theme +
+  labs(title = "Top Heisman Probability by Year",
+       subtitle = "Top heisman probability ",
+       x = "Total TDs (Regular Season)",
+       y = "Heisman Probability") +
+  scale_y_continuous(label = percent_format(accuracy = 1)) +
+  theme(legend.position = "none")
+
+ggsave(filename = "heisman_top_prob_by_yr.png", 
+       path = "C:/Users/Kyle/Documents/Kyle/Staturdays/R Plots",
+       plot = last_plot(),
+       width = 200,
+       height = 200,
+       units = "mm",
+       dpi = 300)
+
 # Just 2020 Top 10 Odds - Total TDs/Game -> Heisman Prob
 heisman_final %>% filter(year == 2020) %>% ungroup() %>% slice_max(heisman_prob, n = 10) %>% 
   ggplot(aes(x = total_TDsperGame)) +
@@ -379,3 +415,6 @@ ep_test_cumulative <- sum(ep_test$heisman_prob)
 ep_test %>% slice_max(heisman_prob, n = 5) %>% select(player, heisman_prob) %>% 
   mutate(heisman_prob = heisman_prob/ep_test_cumulative)
 
+# Percent of favorites from model that actually won
+heisman_final %>% group_by(year) %>% slice_max(heisman_prob, n = 1) %>% ungroup() %>% summarise(sum_win = sum(heisman_winner), count = n())
+heisman_final %>% group_by(year) %>% slice_max(heisman_prob, n = 5) %>% ungroup() %>% summarise(sum_win = sum(heisman_winner), count = n())
