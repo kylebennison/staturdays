@@ -350,7 +350,7 @@ heisman_final %>% filter(year == 2020) %>% ungroup() %>% slice_max(heisman_prob,
   scale_y_continuous(label = percent_format(accuracy = 1)) +
   scale_fill_gradient(label = percent_format(accuracy = 1), high = staturdays_colors("orange"), low = staturdays_colors("lightest_blue"))
 
-ggsave(filename = "2020_heisman_frontrunners.png", 
+ggsave(filename = paste0("2020_heisman_frontrunners", str_replace_all(now(), ":", "."), ".png"), 
        path = "C:/Users/Kyle/Documents/Kyle/Staturdays/R Plots",
        plot = last_plot(),
        width = 200,
