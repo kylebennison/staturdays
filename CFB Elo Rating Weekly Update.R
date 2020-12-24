@@ -554,7 +554,13 @@ gtsave(data = preseason_2020_top_25,
 # Weekly Win Probabilities and Bets ------------------------------------------------
 
 betting_url <- "https://api.collegefootballdata.com/lines?year=2020&"
-full_url_betting <- paste0(betting_url, "week=", as.character(week_of_upcoming_games))
+full_url_betting <- paste0(betting_url, "week=", as.character(if_else(
+  {upcoming.games %>% 
+      filter(week == week_of_upcoming_games) %>% 
+      pull(season_type) %>% 
+      unique()} == "postseason", 
+  1L, 
+  week_of_upcoming_games)))
 
 betting.master = data.frame()
 full_url_betting_encoded <- URLencode(full_url_betting)
