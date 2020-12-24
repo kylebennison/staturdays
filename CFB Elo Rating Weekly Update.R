@@ -116,10 +116,13 @@ postseason_start_week <- cfb_games %>% filter(season_type == "regular", week == 
 postseason_start_epiweek <- cfb_games %>% filter(season_type == "postseason") %>% slice_min(date) %>% 
   pull(date) %>% unique() %>% epiweek() %>% as.integer()
 
+postseason_start_date <- cfb_games %>% filter(season_type == "postseason") %>% slice_min(date) %>% 
+  pull(date) %>% unique()
+
 if(is_empty(postseason_start_epiweek) == F){
 ### Adjust postseason games to correct week
 cfb_games <- cfb_games %>%
-  mutate(week = if_else(season_type == "postseason", postseason_start_week + epiweek(date) - postseason_start_epiweek, week)) 
+  mutate(week = if_else(season_type == "postseason", as.integer(postseason_start_week + difftime(date, postseason_start_date, units = "weeks") %>% floor() %>% as.integer()), as.integer(week))) 
 }
 # The only problem with this solution is there could be some gap weeks if there happens
 # to be more than 1 epiweek between postseason games.if that ends up being the case, 
