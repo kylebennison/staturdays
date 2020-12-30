@@ -93,7 +93,7 @@ for (j in 2020) {
 # week_of_upcoming_games <- week_of_games_just_played + 1L
 
 #Select variables we want
-cfb_games <- games.master %>% select(id, season, week, season_type, home_team, home_conference, away_team, away_conference, home_points, away_points, start_date) %>% 
+cfb_games <- games.master %>% select(id, season, week, season_type, home_team, home_conference, away_team, away_conference, home_points, away_points, start_date, neutral_site) %>% 
   mutate(date=ymd_hms(start_date)) %>%
   select(-start_date)
 
@@ -464,7 +464,7 @@ upcoming.tmp4 <- upcoming.tmp3 %>% # Use most recent elo rating for current/futu
 
 # Get win prob
 upcoming.games <- upcoming.tmp4 %>% 
-  mutate(home_pred_win_prob = calc_expected_score(home_elo+home_field_advantage, away_elo), away_pred_win_prob = 1 - home_pred_win_prob)
+  mutate(home_pred_win_prob = calc_expected_score(home_elo + if_else(neutral_site == F, home_field_advantage, 0), away_elo), away_pred_win_prob = 1 - home_pred_win_prob)
 
 rm(list = c("upcoming.tmp", "upcoming.tmp2", "upcoming.tmp3", "upcoming.tmp4"))}
 
@@ -559,8 +559,8 @@ full_url_betting <- paste0(betting_url, "week=", as.character(if_else(
       filter(week == week_of_upcoming_games) %>% 
       pull(season_type) %>% 
       unique()} == "postseason", 
-  1L, 
-  week_of_upcoming_games)))
+  "1&seasonType=postseason", 
+  as.character(week_of_upcoming_games))))
 
 betting.master = data.frame()
 full_url_betting_encoded <- URLencode(full_url_betting)
