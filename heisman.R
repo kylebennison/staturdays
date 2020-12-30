@@ -66,7 +66,7 @@ receiving_url <- "https://api.collegefootballdata.com/stats/player/season?season
 passing.master <- tibble()
 rushing.master <- tibble()
 receiving.master <- tibble()
-for (yr in 2000:2020){
+for (yr in 2004:2020){
   message("Running Year ", yr)
   full_pass_url <- paste0(passing_url, as.character(yr))
   full_rush_url <- paste0(rushing_url, as.character(yr))
@@ -84,7 +84,7 @@ for (yr in 2000:2020){
 
 teams_url <- "https://api.collegefootballdata.com/records?year="
 teams.master <- tibble()
-for (yr in 2000:2020){
+for (yr in 2004:2020){
   message("Running Year ", yr)
   full_team_url <- paste0(teams_url, as.character(yr))
   teams <- fromJSON(full_team_url) %>% tibble()
@@ -94,6 +94,33 @@ for (yr in 2000:2020){
     mutate(winPerc = total.wins/total.games)
   teams.master <- rbind(teams.master, teams, row.names=NULL)
 }
+# Not run
+# ppa_url <- "https://api.collegefootballdata.com/ppa/players/season?threshold=100&year="
+# usage_url <- "https://api.collegefootballdata.com/player/usage?year="
+# 
+# ppa.master <- tibble()
+# usage.master <- tibble()
+# for (yr in 2000:2020){
+#   message("Running Year ", yr)
+#   full_team_url <- paste0(ppa_url, as.character(yr))
+#   teams <- fromJSON(full_team_url) %>% tibble()
+#   teams <- data.table(teams)
+#   if(nrow(teams)>=1){
+#   teams <- teams %>% mutate(year = yr)
+#   ppa.master <- rbind(ppa.master, teams, row.names=NULL, fill = TRUE)
+#   }
+# }
+# 
+# for (yr in 2000:2020){
+#   message("Running Year ", yr)
+#   full_team_url <- paste0(usage_url, as.character(yr))
+#   teams <- fromJSON(full_team_url) %>% tibble()
+#   teams <- data.table(teams)
+#   if(nrow(teams)>=1){
+#     teams <- teams %>% mutate(year = yr)
+#     usage.master <- rbind(usage.master, teams, row.names=NULL, fill = TRUE)
+#   }
+# }
 
 passing_spread <- passing.master %>% pivot_wider(names_from = c("statType"), values_from = c("stat"))
 rushing_spread <- rushing.master %>% pivot_wider(names_from = c("statType"), values_from = c("stat"))
@@ -118,6 +145,12 @@ joined_stats <- joined_stats %>%
   select(-dplyr::contains("category"), -dplyr::contains(c("player_", "team_", "conference_")))
 
 joined_stats <- joined_stats %>% left_join(teams.master, by=c("year", "team"))
+
+# ppa.select <- ppa.master %>% select(id, year, countablePlays, averagePPA.all, averagePPA.pass, averagePPA.rush, totalPPA.all, totalPPA.pass, totalPPA.rush)
+# joined_stats <- joined_stats %>% left_join(ppa.select, by = c("playerId" = "id", "year"))
+# 
+# usage.select <- usage.master %>% select(id, year, usage.overall, usage.pass, usage.rush)
+# joined_stats <- joined_stats %>% left_join(usage.select, by = c("playerId" = "id", "year"))
 
 # Select fields and convert columns to numerics
 joined_stats <- joined_stats %>% select(playerId, player, team, conference, year, dplyr::everything()) %>%
