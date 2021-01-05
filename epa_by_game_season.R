@@ -8,18 +8,20 @@ library(data.table)
 
 plays.data <- tibble()
 
-#for(i in c(1:16)) {
-#  message("Pulling weel: ", i)
-#  plays.data.temp <- cfb_pbp_data(2020, week=i, epa_wpa = TRUE)
-#  plays.data <- rbind(plays.data, plays.data.temp)
-#}
+for(i in c(1:16)) {
+#for(i in c(1)) {
+  message("Pulling week: ", i)
+  plays.data.temp <- cfb_pbp_data(2020, week=i, epa_wpa = TRUE,
+                                  season_type = "both")
+  plays.data <- rbind(plays.data, plays.data.temp)
+}
   
 
-plays.data <- fread("C:/Users/drewb/Desktop/2020_plays_epa_wpa.csv")
+#plays.data <- fread("C:/Users/drewb/Desktop/2020_plays_epa_wpa.csv")
 
 #negative EPA is bad for both offense and defense
 epa_play_type <- plays.data %>% 
-  group_by(offense_play, defense_play, pass) %>% 
+  group_by(game_id, offense_play, defense_play, pass) %>% 
   summarise(offense_epa_per_game = mean(EPA, na.rm = TRUE),
             defense_epa_per_game = -offense_epa_per_game) %>% 
   pivot_wider(names_from = pass, values_from = c(pass, offense_epa_per_game, defense_epa_per_game)) %>% 
@@ -31,27 +33,30 @@ epa_play_type <- plays.data %>%
   pivot_longer(!c(offense_play, defense_play), names_to = "stat_category", values_to = "stat") %>% 
   mutate(team = ifelse(grepl("OFF", stat_category), offense_play, defense_play)) %>% 
   group_by(team, stat_category) %>% 
-  summarise(season_stat = mean(stat))
+  summarise(season_stat = mean(stat)) %>% 
+  filter(stat_category != "game_id")
   
 
 epa_overall <- plays.data %>% 
-  group_by(offense_play, defense_play) %>% 
+  group_by(game_id,offense_play, defense_play) %>% 
   summarise(`OFF EPA/GAME` = mean(EPA, na.rm = TRUE),
             `DEF EPA/GAME` = -`OFF EPA/GAME`) %>% 
   pivot_longer(!c(offense_play, defense_play), names_to = "stat_category", values_to = "stat") %>% 
   mutate(team = ifelse(grepl("OFF", stat_category), offense_play, defense_play)) %>% 
   group_by(team, stat_category) %>% 
-  summarise(season_stat = mean(stat))
+  summarise(season_stat = mean(stat))  %>% 
+  filter(stat_category != "game_id")
   
 
 success_rate <- plays.data %>%
-  group_by(offense_play, defense_play) %>% 
+  group_by(game_id, offense_play, defense_play) %>% 
   summarise(`OFF SUCCESS` = mean(success, na.rm = TRUE),
             `DEF SUCCESS` = 1 - `OFF SUCCESS`) %>% 
   pivot_longer(!c(offense_play, defense_play), names_to = "stat_category", values_to = "stat") %>% 
   mutate(team = ifelse(grepl("OFF", stat_category), offense_play, defense_play)) %>% 
   group_by(team, stat_category) %>% 
-  summarise(season_stat = mean(stat))
+  summarise(season_stat = mean(stat)) %>% 
+  filter(stat_category != "game_id")
 
 master_stats <- rbindlist(list(epa_play_type, epa_overall, success_rate))
 
@@ -72,7 +77,7 @@ team_logos <- colors %>% unnest(cols = logos) %>%
 
 
 #create results for single game
-game <- master_stats  %>% filter(team %in% c("Florida", "Oklahoma")) %>%
+game <- master_stats  %>% filter(team %in% c("Alabama", "Ohio State")) %>%
   pivot_wider(names_from = "team", values_from = "season_stat")
 
 colNameD <- paste0(names(game[2]), "_Edge")
