@@ -18,8 +18,6 @@ tok <- create_token(app=app_name,
              access_token = access_token,
              access_secret = access_secret)
 
-create_
-
 search_results <- search_tweets("Aqib Talib", n=5000, include_rts = FALSE,
                                 token = tok)
 
@@ -52,3 +50,37 @@ sent2 <- sent %>% group_by(word) %>% add_count() %>%
 
 post_tweet(status = "Testing from R @kylebeni012, Aqib Talib was great!",
            token = tok)
+
+## Ideas for tweeting matchup graphs
+
+# Schedule script to run daily at 9:30 am
+
+# Filter games data for games played today
+
+# Create plots for those matchups
+
+## Post tweets
+
+# tweet intro
+post_tweet(status = "Here are the EPA and Success-Rate edges for today's #CollegeFootball matchups")
+
+# Wait just to make sure it has time to post before next step (not sure if this is necessary)
+Sys.sleep(30)
+
+# Post games
+
+for (i in nrow(todays_games)){
+  
+  # Get status id of that tweet just sent
+  status_id <- rtweet::get_my_timeline(n = 1, token = tok)
+  reply_id <- status_id$status_id[1]
+  
+  # Create plot for game[i]
+  
+  # Reply to previous tweet
+  post_tweet(status = paste0(game$home_team, " @ ", game$away_team, ". Kickoff at ", lubridate::tz(game$start_time), "."),
+             in_reply_to_status_id = reply_id,
+             media = "plot.png")
+  
+  Sys.sleep(60)
+}
