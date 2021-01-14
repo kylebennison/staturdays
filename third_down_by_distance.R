@@ -23,7 +23,7 @@ make_buckets <- tibble(distance=c(1,2,3,4,5,6,7,8,9,10),
 
 third_downs <- dt %>% 
   filter(Goal_To_Go == FALSE, down==3) %>% 
-  select(offense_play, play_type, down, distance, yards_gained, conference, light) %>% 
+  select(offense_play, play_type, down, distance, yards_gained) %>% 
   filter(play_type!= "Timeout", play_type != "Kickoff", play_type!="Punt",
          play_type!="Field Goal Missed", play_type!="Field Goal Good",
          play_type!="Blocked Field Goal", play_type!="Kickoff Return (Offense)",
@@ -102,4 +102,33 @@ master %>% filter(!is.na(bucket), conference %in% c("SEC", "ACC", "Pac-12", "Big
        y="3rd down yards to go above/below league average")
 
 ggsave("C:/Users/drewb/Desktop/mainplot.png", height = 15, width = 5)
+
+
+ov <- mean(third_downs$converted)
+
+overall_third <- third_downs %>% 
+  group_by(offense_play) %>% 
+  summarise(good = mean(converted)) %>% 
+  left_join(master, by="offense_play") %>% 
+  filter(!is.na(bucket)) %>% 
+  mutate(overall_third_down_above_average = good-ov)
+
+
+x<-overall_third %>% 
+  filter(overall_third_down_above_average>0,above_league_average.x<0) %>% 
+  group_by(offense_play) %>% add_count()
+
+
+third_downs %>% filter(offense_play %in% c("Alabama", "Clemson", "Ohio State",
+                                           "Notre Dame", "Texas A&M", "Georgia",
+                                           "Florida", "Cincinnati", "Oklahoma",
+                                           "Iowa State")) %>% 
+  group_by(offense_play, bucket) %>% count() %>% 
+  ggplot() +
+  geom_col(aes(x=bucket, y=n)) +
+  facet_wrap(~offense_play) +
+  labs(x="Yards to go",
+       y="Count",
+       caption = "@staturdays | staturdays.com") +
+  theme_bw()
 
