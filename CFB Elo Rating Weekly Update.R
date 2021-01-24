@@ -163,7 +163,7 @@ upcoming.games <- tibble(cfb_games)
 lastweek.games <- upcoming.games
 # Read in historic Elo ratings
 elo_ratings <- read_csv(file = "https://raw.githubusercontent.com/kylebennison/staturdays/master/elo_ratings_historic.csv",
-                        col_types = list(col_character(), col_character(), col_double(), col_integer(), col_integer(), col_date(format = "%Y-%m-%d")))
+                        col_types = list(col_character(), col_character(), col_double(), col_integer(), col_integer(), col_datetime(format = "%Y-%m-%d HH:mm:ss")))
 
 elo_conf <- elo_ratings %>% 
   mutate(conference_class = case_when(conference %in% power_5 ~ 1500,
@@ -179,7 +179,7 @@ if (today()-max(elo_ratings$date) > 90){
            conference = conference,
            week = 0,
            season=j,
-           date=ymd(paste0(lubridate::year(today()),"-08-15"))) %>% 
+           date=ymd_hms(paste0(lubridate::year(today()),"-08-15 00:00:00"))) %>% 
     select(-conference_class)
   elo_ratings <- elo_ratings %>% 
     bind_rows(preseason_elo)
@@ -188,7 +188,7 @@ if (today()-max(elo_ratings$date) > 90){
 
 # Filter only games that haven't been rated yet
 elo_max_date <- elo_ratings$date %>% max()
-games_to_rate <- upcoming.games %>% filter(date >= elo_max_date+1) %>% filter(is.na(home_points) == F & is.na(away_points) == F)
+games_to_rate <- upcoming.games %>% filter(date >= elo_max_date+hours(1)) %>% filter(is.na(home_points) == F & is.na(away_points) == F)
 game_weeks <- games_to_rate$date %>% as.Date() %>% unique()
 
 if(is_empty(game_weeks) == F){
@@ -334,7 +334,7 @@ updated_ratings_home <- current_week %>% select(home_team, home_conference, new_
   rename(conference = home_conference) %>% 
   rename(elo_rating = new_home_rating) %>% 
   rename(season = season) %>% 
-  mutate(game_date = as.Date(game_date, format = "%Y-%m-%d")) %>% 
+  mutate(game_date = game_date) %>% 
   rename(date = game_date)
 
 #away team elo update
@@ -343,7 +343,7 @@ updated_ratings_away <- current_week %>% select(away_team, away_conference, new_
   rename(conference = away_conference) %>% 
   rename(elo_rating = new_away_rating) %>% 
   rename(season = season) %>% 
-  mutate(game_date = as.Date(game_date, format = "%Y-%m-%d")) %>% 
+  mutate(game_date = game_date) %>% 
   rename(date = game_date)
 
 # Save updated home and away elo ratings for the completed week
