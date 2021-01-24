@@ -116,11 +116,11 @@ unique_teams <- as_tibble(unique(c(unique(unique(c(unique(games.master$home_team
 teams_elo_initial <- unique_teams %>% select(value, conference, conference_class) %>% 
   rename(elo_rating = conference_class) %>% 
            rename(team = value) %>% 
-  mutate(week = 0, season = min(games.master$season), date = as.Date(ymd_hms(min(games.master$start_date))) - 7)
+  mutate(week = 0, season = min(games.master$season), date = ymd_hms(min(games.master$start_date)) - 7)
 
 
 #Select variables we want
-cfb_games <- games.master %>% select(id, season, week, season_type, home_team, home_conference, away_team, away_conference, home_points, away_points, start_date) %>% 
+cfb_games <- games.master %>% select(id, season, week, season_type, home_team, home_conference, away_team, away_conference, home_points, away_points, start_date, neutral_site) %>% 
   mutate(date=ymd_hms(start_date)) %>%
   select(-start_date)
 
@@ -133,31 +133,34 @@ cfb_games <- cfb_games %>% mutate(game_outcome_home =
 )
 )
 
-### Adjust postseason games to week 16
-cfb_games <- cfb_games %>%
-  mutate(week = if_else(season_type == "postseason", 16L, week))
+cfb_games_final <- tibble()
+for(yr in min(cfb_games$season):max(cfb_games$season)) {
+  message("working on season ", yr)
+  
+# Get Week 1 epiweek for referencing later weeks
+  cfb_games_temp <- cfb_games %>% filter(season == yr)
+  
+  week_1_epiweek <- cfb_games_temp %>% filter(week == min(week)) %>% slice_min(date) %>% pull(date) %>% unique() %>% epiweek() %>% as.integer()
 
-# list of first playoff games each year, could left join cfb_games with this to create a new column to reference for calculating postseason week
-postseason_start_date <- cfb_games %>% 
-  filter(season_type == "postseason", id != 63847) %>% #filtered out that game since it was inaccurately marked as postseason and throws off the 2013 calculation
-  group_by(season) %>% 
-  slice_min(date) %>% 
-  select(season, date)
+# Figure out what week the first week of postseason play should be
+  postseason_start_week <- cfb_games_temp %>% filter(season_type == "regular", week == max(week)) %>% 
+    pull(week) %>% unique() %>% as.integer() + 1L
 
-temp_join <- left_join(cfb_games, postseason_start_date, by = "season")
+  postseason_start_epiweek <- cfb_games_temp %>% filter(season_type == "postseason") %>% slice_min(date) %>% 
+    pull(date) %>% unique() %>% epiweek() %>% as.integer()
+  
+  postseason_start_date <- cfb_games_temp %>% filter(season_type == "postseason") %>% slice_min(date) %>% 
+    pull(date) %>% unique()
+  
+  if(is_empty(postseason_start_epiweek) == F){
+    ### Adjust postseason games to correct week
+    cfb_games_temp <- cfb_games_temp %>%
+      mutate(week = if_else(season_type == "postseason", as.integer(postseason_start_week + difftime(date, postseason_start_date, units = "weeks") %>% floor() %>% as.integer()), as.integer(week))) 
+  }
+  cfb_games_final <- rbind(cfb_games_final, cfb_games_temp)
+  }
 
-temp_join <- unique(temp_join)
-
-temp_join[,c("date.x", "date.y")] <- temp_join[,c("date.x", "date.y")] %>% lapply(as.Date) # Change datetime to just date (before it was counting seconds difference)
-
-temp_join <- temp_join %>% 
-  mutate(week = case_when(
-    season_type == "postseason" ~ 16L + as.integer(floor((date.x - date.y)/7L)),
-    TRUE ~ week)
-  ) # This works now
-
-cfb_games <- temp_join %>% select(-date.y) %>% rename(date = date.x)
-rm(temp_join)
+cfb_games <- cfb_games_final
 
 # Expected Score and Updated Elo Rating Functions -------------------------
 
@@ -222,12 +225,12 @@ for(yr in c(2000:2019)){
         rename(away_rating_last_updated = date)
       
       #calculate new ratings after game
-      current_week <- current_week %>% mutate(new_home_rating = calc_new_elo_rating(home_rating, game_outcome_home, calc_expected_score((home_rating+home_field_advantage), away_rating),k),
-                                              new_away_rating = calc_new_elo_rating(away_rating, 1-game_outcome_home, calc_expected_score(away_rating, (home_rating+home_field_advantage)),k))
+      current_week <- current_week %>% mutate(new_home_rating = calc_new_elo_rating(home_rating, game_outcome_home, calc_expected_score((home_rating+if_else(neutral_site == F, home_field_advantage, 0)), away_rating),k),
+                                              new_away_rating = calc_new_elo_rating(away_rating, 1-game_outcome_home, calc_expected_score(away_rating, (home_rating+if_else(neutral_site == F, home_field_advantage, 0))),k))
       
       #keep track of predictions and actual results
       k_optimization_temp <- current_week %>% 
-        mutate(HomeExpectedWin=calc_expected_score((home_rating+home_field_advantage), away_rating)) %>% 
+        mutate(HomeExpectedWin=calc_expected_score((home_rating+if_else(neutral_site == F, home_field_advantage, 0)), away_rating)) %>% 
         select(game_outcome_home, HomeExpectedWin, home_conference, home_team, away_conference, away_team, home_points, away_points, home_rating, away_rating) %>% 
         rename(HomeWin = game_outcome_home) %>% 
         mutate(home_spread = home_points - away_points,
