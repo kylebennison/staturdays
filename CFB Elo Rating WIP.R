@@ -37,25 +37,29 @@ staturdays_colors <- function(...) {
 
 staturdays_theme <- theme(plot.caption = element_text(size = 12, hjust = 1, color = staturdays_colors("orange")), 
                           plot.title = element_text(color = staturdays_colors("dark_blue"), size = 30, face = "bold"),
-                          plot.subtitle = element_text(color = staturdays_colors("lightest_blue"), size = 20),
-                          axis.text = element_text(color = staturdays_colors("lightest_blue"), size = 15),
-                          axis.title = element_text(color = staturdays_colors("lightest_blue"), size = 15),
-                          legend.title = element_text(color = staturdays_colors("lightest_blue"), size = 15),
-                          legend.text = element_text(color = staturdays_colors("lightest_blue"), size = 15)
+                          plot.subtitle = element_text(color = staturdays_colors("light_blue"), size = 20),
+                          axis.text = element_text(color = staturdays_colors("lightest_blue"), size = 14),
+                          axis.title = element_text(color = staturdays_colors("lighter_blue"), size = 16, face = "bold"),
+                          legend.title = element_text(color = staturdays_colors("lighter_blue"), size = 16, face = "bold"),
+                          legend.text = element_text(color = staturdays_colors("lightest_blue"), size = 14),
+                          panel.background = element_blank(),
+                          panel.grid = element_line(color = "#d6d6d6"),
+                          panel.grid.minor = element_blank(),
+                          axis.ticks = element_line(color = "#d6d6d6")
 )
 
 # Pull in Games Data ------------------------------------------------------
 
 # Power 5 List
 
-power_5 <- c("ACC", "Big 12", "Big Ten", "Pac-12", "SEC", "Pac-10")
+power_5 <- c("ACC", "Big 12", "Big Ten", "Pac-12", "SEC", "Pac-10", "FBS Independents")
 group_of_5 <- c("American Athletic", "Conference USA", "Mid-American", "Mountain West", "Sun Belt")
 
 base_url_games <- "https://api.collegefootballdata.com/games?" # Base URL for games data
 
 games.master = data.frame()
-for (j in 2000:2019) {
-  for (i in 1:15) {
+for (j in 2000:2020) {
+  for (i in 1:20) {
     cat('Loading Games', j, 'Week', i, '\n')
     full_url_games <- paste0(base_url_games, "year=", as.character(j), "&week=", as.character(i), "&seasonType=both")
     full_url_games_encoded <- URLencode(full_url_games)
