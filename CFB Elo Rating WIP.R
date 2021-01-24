@@ -188,7 +188,8 @@ cfb_games <- cfb_games %>%
 # k=100 seems good .18, for regress - .176 for .9 (2010), and .179 (2000), test k again - .176 for 75 and 100, test home_field_adv - .176 for 50 and 65, 55 is min at .1758
 for(neutral_adjust in c(0, home_field_advantage)){
 elo_ratings <- teams_elo_initial
-# message(paste0("Testing values: ", "hfa = ", home_field_advantage, " k =", k, " regress = ", regress))
+message(paste0("Testing values: ", "hfa = ", home_field_advantage, " k =", k, 
+               " regress = ", regress, "neutral adjust = ", neutral_adjust))
 
 #### updated for loop to speed up process ####
 for(yr in c(2000:2020)){
@@ -293,7 +294,7 @@ k_optimization %>%
 #Calculates the brier score
 brier <- k_optimization %>% mutate(error=(HomeWin-HomeExpectedWin)^2) %>% 
   filter(Year>=2010) %>% 
-  group_by(kval, home_field_val, regress_val, g5_val, d3_val) %>% 
+  group_by(kval, home_field_val, regress_val, g5_val, d3_val, neutral_adjust) %>% 
   summarise(e=mean(error))
 
 # Write historic calculations to github for the first time
@@ -306,7 +307,7 @@ k_optimization %>% mutate(error=(HomeWin-HomeExpectedWin)^2) %>%
   filter(Year>=2010) %>% 
   group_by(regress_val) %>% 
   summarise(e=mean(error)) %>% 
-  ggplot(aes(x = regress_val, y = e)) +
+  ggplot(aes(x = neutral_adjust, y = e)) +
   geom_line()
 
 # Get Actual vs. Predicted for Each Win Prob.
