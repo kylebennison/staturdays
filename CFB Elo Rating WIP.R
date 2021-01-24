@@ -103,8 +103,8 @@ k_optimization <- tibble(HomeWin=0, HomeExpectedWin=0, home_spread = 0, elo_diff
                          kval = k, regress_val = regress, home_field_val = home_field_advantage, 
                          g5_val = g5, d3_val = d3, neutral_adjust)
 
-for(g5 in seq(1000, 1500, by = 100)){
-  for(d3 in seq(800, 1500, by = 100)){
+#for(g5 in seq(1000, 1500, by = 100)){
+#  for(d3 in seq(800, 1500, by = 100)){
 
 # Get all unique teams from the games database, join in conference, and then assign an initial Elo Rating
 unique_teams <- as_tibble(unique(c(unique(unique(c(unique(games.master$home_team),
@@ -282,8 +282,8 @@ for(yr in c(2000:2020)){
   }
 }
 #}
-  }
-}
+#  }
+#}
   
 
 
