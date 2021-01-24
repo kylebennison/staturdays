@@ -185,7 +185,7 @@ start_week <- max_week + 1
 
 plays.master = data.frame()
 for (j in 2020:2020) {
-  for (i in start_week:15) {
+  for (i in start_week:20) {
     cat('Loading Plays', j, 'Week', i, '\n')
     full_url_plays <- paste0(base_url_plays, "seasonType=both&", "year=", as.character(j), "&","week=", as.character(i)) # Concatenating year and week
     full_url_plays_encoded <- URLencode(full_url_plays) # If there are spaces in query, formats them correctly
@@ -208,7 +208,7 @@ if(is_empty(plays.master)==F){rm(clockcolumns, plays)}
 
 games.master = data.frame()
 for (j in 2020:2020) {
-  for (i in start_week:15) {
+  for (i in start_week:20) {
     cat('Loading Games', j, 'Week', i, '\n')
     full_url_games <- paste0(base_url_games, "year=", as.character(j), "&week=", as.character(i), "&seasonType=both")
     full_url_games_encoded <- URLencode(full_url_games)
