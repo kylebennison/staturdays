@@ -291,7 +291,7 @@ upcoming.tmp4 <- upcoming.tmp3 %>% # Use most recent elo rating for current/futu
 
 # Get win prob
 upcoming.games <- upcoming.tmp4 %>% 
-  mutate(home_pred_win_prob = calc_expected_score(home_elo+home_field_advantage, away_elo), away_pred_win_prob = 1 - home_pred_win_prob)
+  mutate(home_pred_win_prob = calc_expected_score(home_elo+if_else(neutral_site == F, home_field_advantage, neutral_adjust), away_elo), away_pred_win_prob = 1 - home_pred_win_prob)
 
 rm(list = c("upcoming.tmp", "upcoming.tmp2", "upcoming.tmp3", "upcoming.tmp4"))
 # Pull in Last Week Results and Update Elo --------------------------------
@@ -311,11 +311,11 @@ current_week <- upcoming.games %>% filter(as.Date(game_date) == game_weeks[i_dat
 if(week_of_games_just_played > 0){# & !any(current_week %>% filter(!(is.na(home_points) & is.na(away_points))) %>% pull(week) == elo_ratings %>% filter(season == max(season)) %>% filter(week == max(week)) %>% pull(week) %>% unique())){ #& (length(current_week$home_points) != length(is.na(current_week$home_points)))){
 
 #calculate new ratings after game
-current_week <- current_week %>% mutate(new_home_rating = calc_new_elo_rating(home_elo, game_outcome_home, calc_expected_score((home_elo+home_field_advantage), away_elo),k),
-                                        new_away_rating = calc_new_elo_rating(away_elo, 1-game_outcome_home, calc_expected_score(away_elo, (home_elo+home_field_advantage)),k))
+current_week <- current_week %>% mutate(new_home_rating = calc_new_elo_rating(home_elo, game_outcome_home, calc_expected_score((home_elo+if_else(neutral_site == F, home_field_advantage, neutral_adjust)), away_elo),k),
+                                        new_away_rating = calc_new_elo_rating(away_elo, 1-game_outcome_home, calc_expected_score(away_elo, (home_elo+if_else(neutral_site == F, home_field_advantage, neutral_adjust))),k))
 
 #keep track of predictions and actual results
-k_optimization_temp <- current_week %>% mutate(HomeExpectedWin=calc_expected_score((home_elo+home_field_advantage), away_elo)) %>% 
+k_optimization_temp <- current_week %>% mutate(HomeExpectedWin=calc_expected_score((home_elo+if_else(neutral_site == F, home_field_advantage, neutral_adjust)), away_elo)) %>% 
   select(game_outcome_home, HomeExpectedWin) %>% 
   rename(HomeWin = game_outcome_home) %>% 
   mutate(Year=j,k_val = k,
@@ -469,7 +469,7 @@ upcoming.tmp4 <- upcoming.tmp3 %>% # Use most recent elo rating for current/futu
 
 # Get win prob
 upcoming.games <- upcoming.tmp4 %>% 
-  mutate(home_pred_win_prob = calc_expected_score(home_elo + if_else(neutral_site == F, home_field_advantage, 0), away_elo), away_pred_win_prob = 1 - home_pred_win_prob)
+  mutate(home_pred_win_prob = calc_expected_score(home_elo + if_else(neutral_site == F, home_field_advantage, neutral_adjust), away_elo), away_pred_win_prob = 1 - home_pred_win_prob)
 
 rm(list = c("upcoming.tmp", "upcoming.tmp2", "upcoming.tmp3", "upcoming.tmp4"))}
 
