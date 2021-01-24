@@ -62,7 +62,8 @@ k <- 85
 home_field_advantage <- 55
 # Conference adjustors
 g5 <- 1200
-d3 <- 500
+d3 <- 900
+neutral_adjust <- 0
 
 # Expected Score and Updated Elo Rating Functions -------------------------
 
