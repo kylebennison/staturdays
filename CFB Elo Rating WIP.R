@@ -97,7 +97,10 @@ home_field_advantage <- 55
 # Conference adjustors
 g5 <- 1200
 d3 <- 500
-k_optimization <- tibble(HomeWin=0, HomeExpectedWin=0, home_spread = 0, elo_diff = 0, Year=0000, week=0, home_conf = "", home_team = "", away_team = "", away_conf = "", kval = k, regress_val = regress, home_field_val = home_field_advantage, g5_val = g5, d3_val = d3)
+k_optimization <- tibble(HomeWin=0, HomeExpectedWin=0, home_spread = 0, elo_diff = 0, Year=0000, 
+                         week=0, home_conf = "", home_team = "", away_team = "", away_conf = "", 
+                         kval = k, regress_val = regress, home_field_val = home_field_advantage, 
+                         g5_val = g5, d3_val = d3, neutral_adjust)
 
 #for(g5 in seq(1000, 1500, by = 100)){
 #  for(d3 in seq(1000, 1500, by = 100)){
@@ -181,12 +184,12 @@ cfb_games <- cfb_games %>%
   arrange(season, week, date)
 
 # k=100 seems good .18, for regress - .176 for .9 (2010), and .179 (2000), test k again - .176 for 75 and 100, test home_field_adv - .176 for 50 and 65, 55 is min at .1758
-# for(regress in c(seq(.9, 1, by = 0.01))){
+for(neutral_adjust in c(0, home_field_advantage)){
 elo_ratings <- teams_elo_initial
 # message(paste0("Testing values: ", "hfa = ", home_field_advantage, " k =", k, " regress = ", regress))
 
 #### updated for loop to speed up process ####
-for(yr in c(2000:2019)){
+for(yr in c(2000:2020)){
   message(paste0("Calculating elo ratings for year: "),yr, " D3: ", d3, " G5: ", g5)
   #regress Elo ratings before the first season of the year
   if(yr != min(cfb_games$season)){
@@ -225,12 +228,12 @@ for(yr in c(2000:2019)){
         rename(away_rating_last_updated = date)
       
       #calculate new ratings after game
-      current_week <- current_week %>% mutate(new_home_rating = calc_new_elo_rating(home_rating, game_outcome_home, calc_expected_score((home_rating+if_else(neutral_site == F, home_field_advantage, 0)), away_rating),k),
-                                              new_away_rating = calc_new_elo_rating(away_rating, 1-game_outcome_home, calc_expected_score(away_rating, (home_rating+if_else(neutral_site == F, home_field_advantage, 0))),k))
+      current_week <- current_week %>% mutate(new_home_rating = calc_new_elo_rating(home_rating, game_outcome_home, calc_expected_score((home_rating+if_else(neutral_site == F, home_field_advantage, neutral_adjust)), away_rating),k),
+                                              new_away_rating = calc_new_elo_rating(away_rating, 1-game_outcome_home, calc_expected_score(away_rating, (home_rating+if_else(neutral_site == F, home_field_advantage, neutral_adjust))),k))
       
       #keep track of predictions and actual results
       k_optimization_temp <- current_week %>% 
-        mutate(HomeExpectedWin=calc_expected_score((home_rating+if_else(neutral_site == F, home_field_advantage, 0)), away_rating)) %>% 
+        mutate(HomeExpectedWin=calc_expected_score((home_rating+if_else(neutral_site == F, home_field_advantage, neutral_adjust)), away_rating)) %>% 
         select(game_outcome_home, HomeExpectedWin, home_conference, home_team, away_conference, away_team, home_points, away_points, home_rating, away_rating) %>% 
         rename(HomeWin = game_outcome_home) %>% 
         mutate(home_spread = home_points - away_points,
@@ -245,7 +248,8 @@ for(yr in c(2000:2019)){
                regress_val = regress,
                home_field_val = home_field_advantage,
                g5_val = g5,
-               d3_val = d3)
+               d3_val = d3,
+               neutral_adjust = neutral_adjust)
   
       k_optimization <- k_optimization %>% bind_rows(k_optimization_temp)
       
@@ -273,6 +277,7 @@ for(yr in c(2000:2019)){
     }
     
   }
+}
 }
   
 
