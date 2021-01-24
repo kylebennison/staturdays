@@ -136,6 +136,8 @@ cfb_games <- cfb_games %>% mutate(game_outcome_home =
 )
 )
 
+## Postseason week adjustment
+
 cfb_games_final <- tibble()
 for(yr in min(cfb_games$season):max(cfb_games$season)) {
   message("working on season ", yr)
@@ -203,7 +205,7 @@ for(yr in c(2000:2020)){
            conference = conference.x,
            week = 0,
            season=yr,
-           date=ymd(paste0(yr,"-08-15"))) %>% 
+           date=ymd_hms(paste0(yr,"-08-15 00:00:00"))) %>% 
     select(team, conference.x, elo_rating, week, season, date) %>% 
     rename(conference = conference.x)
   
