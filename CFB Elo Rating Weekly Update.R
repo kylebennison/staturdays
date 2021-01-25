@@ -57,7 +57,7 @@ group_of_5 <- c("American Athletic", "Conference USA", "Mid-American", "Mountain
 # New Season Regression Factor
 regress <- (.95)
 # k-factor
-k <- 85
+k <- 70
 # home-field advantage (in elo points)
 home_field_advantage <- 55
 # Conference adjustors
