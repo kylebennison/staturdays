@@ -91,7 +91,7 @@ conferences_2000 <- conference.master %>% filter(year == 2019) %>% select(school
 # New Season Regression Factor
 regress <- (.95)
 # k-factor
-k <- 85
+k <- 70
 # home-field advantage (in elo points)
 home_field_advantage <- 55
 # Conference adjustors
