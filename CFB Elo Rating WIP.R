@@ -124,7 +124,7 @@ teams_elo_initial <- unique_teams %>% select(value, conference, conference_class
 
 
 #Select variables we want
-cfb_games <- games.master %>% select(id, season, week, season_type, home_team, home_conference, away_team, away_conference, home_points, away_points, start_date, neutral_site) %>% 
+cfb_games <- games.master %>% select(id, season, week, season_type, home_team, home_conference, away_team, away_conference, home_points, away_points, start_date, neutral_site, conference_game) %>% 
   mutate(date=ymd_hms(start_date)) %>%
   select(-start_date)
 
@@ -186,10 +186,17 @@ calc_new_elo_rating <- function(team_rating, actual_score, expected_score, k=20)
 cfb_games <- cfb_games %>% 
   arrange(season, week, date)
 
+# Fix NA's for conference_game
+cfb_games <- cfb_games %>% mutate(conference_game = 
+                                    if_else(is.na(conference_game) == T, 
+                                            case_when(home_conference == away_conference ~ TRUE,
+                                                      TRUE ~ FALSE),
+                                            conference_game))
+
 # k=100 seems good .18, for regress - .176 for .9 (2010), and .179 (2000), test k again - .176 for 75 and 100, test home_field_adv - .176 for 50 and 65, 55 is min at .1758
-#for(home_field_advantage in c(seq(0, 75, by = 5))){
+for(k in c(seq(60, 90, by = 5))){
 elo_ratings <- teams_elo_initial
-#message(paste0("Testing values: \n", "hfa = ", home_field_advantage))
+message(paste0("Testing values: \n", "k = ", k))
 
 #### updated for loop to speed up process ####
 for(yr in c(2000:2020)){
@@ -281,7 +288,7 @@ for(yr in c(2000:2020)){
     
   }
 }
-#}
+}
 #  }
 #}
   
