@@ -1,3 +1,9 @@
+## This script takes the first half of the 2020 Shiny App and grabs the data from
+## collegefootballdata.com. The goal is to calculate all of our stats of interest,
+## save them in CSV file(s), and read those in to the Shiny app to create a quicker 
+## response. Write now the tables are all calculated but none are saved.
+
+
 ### Load necessary packages ###
 library(shiny)
 library(plotly)
