@@ -304,6 +304,13 @@ if(is_empty(plays.master) == F) {
   
   plays.master <- plays.master_temp
   rm(plays.master_temp)
+  
+  # Attempt to clean up turnovers
+  plays.master_temp <- plays.master %>% 
+    mutate(play_type = if_else(str_detect(play_text, "fumble") == T & !(play_type %in% scrimmage_plays_turnover), "Fumble", play_type)) %>% 
+    mutate(play_type = case_when(play_type == "Fumble" & (lead(offense, n = 1L, order_by = play_number) != offense) ~ "Fumble Recovery (Opponent)",
+                                 play_type == "Fumble" & (lead(offense, n = 1L, order_by = play_number) == offense) ~ "Fumble Recovery (Own)",
+                                 TRUE ~ play_type))
 }
 
 
