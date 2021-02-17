@@ -368,10 +368,11 @@ explosive_summary <- plays.master %>%
   summarise(explosive_rate = mean(explosive), team_explosive_rate = mean(team_explosive_rate), count = n())
 
 # Turnover Yards
+####### ****** NEEDS WORK, Turnover counts do not look correct to me
 turnover_yds <- plays.master %>% 
   filter(play_type %in% scrimmage_plays_turnover) %>% 
-  group_by(offense) %>% 
-  summarise(avg_turnover_yards = -mean(turnover_yards), offense_conference, count = n()) %>% 
+  group_by(offense, offense_conference) %>% 
+  summarise(avg_turnover_yards = -mean(turnover_yards), count = n()) %>% 
   left_join(team_colors, by = c("offense" = "school"))
 
 
@@ -398,7 +399,8 @@ field_pos <- left_join(off_field_pos, def_field_pos, by = c("offense" = "defense
 
 # Pass and Rush Rates by Passing Down over Average
 pass_rate_vs_avg_by_down <- plays.master %>% group_by(passing_down) %>% 
-  filter(play_type %in% scrimmage_plays_all) %>% 
+  filter(play_type %in% scrimmage_plays_all) %>%
+  filter(is.na(pass_rush) == F) %>% 
   mutate(cfb_pass_rate = mean(pass_rush == "Pass")) %>% 
   group_by(offense, offense_conference, passing_down) %>% 
   summarise(pass_rate = mean(pass_rush == "Pass"), cfb_pass_rate = mean(cfb_pass_rate)) %>% 
@@ -455,5 +457,8 @@ pass_rate_by_down <- plays.master %>% group_by(down) %>%
 
 ### Keep only what we need for the app
 
-pass_rate_by_down
-yards_per_att_joined
+pass_rate_by_down # Pass Rate by Down
+yards_per_att_joined # Yards Per Attempt, Rushing and Passing, on Offense and Defense
+pass_rate_vs_avg_by_down # Pass Rate on Passing Downs vs. Standard Downs
+field_pos # Average starting field position
+turnover_yds # Average Turnover Yards
