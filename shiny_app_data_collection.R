@@ -473,3 +473,5 @@ yards_per_att_joined # Yards Per Attempt, Rushing and Passing, on Offense and De
 pass_rate_vs_avg_by_down # Pass Rate on Passing Downs vs. Standard Downs
 field_pos # Average starting field position
 turnover_yds # Average Turnover Yards
+explosive_summary # Explosive Rate by team on pass and rush
+succ_rate # success rate by down on offense and defense
