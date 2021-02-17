@@ -475,3 +475,6 @@ field_pos # Average starting field position
 turnover_yds # Average Turnover Yards
 explosive_summary # Explosive Rate by team on pass and rush
 succ_rate # success rate by down on offense and defense
+
+# At this point, all these should be initally write csv to github, and then updated weekly and overwritten since they're season summaries
+# Then, the Shiny app will pull the csvs from github at that point
