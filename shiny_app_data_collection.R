@@ -27,7 +27,7 @@ library(reactable)
 
 
 
-power_5 <- c("ACC", "Big 12", "Big Ten", "Pac-12", "SEC")
+power_5 <- c("ACC", "Big 12", "Big Ten", "Pac-12", "SEC", "FBS Independents")
 
 scrimmage_plays_all <- 
   c(
@@ -432,6 +432,7 @@ yards_per_att_joined <- left_join(yards_per_att_off, yards_per_att_def, by = c("
 # Pass Rate by Down
 pass_rate_by_down <- plays.master %>% group_by(down) %>% 
   filter(play_type %in% scrimmage_plays_all) %>% 
+  filter(is.na(pass_rush) == F) %>% 
   mutate(cfb_pass_rate = mean(pass_rush == "Pass"), cfb_distance = mean(distance)) %>% 
   group_by(offense, offense_conference, down) %>% 
   summarise(pass_rate = mean(pass_rush == "Pass"),
@@ -452,3 +453,7 @@ pass_rate_by_down <- plays.master %>% group_by(down) %>%
          everything()
   )
 
+### Keep only what we need for the app
+
+pass_rate_by_down
+yards_per_att_joined
