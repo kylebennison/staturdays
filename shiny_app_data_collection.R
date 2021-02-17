@@ -368,12 +368,16 @@ explosive_summary <- plays.master %>%
   summarise(explosive_rate = mean(explosive), team_explosive_rate = mean(team_explosive_rate), count = n())
 
 # Turnover Yards
-####### ****** NEEDS WORK, Turnover counts do not look correct to me
+####### ****** NEEDS WORK, Turnover counts do not look correct to me - Example - Illinois we're missing 3 fumbles lost - scrimmage_plays_turnover is probably excluding them
 turnover_yds <- plays.master %>% 
   filter(play_type %in% scrimmage_plays_turnover) %>% 
   group_by(offense, offense_conference) %>% 
   summarise(avg_turnover_yards = -mean(turnover_yards), count = n()) %>% 
   left_join(team_colors, by = c("offense" = "school"))
+
+# Found them in here - 2 plays designated "Rush" and one "Sack" - could try to classify any plays that we find "fumble" in text as "fumble", but tough to determine who recovered. 
+# Could look at next play in play_number and see who's on offense
+plays.master %>% filter(offense == "Illinois" | defense == "Illinois") %>% select(offense, defense, play_type, play_text) %>% filter(str_detect(play_text, "fumble")) %>% View()
 
 
 #### Combined plays data summary table ####
