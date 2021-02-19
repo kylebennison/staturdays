@@ -478,3 +478,16 @@ succ_rate # success rate by down on offense and defense
 
 # At this point, all these should be initally write csv to github, and then updated weekly and overwritten since they're season summaries
 # Then, the Shiny app will pull the csvs from github at that point
+
+setwd("C:/Users/Kyle/Documents/Kyle/Staturdays/Staturdays Github/Github/staturdays")
+
+fwrite(pass_rate_by_down, file = "pass_rate_by_down.csv", append = FALSE)
+fwrite(yards_per_att_joined, file = "yards_per_att_joined.csv", append = FALSE)
+fwrite(pass_rate_vs_avg_by_down, file = "pass_rate_vs_avg_by_down.csv", append = FALSE)
+fwrite(field_pos, file = "field_pos.csv", append = FALSE)
+fwrite(turnover_yds, file = "turnover_yds.csv", append = FALSE)
+fwrite(explosive_summary, file = "explosive_summary.csv", append = FALSE)
+fwrite(succ_rate, file = "succ_rate.csv", append = FALSE)
+
+# Now, run git pushes from the command line to push changes weekly
+# Also need to run this R script from the command line weekly first to update the csv's
