@@ -468,15 +468,17 @@ pass_rate_by_down <- plays.master %>% group_by(down) %>%
 
 ### Keep only what we need for the app
 
-pass_rate_by_down # Pass Rate by Down
-yards_per_att_joined # Yards Per Attempt, Rushing and Passing, on Offense and Defense
-pass_rate_vs_avg_by_down # Pass Rate on Passing Downs vs. Standard Downs
-field_pos # Average starting field position
-turnover_yds # Average Turnover Yards
-explosive_summary # Explosive Rate by team on pass and rush
-succ_rate # success rate by down on offense and defense
+# Glossary of tables
 
-# At this point, all these should be initally write csv to github, and then updated weekly and overwritten since they're season summaries
+# pass_rate_by_down # Pass Rate by Down
+# yards_per_att_joined # Yards Per Attempt, Rushing and Passing, on Offense and Defense
+# pass_rate_vs_avg_by_down # Pass Rate on Passing Downs vs. Standard Downs
+# field_pos # Average starting field position
+# turnover_yds # Average Turnover Yards
+# explosive_summary # Explosive Rate by team on pass and rush
+# succ_rate # success rate by down on offense and defense
+
+# At this point, all these should be initially write csv to github, and then updated weekly and overwritten since they're season summaries
 # Then, the Shiny app will pull the csvs from github at that point
 
 setwd("C:/Users/Kyle/Documents/Kyle/Staturdays/Staturdays Github/Github/staturdays")
