@@ -481,7 +481,7 @@ pass_rate_by_down <- plays.master %>% group_by(down) %>%
 # At this point, all these should be initially write csv to github, and then updated weekly and overwritten since they're season summaries
 # Then, the Shiny app will pull the csvs from github at that point
 
-setwd("C:/Users/Kyle/Documents/Kyle/Staturdays/Staturdays Github/Github/staturdays")
+setwd("C:/Users/Kyle/Documents/Kyle/Staturdays/Staturdays Github/Github/staturdays/Shiny App/csvs")
 
 fwrite(pass_rate_by_down, file = "pass_rate_by_down.csv", append = FALSE)
 fwrite(yards_per_att_joined, file = "yards_per_att_joined.csv", append = FALSE)
