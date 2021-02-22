@@ -384,7 +384,7 @@ turnover_yds <- plays.master %>%
 
 # Found them in here - 2 plays designated "Rush" and one "Sack" - could try to classify any plays that we find "fumble" in text as "fumble", but tough to determine who recovered. 
 # Could look at next play in play_number and see who's on offense
-plays.master %>% filter(offense == "Illinois" | defense == "Illinois") %>% select(offense, defense, play_type, play_text) %>% filter(str_detect(play_text, "fumble")) %>% View()
+# plays.master %>% filter(offense == "Illinois" | defense == "Illinois") %>% select(offense, defense, play_type, play_text) %>% filter(str_detect(play_text, "fumble")) %>% View()
 
 
 #### Combined plays data summary table ####
