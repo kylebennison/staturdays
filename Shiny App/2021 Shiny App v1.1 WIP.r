@@ -207,7 +207,7 @@ server <- function(input, output) {
   # Offense
   success_rate_offense <- reactive({
     succ_rate %>% 
-      filter(stat == success_rate_offense, offense_conference %in% c(input$conference)) %>% 
+      filter(stat == "offense_success_rate", team_conference %in% c(input$conference)) %>% 
       group_by(down) %>% 
       mutate(rank = rank(desc(succ_rate), ties.method = "min"))
   }
@@ -215,7 +215,7 @@ server <- function(input, output) {
   # Defense
   success_rate_defense <- reactive({
     succ_rate %>% 
-      filter(stat == success_rate_defense, defense_conference %in% c(input$conference)) %>% 
+      filter(stat == "defense_success_rate", team_conference %in% c(input$conference)) %>% 
       group_by(down) %>% 
       mutate(rank = rank(succ_rate, ties.method = "min"))
   }
@@ -245,7 +245,7 @@ server <- function(input, output) {
   # Success Rate Plot - OFF
   output$success_rate_off <- renderPlot({
     success_rate_offense() %>% 
-      group_by(offense) %>% 
+      group_by(team) %>% 
       ggplot(aes(x = rank, y = succ_rate, fill = color)) +
       geom_col(position = "dodge") +
       geom_image(aes(image = light), size = .1, by = "width", asp = 2, nudge_y = .01) +
@@ -253,7 +253,7 @@ server <- function(input, output) {
       facet_wrap(vars(down), nrow = 4) +
       scale_x_reverse(breaks = seq(1:max(success_rate_offense()$rank))) +
       scale_fill_identity() +
-      geom_label(aes(label = off_play_count), nudge_y = -.25, size = 3, fill = "white") +
+      geom_label(aes(label = play_count), nudge_y = -.25, size = 3, fill = "white") +
       labs(title = paste0(c(input$conference)," \nSuccess Rate - ", year(today())), # need to have a table that stores metadata about week and year that data is through
            subtitle = "Percent of plays successful \nand # of Plays",
            caption = "@staturdays | @kylebeni012 - Data: @cfb_data",
@@ -267,7 +267,7 @@ server <- function(input, output) {
   # Success Rate Plot - DEF
   output$success_rate_def <- renderPlot({
     success_rate_defense() %>% 
-      group_by(defense) %>% 
+      group_by(team) %>% 
       ggplot(aes(x = rank, y = succ_rate, fill = color)) +
       geom_col(position = "dodge") +
       geom_image(aes(image = light), size = .1, by = "width", asp = 2, nudge_y = .01) +
@@ -275,7 +275,7 @@ server <- function(input, output) {
       facet_wrap(vars(down), nrow = 4) +
       scale_x_reverse(breaks = seq(1:max(success_rate_defense()$rank))) +
       scale_fill_identity() +
-      geom_label(aes(label = def_play_count), nudge_y = -.25, size = 3, fill = "white") +
+      geom_label(aes(label = play_count), nudge_y = -.25, size = 3, fill = "white") +
       labs(title = paste0(input$conference," \nSuccess Rate - ", year(today())),
            subtitle = "Percent of plays successful \nand # of Plays",
            caption = "@staturdays | @kylebeni012 - Data: @cfb_data",
