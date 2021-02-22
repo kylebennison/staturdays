@@ -254,7 +254,7 @@ server <- function(input, output) {
       scale_x_reverse(breaks = seq(1:max(success_rate_offense()$rank))) +
       scale_fill_identity() +
       geom_label(aes(label = off_play_count), nudge_y = -.25, size = 3, fill = "white") +
-      labs(title = paste0(c(input$conference)," \nSuccess Rate - ", max(plays.master$year)),
+      labs(title = paste0(c(input$conference)," \nSuccess Rate - ", year(today())), # need to have a table that stores metadata about week and year that data is through
            subtitle = "Percent of plays successful \nand # of Plays",
            caption = "@staturdays | @kylebeni012 - Data: @cfb_data",
            x = "Ranking",
@@ -276,7 +276,7 @@ server <- function(input, output) {
       scale_x_reverse(breaks = seq(1:max(success_rate_defense()$rank))) +
       scale_fill_identity() +
       geom_label(aes(label = def_play_count), nudge_y = -.25, size = 3, fill = "white") +
-      labs(title = paste0(input$conference," \nSuccess Rate - ", max(plays.master$year)),
+      labs(title = paste0(input$conference," \nSuccess Rate - ", year(today())),
            subtitle = "Percent of plays successful \nand # of Plays",
            caption = "@staturdays | @kylebeni012 - Data: @cfb_data",
            x = "Ranking",
