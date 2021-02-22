@@ -169,9 +169,7 @@ ui <- navbarPage(title = "Staturdays | CFB Stats and Analysis",
                               selectizeInput(inputId = "conference", label = "Choose which conferences to plot", 
                                              choices = unique(succ_rate$team_conference),
                                              selected = "Big Ten",
-                                             multiple = T),
-                              numericInput(inputId = "startweek", label = "Start Week", value = 1, min = 1, max = max(plays.master$week), step = 1),
-                              numericInput(inputId = "endweek", label = "End Week", value = max(plays.master$week), min = 1, max = max(plays.master$week), step = 1)
+                                             multiple = T)
                             ),
                             mainPanel(fluidRow(
                               column(
@@ -208,16 +206,16 @@ server <- function(input, output) {
   ## Success Rate
   # Offense
   success_rate_offense <- reactive({
-    succ_rate_off %>% 
-      filter(offense_conference %in% c(input$conference)) %>% 
+    succ_rate %>% 
+      filter(stat == success_rate_offense, offense_conference %in% c(input$conference)) %>% 
       group_by(down) %>% 
       mutate(rank = rank(desc(succ_rate), ties.method = "min"))
   }
   )
   # Defense
   success_rate_defense <- reactive({
-    succ_rate_def %>% 
-      filter(defense_conference %in% c(input$conference)) %>% 
+    succ_rate %>% 
+      filter(stat == success_rate_defense, defense_conference %in% c(input$conference)) %>% 
       group_by(down) %>% 
       mutate(rank = rank(succ_rate, ties.method = "min"))
   }
@@ -225,7 +223,7 @@ server <- function(input, output) {
   
   # Explosiveness
   explosiveness <- reactive({
-    explosive_summary %>% 
+    explosive %>% 
       filter(offense_conference %in% input$conference)
   })
   
