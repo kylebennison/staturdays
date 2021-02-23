@@ -193,8 +193,14 @@ ui <- navbarPage(title = "Staturdays | CFB Stats and Analysis",
                                       )
                           )
                           ),
-                 tabPanel(title = "Competitive Tendencies",
-                          reactableOutput(outputId = "pass_rate"))
+                 navbarMenu("Competitive Tendencies",
+                   tabPanel(title = "Pass Rate by Situation",
+                            reactableOutput(outputId = "pass_rate")),
+                   tabPanel(title = "Down and Distance",
+                            fluidRow(numericInput(inputId = "down", label = "Select a down", value = 1L, min = 1L, max = 4L)),
+                            fluidRow(reactableOutput(outputId = "pass_rate_by_down"))
+                            )
+                 )
 )
 
 # Server ------------------------------------------------------------------
@@ -238,6 +244,12 @@ server <- function(input, output) {
     field_pos %>% 
       filter(offense_conference %in% input$conference) %>% 
       mutate(first_rank = rank(desc(net_field_pos), ties.method = "min"))
+  })
+  
+  # Pass Rate by Down
+  pass_rate_by_down_tbl <- reactive({
+    pass_rate_by_down %>%
+      select(1, 2, matches(paste0("_", input$down)))
   })
 
 # Plots -------------------------------------------------------------------
@@ -388,6 +400,10 @@ server <- function(input, output) {
               pagination = F,
               highlight = T)
     })
+  
+  output$pass_rate_by_down <- renderReactable({
+    reactable(pass_rate_by_down_tbl())
+  })
   
 }
 
