@@ -247,10 +247,14 @@ server <- function(input, output) {
       mutate(first_rank = rank(desc(net_field_pos), ties.method = "min"))
   })
   
-  # Pass Rate by Down
+  # Pass Rate by Down 
   pass_rate_by_down_tbl <- reactive({
-    pass_rate_by_down %>%
-      select(1, 2, matches(paste0("_", input$down)))
+    pass_rate_by_down %>% 
+      pivot_longer(cols = matches("_[0-9]"), names_to = "down", values_to = "test") %>% 
+      mutate(down_num = str_extract(down, "[0-9]")) %>% 
+      mutate(down = str_sub(down, start = 1L, end = -3L)) %>% 
+      pivot_wider(names_from = down, values_from = test) %>%
+      filter(down_num %in% input$down)
   })
 
 # Plots -------------------------------------------------------------------
@@ -403,7 +407,15 @@ server <- function(input, output) {
     })
   
   output$pass_rate_by_down <- renderReactable({
-    reactable(pass_rate_by_down_tbl())
+    reactable(pass_rate_by_down_tbl(),
+              columns = list(
+                pass_rate = colDef(name = "Pass Rate"),
+                avg_distance = colDef(name = "Avg. Distance to Go")
+              ),
+              searchable = T,
+              pagination = F,
+              highlight = T
+              )
   })
   
 }
