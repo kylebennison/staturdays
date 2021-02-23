@@ -197,7 +197,8 @@ ui <- navbarPage(title = "Staturdays | CFB Stats and Analysis",
                    tabPanel(title = "Pass Rate by Situation",
                             reactableOutput(outputId = "pass_rate")),
                    tabPanel(title = "Down and Distance",
-                            fluidRow(numericInput(inputId = "down", label = "Select a down", value = 1L, min = 1L, max = 4L)),
+                            fluidRow(selectizeInput(inputId = "down", label = "Select a down", choices = c(1L, 2L, 3L, 4L), selected = 1L, multiple = T,
+                                                    options = list(placeholder = "Select a down"))),
                             fluidRow(reactableOutput(outputId = "pass_rate_by_down"))
                             )
                  )
