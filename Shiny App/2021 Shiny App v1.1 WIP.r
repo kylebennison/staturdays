@@ -303,8 +303,8 @@ server <- function(input, output) {
       labs(title = "Explosiveness on \nOffense",
            subtitle = "Percent of explosive \nruns and passes,\ndefined as 90th percentile plays",
            caption = "@staturdays | @kylebeni012 - Data: @cfb_data",
-           x = paste0("Explosive Pass Rate (>= ", explosive_pass," yds)"),
-           y = paste0("Explosive Rush Rate (>= ", explosive_rush," yds)")) +
+           x = paste0("Explosive Pass Rate (>= ", "20"," yds)"), # Need this data stored in a csv, replacing with 20 for now
+           y = paste0("Explosive Rush Rate (>= ", "12"," yds)")) + # Need this data stored in a csv, replacing with 12 for now
       staturdays_theme +
       #annotation_custom(logo, xmin = .16, xmax = .24, ymin = .02, ymax = 0.07) +
       coord_cartesian(clip = "off") +
@@ -358,7 +358,7 @@ server <- function(input, output) {
 
 # Competitive Tendencies Tab ----------------------------------------------
 
-  # Pass Rate
+  # Pass Rate by Situation
   output$pass_rate <- renderReactable({
     reactable(pass_rate_vs_avg_by_down, 
               columnGroups = list(
