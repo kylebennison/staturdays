@@ -409,8 +409,15 @@ server <- function(input, output) {
   output$pass_rate_by_down <- renderReactable({
     reactable(pass_rate_by_down_tbl(),
               columns = list(
-                pass_rate = colDef(name = "Pass Rate"),
-                avg_distance = colDef(name = "Avg. Distance to Go")
+                offense = colDef(name = "Offense"),
+                offense_conference = colDef(name = "Conference"),
+                down_num = colDef(name = "Down"),
+                pass_rate = colDef(name = "Pass Rate", format = colFormat(percent = T, digits = 1)),
+                avg_distance = colDef(name = "Avg. Distance to Go", format = colFormat(digits = 1)),
+                cfb_pass_rate = colDef(name = "CFB Pass Rate", format = colFormat(percent = T, digits = 1)),
+                cfb_distance = colDef(name = "CFB Avg. Distance to Go", format = colFormat(digits = 1)),
+                pass_vs_avg = colDef(name = "Pass Rate vs. Avg.", format = colFormat(percent = T, digits = 1)),
+                distance_vs_avg = colDef(name = "Distance to Go vs. Avg.", format = colFormat(percent = T, digits = 1))
               ),
               searchable = T,
               pagination = F,
