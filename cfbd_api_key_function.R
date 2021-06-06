@@ -7,8 +7,6 @@ library(RCurl)
 # cfbd_staturdays_key = "mysecretkey"
 key <- Sys.getenv("cfbd_staturdays_key")
 
-url <- "https://api.collegefootballdata.com/plays?seasonType=both&year=2020&week=1"
-
 cfbd_api <- function(url, key){
 
 data <- httr::GET(url = url, 
@@ -21,5 +19,3 @@ data <- content(data, as="text", encoding = "UTF-8") %>%
   readr::type_convert()
 
 }
-
-week1 <- cfbd_api(url = url, key = key)
