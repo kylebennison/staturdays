@@ -9,7 +9,8 @@ library(stringr)
 library(lubridate)
 library(gt)
 library(data.table)
-source("C:/Users/Kyle/Documents/Kyle/Staturdays/Staturdays Github/Github/staturdays/cfbd_api_key_function.R")
+source("https://raw.githubusercontent.com/kylebennison/staturdays/master/cfbd_api_key_function.R")
+
 #Staturdays Colors
 
 staturdays_col_list <- c(
