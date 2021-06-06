@@ -4,13 +4,12 @@ library(scales)
 library(tidyverse)
 library(RCurl)
 library(XML)
-library(rjson)
 library(jsonlite)
 library(stringr)
 library(lubridate)
 library(gt)
 library(data.table)
-
+source("C:/Users/Kyle/Documents/Kyle/Staturdays/Staturdays Github/Github/staturdays/cfbd_api_key_function.R")
 #Staturdays Colors
 
 staturdays_col_list <- c(
@@ -57,14 +56,12 @@ group_of_5 <- c("American Athletic", "Conference USA", "Mid-American", "Mountain
 
 base_url_games <- "https://api.collegefootballdata.com/games?" # Base URL for games data
 
-games.master = data.frame()
+games.master = tibble()
 for (j in 2000:2020) {
   for (i in 1:20) {
     cat('Loading Games', j, 'Week', i, '\n')
     full_url_games <- paste0(base_url_games, "year=", as.character(j), "&week=", as.character(i), "&seasonType=both")
-    full_url_games_encoded <- URLencode(full_url_games)
-    games <- fromJSON(getURL(full_url_games_encoded))
-    games <- as_tibble(games)
+    games <- cfbd_api(full_url_games, my_key)
     games.master = rbind(games.master, games)
   }
 }
