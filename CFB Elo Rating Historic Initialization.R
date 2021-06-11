@@ -344,13 +344,13 @@ k_optimization %>% mutate(error=(HomeWin-HomeExpectedWin)^2) %>%
   group_by(week) %>% 
   summarise(e=mean(error), count = n())
 
-ggsave(filename = "actualvspredict_historic.png", 
-       plot = actual_vs_predicted_plot, 
-       path = "/Users/kylebennison/Documents/Documents/Kyle/Staturdays/R Plots/",
-       width = 200,
-       height = 200,
-       units = "mm"
-)
+# ggsave(filename = "actualvspredict_historic.png", 
+#        plot = actual_vs_predicted_plot, 
+#        path = "/Users/kylebennison/Documents/Documents/Kyle/Staturdays/R Plots/",
+#        width = 200,
+#        height = 200,
+#        units = "mm"
+# )
 
 # Smooth representation of predictions
 k_optimization %>% 
