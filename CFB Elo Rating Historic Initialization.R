@@ -190,9 +190,9 @@ cfb_games <- cfb_games %>% mutate(conference_game =
                                             conference_game))
 
 # k=100 seems good .18, for regress - .176 for .9 (2010), and .179 (2000), test k again - .176 for 75 and 100, test home_field_adv - .176 for 50 and 65, 55 is min at .1758
-for(k in c(seq(60, 90, by = 5))){
-elo_ratings <- teams_elo_initial
-message(paste0("Testing values: \n", "k = ", k))
+# for(k in c(seq(60, 90, by = 5))){
+# elo_ratings <- teams_elo_initial
+# message(paste0("Testing values: \n", "k = ", k))
 
 #### updated for loop to speed up process ####
 for(yr in c(2000:2020)){
@@ -284,7 +284,7 @@ for(yr in c(2000:2020)){
     
   }
 }
-}
+# }
 #  }
 #}
   
