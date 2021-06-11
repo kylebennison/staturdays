@@ -72,12 +72,10 @@ conference_url <- "https://api.collegefootballdata.com/teams/fbs?year="
 conference.master = data.frame()
 for (j in 2000:2020) {
     cat('Loading Conferences ', j, '\n')
-    full_url_games <- paste0(conference_url, as.character(j))
-    full_url_games_encoded <- URLencode(full_url_games)
-    games <- fromJSON(getURL(full_url_games_encoded))
-    games <- as_tibble(games)
-    games <- games %>% mutate(year = j)
-    conference.master = rbind(conference.master, games)
+    full_url_conf <- paste0(conference_url, as.character(j))
+    conf <- cfbd_api(full_url_conf, my_key)
+    conf <- conf %>% mutate(year = j)
+    conference.master = rbind(conference.master, conf)
 }
 
 
