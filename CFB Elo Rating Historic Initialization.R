@@ -289,6 +289,8 @@ for(yr in c(2000:2020)){
 #}
   
 
+# Analyze results of Elo --------------------------------------------------
+
 
 # Calc mean predicted vs. mean actual, and Brier
 k_optimization %>% 
@@ -301,11 +303,6 @@ brier <- k_optimization %>% mutate(error=(HomeWin-HomeExpectedWin)^2) %>%
   filter(Year>=2010) %>% 
   group_by(kval, home_field_val, regress_val, g5_val, d3_val, neutral_adjust) %>% 
   summarise(e=mean(error))
-
-# Write historic calculations to github for the first time
-#fwrite(elo_ratings, file = "C:/Users/Kyle/Documents/Kyle/Staturdays/Staturdays Github/Github/staturdays/elo_ratings_historic.csv", append = FALSE, col.names = TRUE)
-
-# write_csv(brier, path = "C:/Users/Kyle/Documents/Kyle/Staturdays/Data/elo g5 d3 initial 8.13.20.csv")
 
 # See which regress value optimizes Brier the most
 k_optimization %>% mutate(error=(HomeWin-HomeExpectedWin)^2) %>% 
@@ -345,7 +342,7 @@ ggsave(filename = "actualvspredict_historic.png",
        width = 200,
        height = 200,
        units = "mm"
-       )
+)
 
 # Smooth representation of predictions
 k_optimization %>% 
@@ -359,176 +356,10 @@ actual_vs_predict <- k_optimization %>% mutate(win_prob_bucket = round(HomeExpec
   group_by(win_prob_bucket) %>% 
   summarise(mean_actual_score = mean(HomeWin), mse = mean(error), root_mse = sqrt(mse), count= n())
 
-# Linear Regression to get standard error ## NOT SURE IF THIS IS ACCURATE
-summary(lm(mean_actual_score ~ win_prob_bucket, {k_optimization %>% mutate(win_prob_bucket = round(HomeExpectedWin, 2), error = (HomeWin - HomeExpectedWin)^2) %>% 
-    group_by(win_prob_bucket) %>% 
-    summarise(mean_actual_score = mean(HomeWin), mse = mean(error), count= n())}))
 
-summary(lm(HomeWin ~ HomeExpectedWin, {k_optimization %>% filter(Year >= 2010)}))
-# For each 10% increase in expected win probability, actual wins increase 9%.
+# Write to Github ---------------------------------------------------------
 
-# Convert Elo to an Implied Point Spread WIP ------------------------------
+# Write historic calculations to github for the first time
+#fwrite(elo_ratings, file = "C:/Users/Kyle/Documents/Kyle/Staturdays/Staturdays Github/Github/staturdays/elo_ratings_historic.csv", append = FALSE, col.names = TRUE)
 
-## Thought: maybe I need to do this backwards, and use the historic betting database, put that up against the win probability, and get a 
-## implied win probability from actual betting lines. Then use that to find value. Because right now the spreads are all over the place.
-
-# Calculate mean point spread by prediction bucket and elo diff
-k_optimization %>% mutate(win_prob_bucket = round(HomeExpectedWin, 2), error = (HomeWin - HomeExpectedWin)^2) %>% 
-  group_by(win_prob_bucket) %>% 
-  summarise(mean_point_spread = mean(home_spread), mean_elo_diff = mean(elo_diff), mse = mean(error), root_mse = sqrt(mse), count= n())
-
-# Calculate mean point spread by elo_diff
-spread_by_elo_diff <- k_optimization %>% mutate(elo_diff_bucket = (elo_diff%/%50)*50) %>% 
-  group_by(elo_diff_bucket) %>% 
-  summarise(mean_point_spread = mean(home_spread), sd_point_spread = sd(home_spread), count= n())
-
-# Scatter
-spread_by_elo_diff %>% 
-  ggplot(aes(x = elo_diff_bucket, y = mean_point_spread)) +
-  geom_point()
-
-# Linear Model
-bucket.lm <- summary(lm(mean_point_spread ~ elo_diff_bucket, spread_by_elo_diff)) # Built off buckets - higher r-square - i don't think you are allowed to do this.. use a summary to predict a summary, lose a lot of the true variance
-raw.lm <- summary(lm(home_spread ~ elo_diff, {k_optimization %>% mutate(elo_diff_bucket = (elo_diff%/%50)*50)})) # Built off raw data
-
-# Scatterplot of elo_diff and spread
-k_optimization %>% mutate(elo_diff_bucket = (elo_diff%/%50)*50) %>% 
-  ggplot(aes(x = elo_diff, y = home_spread)) +
-  geom_point(alpha = 0.1) +
-  geom_abline(slope = m, intercept = b)
-
-# Graph spreads
-k_optimization %>% mutate(elo_diff_bucket = (elo_diff%/%50)*50) %>% 
-  filter(elo_diff_bucket == 0) %>% 
-  ggplot() +
-  geom_histogram(aes(x = home_spread))
-
-summary(lm(home_spread ~ elo_diff, {k_optimization %>% filter(Year >= 2010)}))
-### So this makes the implied spread formula (elo_diff (home - away) / 20.14) + 4.69. This would imply 4.7 points of home field advantage which seems high.
-
-# Implied point spread and mean actual spread
-k_optimization %>% mutate(
-implied_spread = 4.6899972 + 0.0496551 * elo_diff
-) %>% 
-  mutate(implied_spread_bucket = round(implied_spread, 0)) %>% 
-  group_by(implied_spread_bucket) %>% 
-  summarise(mean_home_spread = mean(home_spread), count = n()) %>% 
-  ggplot() +
-  geom_point(aes(x = implied_spread_bucket, y = mean_home_spread))
-
-# Difference in Elo and Actual Spread
-k_optimization %>% 
-  ggplot() +
-  geom_point(aes(x = elo_diff, y = home_spread))
-
-# Graphs ------------------------------------------------------------------
-
-# Elo of the top 10 teams in average Elo all-time
-elo_ratings %>% 
-  filter(team %in% {elo_ratings %>% group_by(team) %>% summarise(avg_elo = mean(elo_rating)) %>% slice_max(order_by = avg_elo, n=10)}$team) %>% 
-  ggplot(aes(date, elo_rating, colour = team)) +
-  geom_line()
-
-# Elo of Penn State
-elo_ratings %>% 
-  filter(team %in% "Penn State", season == 2019) %>% 
-  ggplot(aes(date, elo_rating, colour = team)) +
-  geom_line()
-
-# Function that creates an Elo plot of two teams for a set date range
-Elo_head_to_head <- function(team_a, team_b, start_season=min(elo_ratings$season), end_season=max(elo_ratings$season)){
-  elo_ratings %>% 
-    filter(team %in% c(team_a, team_b), season >= start_season & season <= end_season) %>% 
-    ggplot(aes(date, elo_rating, colour = team)) +
-    geom_line() +
-    labs(
-      x = "Date",
-      y = "Elo Rating",
-      color = "Team"
-    )
-}
-
-Elo_head_to_head("LSU", "Alabama", 2010, 2020)
-
-elo_h2h_plot <- Elo_head_to_head("LSU", "Clemson", 2019, 2019) + 
-  labs(
-    title = "LSU's Historic Climb to the \n2019 CFP Championship",
-    subtitle = "LSU climbed as they beat highly rated opponents, \nwhile Clemson flatlined",
-    caption = "@staturdays | @kylebeni012 - Data: @cfb_data") +
-  staturdays_theme +
-  scale_color_manual(values = c("#F66733", "#461D7C")) +
-  theme(legend.position = c(.85, .25),
-        legend.background = element_blank(),
-        legend.text = element_text(color = staturdays_colors("dark_blue")),
-        legend.title = element_text(color = staturdays_colors("dark_blue")))
-  
-ggsave(filename = "lsu_2019_elo.png", 
-       plot = elo_h2h_plot, 
-       path = "/Users/kylebennison/Documents/Documents/Kyle/Staturdays/R Plots/",
-       width = 200,
-       height = 200,
-       units = "mm"
-)
-
-# Predict Upcoming Week Outcomes ------------------------------------------
-
-upcoming.games = data.frame()
-for (j in 2020:2020) {
-  for (i in 1:15) {
-    cat('Loading Games', j, 'Week', i, '\n')
-    full_url_games <- paste0(base_url_games, "year=", as.character(j), "&week=", as.character(i), "&seasonType=both")
-    full_url_games_encoded <- URLencode(full_url_games)
-    games <- fromJSON(getURL(full_url_games_encoded))
-    games <- as_tibble(games)
-    upcoming.games = rbind(upcoming.games, games)
-  }
-}
-
-current_elo_ratings_a <- current_elo_ratings %>% select(team, elo_rating)
-
-upcoming.games <- left_join(upcoming.games, current_elo_ratings_a, by = c("home_team" = "team")) %>% 
-  rename(home_elo = elo_rating)
-
-upcoming.games <- left_join(upcoming.games, current_elo_ratings_a, by = c("away_team" = "team")) %>% 
-  rename(away_elo = elo_rating)
-
-# Get win prob
-upcoming.games <- upcoming.games %>% 
-  filter(week == 1) %>% 
-  mutate(home_pred_win_prob = calc_expected_score(home_elo, away_elo), away_pred_win_prob = 1 - home_pred_win_prob)
-
-# Table of win probabilities for the week
-upcoming.games %>% 
-  filter(week == 1) %>% 
-  select(home_team,home_elo, home_pred_win_prob, home_conference, away_team, away_elo, away_pred_win_prob, away_conference) %>%
-  gt() %>% 
-  tab_header(title = paste0(max(upcoming.games$season), " Week ", max(upcoming.games$week), " Win Probabilities"),
-             subtitle = "Based on head-to-head Elo Ratings") %>% 
-    tab_spanner(label = "Home", # Add a column spanning header
-                columns = vars(home_team,home_elo, home_pred_win_prob, home_conference)) %>% 
-    tab_spanner(label = "Away", # Add a column spanning header
-                columns = vars(away_team, away_elo, away_pred_win_prob, away_conference)) %>% 
-  cols_label(home_team = "Team", home_elo = "Elo Rating", home_pred_win_prob = "Win Probability", home_conference = "Conference",
-             away_team = "Team", away_elo = "Elo Rating", away_pred_win_prob = "Win Probability", away_conference = "Conference") %>% 
-  fmt_percent(columns = vars(home_pred_win_prob, away_pred_win_prob), decimals = 2) %>% 
-  fmt_number(vars(home_elo, away_elo), decimals = 2, use_seps = FALSE) %>% 
-  data_color(columns = vars(home_pred_win_prob, away_pred_win_prob), # Use a color scale on win prob
-             colors = scales::col_numeric(
-               palette = staturdays_palette,
-               domain = NULL),
-             alpha = 0.7) %>% 
-  tab_style( # Add a weighted line down the middle
-    style = list(
-      cell_borders(
-        sides = "left",
-        color = staturdays_colors("dark_blue"),
-        weight = px(3)
-      )
-    ),
-    locations = list(
-      cells_body(
-        columns = vars(away_team)
-      )
-    )
-  ) %>% 
-  tab_source_note("@kylebeni012 | @staturdays — Data: @cfb_data")
+# write_csv(brier, path = "C:/Users/Kyle/Documents/Kyle/Staturdays/Data/elo g5 d3 initial 8.13.20.csv")
