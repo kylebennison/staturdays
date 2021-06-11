@@ -82,6 +82,10 @@ for (j in 2000:2020) {
 games.master$home_line_scores <- vapply(games.master$home_line_scores, paste, collapse = ", ", character(1L))
 games.master$away_line_scores <- vapply(games.master$away_line_scores, paste, collapse = ", ", character(1L))
 
+# Ensure all games.master start_date values are datetimes
+games.master <- games.master %>% 
+  mutate(start_date = as_datetime(start_date))
+
 # Get every team's conference in the latest year
 conferences_latest <- conference.master %>% filter(year == max(year)) %>% select(school, conference)
 
@@ -119,7 +123,7 @@ unique_teams <- as_tibble(unique(c(unique(unique(c(unique(games.master$home_team
 teams_elo_initial <- unique_teams %>% select(value, conference, conference_class) %>% 
   rename(elo_rating = conference_class) %>% 
            rename(team = value) %>% 
-  mutate(week = 0, season = min(games.master$season), date = ymd_hms(min(games.master$start_date)) - 7)
+  mutate(week = 0, season = min(games.master$season), date = ymd_hms(min(games.master$start_date) - 7))
 
 
 #Select variables we want
