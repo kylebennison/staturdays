@@ -78,6 +78,9 @@ for (j in 2000:2020) {
     conference.master = rbind(conference.master, conf)
 }
 
+# Unlist line scores in games dataframe
+games.master$home_line_scores <- vapply(games.master$home_line_scores, paste, collapse = ", ", character(1L))
+games.master$away_line_scores <- vapply(games.master$away_line_scores, paste, collapse = ", ", character(1L))
 
 # Get every team's conference in the latest year
 conferences_latest <- conference.master %>% filter(year == max(year)) %>% select(school, conference)
