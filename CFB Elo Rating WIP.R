@@ -79,8 +79,8 @@ for (j in 2000:2020) {
 }
 
 
-# Get every team's conference in the year 2000 (initialization year)
-conferences_2000 <- conference.master %>% filter(year == 2019) %>% select(school, conference)
+# Get every team's conference in the latest year
+conferences_latest <- conference.master %>% filter(year == max(year)) %>% select(school, conference)
 
 #keep track of predictions 
 ## All factors have been tested and optimized
@@ -105,7 +105,7 @@ k_optimization <- tibble(HomeWin=0, HomeExpectedWin=0, home_spread = 0, elo_diff
 # Get all unique teams from the games database, join in conference, and then assign an initial Elo Rating
 unique_teams <- as_tibble(unique(c(unique(unique(c(unique(games.master$home_team),
                                          unique(games.master$away_team))))))) %>% 
-  left_join(conferences_2000, by = c("value" = "school")) %>% 
+  left_join(conferences_latest, by = c("value" = "school")) %>% 
   mutate(conference_class = case_when(conference %in% power_5 ~ 1500,
                                       conference %in% group_of_5 ~ g5,
                                       conference %in% "FBS Independents" ~ 1500,
