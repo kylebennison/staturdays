@@ -1,3 +1,5 @@
+library(tidyverse)
+
 # Required Themes and Data ------------------------------------------------
 
 #Staturdays Colors
