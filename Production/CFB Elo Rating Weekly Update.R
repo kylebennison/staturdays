@@ -42,13 +42,12 @@ calc_new_elo_rating <- function(team_rating, actual_score, expected_score, k=85)
 
 base_url_games <- "https://api.collegefootballdata.com/games?" # Base URL for games data
 
-games.master = data.frame()
-for (j in 2020) {
+games.master = tibble()
+for (j in 2021) {
   for (i in 1:20) {
     cat('Loading Games', j, 'Week', i, '\n')
     full_url_games <- paste0(base_url_games, "year=", as.character(j), "&week=", as.character(i), "&seasonType=both")
-    full_url_games_encoded <- URLencode(full_url_games)
-    games <- fromJSON(getURL(full_url_games_encoded))
+    games <- cfbd_api(full_url_games, my_key)
     games <- as_tibble(games)
     games.master = rbind(games.master, games)
   }
@@ -123,9 +122,8 @@ upcoming.games <- tibble(cfb_games)
 # Save a version of this year's games for later
 lastweek.games <- upcoming.games
 # Read in historic Elo ratings
-elo_ratings <- read_csv(file = "https://raw.githubusercontent.com/kylebennison/staturdays/master/elo_ratings_historic.csv",
-                        col_types = list(col_character(), col_character(), col_double(), col_integer(), col_integer(), col_datetime(format = "%Y-%m-%d HH:mm:ss")))
-
+elo_ratings <- fread("https://raw.githubusercontent.com/kylebennison/staturdays/master/Production/elo_ratings_historic.csv")
+                        
 elo_conf <- elo_ratings %>% 
   mutate(conference_class = case_when(conference %in% power_5 ~ 1500,
                                     conference %in% group_of_5 ~ g5,
@@ -133,7 +131,7 @@ elo_conf <- elo_ratings %>%
                                     TRUE ~ d3))
 
 # Regress ratings if it's a new season
-if (today()-max(elo_ratings$date) > 90){
+if (now()-max(elo_ratings$date) > 90){
   preseason_elo <- elo_conf %>% group_by(team) %>% 
     slice(which.max(date)) %>% 
     mutate(elo_rating = elo_rating*(regress)+conference_class*(1-regress),
@@ -144,7 +142,7 @@ if (today()-max(elo_ratings$date) > 90){
     select(-conference_class)
   elo_ratings <- elo_ratings %>% 
     bind_rows(preseason_elo)
-  fwrite(preseason_elo, file = "C:/Users/Kyle/Documents/Kyle/Staturdays/Staturdays Github/Github/staturdays/elo_ratings_historic.csv", append = TRUE, col.names = FALSE)
+  fwrite(preseason_elo, file = "C:/Users/Kyle/Documents/Kyle/Staturdays/Staturdays Github/Github/staturdays/Production/elo_ratings_historic.csv", append = TRUE, col.names = FALSE)
 }
 
 # Filter only games that haven't been rated yet
@@ -317,7 +315,7 @@ elo_ratings <- elo_ratings %>%
   bind_rows(updated_ratings_away)
 
 # Write new data to github
-fwrite(elo_ratings_updated, file = "C:/Users/Kyle/Documents/Kyle/Staturdays/Staturdays Github/Github/staturdays/elo_ratings_historic.csv", append = TRUE, col.names = FALSE)
+fwrite(elo_ratings_updated, file = "C:/Users/Kyle/Documents/Kyle/Staturdays/Staturdays Github/Github/staturdays/Production/elo_ratings_historic.csv", append = TRUE, col.names = FALSE)
 }
 }
 }
@@ -530,7 +528,7 @@ full_url_betting <- paste0(betting_url, "week=", as.character(if_else(
 
 betting.master = data.frame()
 full_url_betting_encoded <- URLencode(full_url_betting)
-betting <- fromJSON(getURL(full_url_betting_encoded))
+betting <- cfbd_api(full_url_betting_encoded, my_key)
 betting <- as_tibble(betting)
 betting <- unnest(betting, cols = c(lines))
 betting.master = rbind(betting.master, betting)
