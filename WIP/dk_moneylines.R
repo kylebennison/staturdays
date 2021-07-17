@@ -46,7 +46,7 @@ moneylines <- d_final %>%
   mutate(favorite = case_when(str_detect(oddsAmerican, "-") == TRUE ~ "favorite",
                               str_detect(oddsAmerican, "\\+") == TRUE ~ "underdog",
                               TRUE ~ "unknown")) %>% 
-  pivot_wider(names_from = c(favorite), values_from = c(label, oddsAmerican)) %>% View()
+  pivot_wider(names_from = c(favorite), values_from = c(label, oddsAmerican))
 
 # Now you can join this with games data to get moneyline by game.
 # Just need to figure out join keys. Team names should be unique but we don't know home and away based on this data, so date would be better but we don't have it.
