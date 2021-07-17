@@ -489,7 +489,7 @@ preseason_2020_rankings <- joined_stats %>%
   tab_source_note("@kylebeni012 | @staturdays — Data: @cfb_data")
 
 gtsave(data = preseason_2020_rankings, 
-       filename = paste0("preseason_2020_rankings_", str_replace_all(now(), ":", "."), ".png"),
+       filename = paste0(year(today()), "_preseason_rankings_", str_replace_all(now(), ":", "."), ".png"),
        path = "C:/Users/Kyle/Documents/Kyle/Staturdays/R Plots")
 
 # Top 25
@@ -514,12 +514,12 @@ preseason_2020_top_25 <- joined_stats %>%
   tab_source_note("@kylebeni012 | @staturdays — Data: @cfb_data")
 
 gtsave(data = preseason_2020_top_25, 
-       filename = paste0("preseason_2020_top_25_", str_replace_all(now(), ":", "."), ".png"),
+       filename = paste0(year(today()), "_preseason_top_25_", str_replace_all(now(), ":", "."), ".png"),
        path = "C:/Users/Kyle/Documents/Kyle/Staturdays/R Plots")
 
 # Weekly Win Probabilities and Bets ------------------------------------------------
 
-betting_url <- "https://api.collegefootballdata.com/lines?year=2020&"
+betting_url <- paste0("https://api.collegefootballdata.com/lines?year=", j, "&")
 full_url_betting <- paste0(betting_url, "week=", as.character(if_else(
   {upcoming.games %>% 
       filter(week == week_of_upcoming_games) %>% 
@@ -606,7 +606,7 @@ win_probabilities_this_week <- win_probs_w_lines %>%
   tab_source_note("@kylebeni012 | @staturdays — Data: @cfb_data")
 
 gtsave(data = win_probabilities_this_week, 
-       filename = paste0("win_probabilities_this_week_", week_of_upcoming_games, "_", str_replace_all(now(), ":", "."), ".png"),
+       filename = paste0(year(today()), "_win_probabilities_this_week_", week_of_upcoming_games, "_", str_replace_all(now(), ":", "."), ".png"),
        path = "C:/Users/Kyle/Documents/Kyle/Staturdays/R Plots")
 
 ## Calculate biggest upsets week-over-week by win prob and change in Elo
@@ -667,9 +667,11 @@ wow_elo_change_tbl <- wow_elo_change_combined %>%
              alpha = 0.7) %>% 
   tab_source_note("@kylebeni012 | @staturdays — Data: @cfb_data")
 
+if(week_of_elo_last_updated > 0){
 gtsave(data = wow_elo_change_tbl, 
-       filename = paste0("wow_elo_change_tbl_", week_of_elo_last_updated, "_", str_replace_all(now(), ":", "."), ".png"),
+       filename = paste0(year(today()), "_wow_elo_change_tbl_", week_of_elo_last_updated, "_", str_replace_all(now(), ":", "."), ".png"),
        path = "C:/Users/Kyle/Documents/Kyle/Staturdays/R Plots")
+}
 
 # Latest Brier for the season
 brier <- upcoming.games %>% summarise(brier = mean((game_outcome_home - home_pred_win_prob)^2))
@@ -698,7 +700,9 @@ elo_brier_plot <- upcoming.games %>%
   scale_y_continuous(labels = percent) +
   scale_x_continuous(labels = percent)
 
-ggsave(filename = paste0("elo_brier_plot_", str_replace_all(now(), ":", "."), ".png"), 
+if(week_of_elo_last_updated > 0){
+ggsave(filename = paste0(year(now()), "_elo_brier_plot_", str_replace_all(now(), ":", "."), ".png"), 
        plot = elo_brier_plot,
        path = "C:/Users/Kyle/Documents/Kyle/Staturdays/R Plots",
        dpi = 300, width = 200, height = 200, units = "mm")
+}
