@@ -191,7 +191,8 @@ summary(lm(actual_total_points ~ last_8_home_points + last_8_away_points, data =
 
 # Previous result against this team
 # Elo Rating and Elo Win Probability
-elo_historic <- fread("https://raw.githubusercontent.com/kylebennison/staturdays/master/Production/elo_ratings_historic.csv")
+elo_historic <- fread("https://raw.githubusercontent.com/kylebennison/staturdays/master/Production/elo_ratings_historic.csv",
+                      encoding = "UTF-8")
 elo_join <- elo_historic %>% 
   group_by(team) %>% 
   mutate(last_week_elo = lag(elo_rating, n = 1L, order_by = date))
