@@ -353,7 +353,7 @@ elo_ratings_tmp <- elo_ratings_tmp %>%
   slice_max(order_by = date, n = 1)
 
 # Calculate max week in elo to tell plots/tables which week to show
-week_of_elo_last_updated <- elo_ratings %>% filter(season == max(season)) %>% slice_max(week, order_by = week, n = 1) %>% pull(week) %>% unique()
+week_of_elo_last_updated <- elo_ratings %>% filter(season == max(season)) %>% pull(week) %>% max()
 week_of_upcoming_games <- week_of_elo_last_updated + 1L
 
 # Join cfb games with elo ratings for home and away teams by team name and date of rating/game
@@ -430,7 +430,8 @@ upcoming.tmp4 <- upcoming.tmp3 %>% # Use most recent elo rating for current/futu
 upcoming.games <- upcoming.tmp4 %>% 
   mutate(home_pred_win_prob = calc_expected_score(home_elo + if_else(neutral_site == F, home_field_advantage, neutral_adjust), away_elo), away_pred_win_prob = 1 - home_pred_win_prob)
 
-rm(list = c("upcoming.tmp", "upcoming.tmp2", "upcoming.tmp3", "upcoming.tmp4"))}
+rm(list = c("upcoming.tmp", "upcoming.tmp2", "upcoming.tmp3", "upcoming.tmp4"))
+}
 
 ### Tables
 
@@ -476,10 +477,10 @@ preseason_2020_rankings <- joined_stats %>%
   tab_header(title = paste0(max(upcoming.games$season), " Week ", week_of_upcoming_games, " Elo Ratings and Expected Wins"),
              subtitle = "Expected Wins Based on head-to-head Elo Ratings") %>% 
   cols_label(row_num = "Rank", home_team = "Team", elo = "Elo Rating", expected_wins = "Expected Wins", win_rate = "Win Percentage", conference = "Conference") %>% 
-  fmt_number(vars(elo), decimals = 0, use_seps = FALSE) %>% 
-  fmt_number(vars(expected_wins), decimals = 1, use_seps = FALSE) %>% 
-  fmt_percent(vars(win_rate), decimals = 1) %>% 
-  data_color(columns = vars(elo, expected_wins), # Use a color scale on win prob
+  fmt_number(columns = c(elo), decimals = 0, use_seps = FALSE) %>% 
+  fmt_number(columns = c(expected_wins), decimals = 1, use_seps = FALSE) %>% 
+  fmt_percent(columns = c(win_rate), decimals = 1) %>% 
+  data_color(columns = c(elo, expected_wins), # Use a color scale on win prob
              colors = scales::col_numeric(
                palette = staturdays_palette,
                domain = NULL),
@@ -501,10 +502,10 @@ preseason_2020_top_25 <- joined_stats %>%
   tab_header(title = paste0(max(upcoming.games$season), " Week ", week_of_upcoming_games, " Elo Ratings and Expected Wins"),
              subtitle = "Expected Wins Based on head-to-head Elo Ratings") %>% 
   cols_label(row_num = "Rank", home_team = "Team", elo = "Elo Rating", expected_wins = "Expected Wins", win_rate = "Win Percentage", conference = "Conference") %>% 
-  fmt_number(vars(elo), decimals = 0, use_seps = FALSE) %>% 
-  fmt_number(vars(expected_wins), decimals = 1, use_seps = FALSE) %>% 
-  fmt_percent(vars(win_rate), decimals = 1) %>% 
-  data_color(columns = vars(elo, expected_wins), # Use a color scale on win prob
+  fmt_number(columns = c(elo), decimals = 0, use_seps = FALSE) %>% 
+  fmt_number(columns = c(expected_wins), decimals = 1, use_seps = FALSE) %>% 
+  fmt_percent(columns = c(win_rate), decimals = 1) %>% 
+  data_color(columns = c(elo, expected_wins), # Use a color scale on win prob
              colors = scales::col_numeric(
                palette = staturdays_palette,
                domain = NULL),
@@ -567,22 +568,22 @@ win_probabilities_this_week <- win_probs_w_lines %>%
   tab_header(title = paste0(max(upcoming.games$season), " Week ", week_of_upcoming_games, " Win Probabilities"),
              subtitle = "Based on head-to-head Elo Ratings") %>% 
   tab_spanner(label = "Home", # Add a column spanning header
-              columns = vars(home_team,home_elo, home_pred_win_prob, home_conference)) %>% 
+              columns = c(home_team,home_elo, home_pred_win_prob, home_conference)) %>% 
   tab_spanner(label = "Away", # Add a column spanning header
-              columns = vars(away_team, away_elo, away_pred_win_prob, away_conference)) %>% 
+              columns = c(away_team, away_elo, away_pred_win_prob, away_conference)) %>% 
   tab_spanner(label = "Betting",
-              columns = vars(formattedSpread, elo_different)) %>% 
+              columns = c(formattedSpread, elo_different)) %>% 
   cols_label(home_team = "Team", home_elo = "Elo Rating", home_pred_win_prob = "Win Probability", home_conference = "Conference",
              away_team = "Team", away_elo = "Elo Rating", away_pred_win_prob = "Win Probability", away_conference = "Conference",
              formattedSpread = "Spread", elo_different = "Elo Mismatch?") %>% 
-  fmt_percent(columns = vars(home_pred_win_prob, away_pred_win_prob), decimals = 1) %>% 
-  fmt_number(vars(home_elo, away_elo), decimals = 0, use_seps = FALSE) %>% 
-  data_color(columns = vars(home_pred_win_prob, away_pred_win_prob), # Use a color scale on win prob
+  fmt_percent(columns = c(home_pred_win_prob, away_pred_win_prob), decimals = 1) %>% 
+  fmt_number(columns = c(home_elo, away_elo), decimals = 0, use_seps = FALSE) %>% 
+  data_color(columns = c(home_pred_win_prob, away_pred_win_prob), # Use a color scale on win prob
              colors = scales::col_numeric(
                palette = staturdays_palette,
                domain = NULL),
              alpha = 0.7) %>% 
-  data_color(columns = vars(elo_different),
+  data_color(columns = c(elo_different),
              colors = scales::col_factor(
                palette = c(staturdays_colors("white"), staturdays_colors("orange")),
                domain = NULL),
@@ -597,7 +598,7 @@ win_probabilities_this_week <- win_probs_w_lines %>%
     ),
     locations = list(
       cells_body(
-        columns = vars(away_team, formattedSpread)
+        columns = c(away_team, formattedSpread)
       )
     )
   ) %>% 
@@ -656,9 +657,9 @@ wow_elo_change_tbl <- wow_elo_change_combined %>%
   tab_header(title = paste0(as.character(max(upcoming.games$season)), " Week ", as.character(week_of_elo_last_updated), " Biggest Elo Movers"),
              subtitle = "Largest changes in Elo") %>% 
   cols_label(team = "Team", elo_rating = "New Elo", previous_elo = "Old Elo", wow_change = "Pct. Change", opponent = "Opponent", win_prob = "Win Probability") %>% 
-  fmt_number(vars(elo_rating, previous_elo), decimals = 0, use_seps = FALSE) %>% 
-  fmt_percent(vars(wow_change, win_prob), decimals = 1, use_seps = FALSE) %>% 
-  data_color(columns = vars(wow_change), # Use a color scale on win prob
+  fmt_number(columns = c(elo_rating, previous_elo), decimals = 0, use_seps = FALSE) %>% 
+  fmt_percent(columns = c(wow_change, win_prob), decimals = 1, use_seps = FALSE) %>% 
+  data_color(columns = c(wow_change), # Use a color scale on win prob
              colors = scales::col_numeric(
                palette = staturdays_palette,
                domain = NULL),
