@@ -53,3 +53,6 @@ moneylines <- d_final %>%
 
 # Now you can join this with games data to get moneyline by game.
 # Just need to figure out join keys. Team names should be unique but we don't know home and away based on this data, so date would be better but we don't have it.
+
+ml_df <- moneylines %>% 
+  mutate(join_key = paste0(label_favorite, label_underdog))
