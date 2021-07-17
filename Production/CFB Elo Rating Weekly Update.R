@@ -122,7 +122,8 @@ upcoming.games <- tibble(cfb_games)
 # Save a version of this year's games for later
 lastweek.games <- upcoming.games
 # Read in historic Elo ratings
-elo_ratings <- fread("https://raw.githubusercontent.com/kylebennison/staturdays/master/Production/elo_ratings_historic.csv")
+elo_ratings <- fread("https://raw.githubusercontent.com/kylebennison/staturdays/master/Production/elo_ratings_historic.csv",
+                     encoding = "UTF-8")
                         
 elo_conf <- elo_ratings %>% 
   mutate(conference_class = case_when(conference %in% power_5 ~ 1500,
