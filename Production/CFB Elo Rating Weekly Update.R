@@ -11,48 +11,9 @@ library(lubridate)
 library(gt)
 library(webshot)
 library(data.table)
-
-#Staturdays Colors
-
-staturdays_col_list <- c(
-  lightest_blue = "#5c6272",
-  lighter_blue = "#4c5872",
-  light_blue = "#394871",
-  medium_blue = "#22345a",
-  dark_blue = "#041e42",
-  orange = "#de703b",
-  sign = "#1e1e1e",
-  white = "#FFFFFF"
-)
-
-staturdays_palette <- c("#041e42", "#22345a", "#394871", "#4c5872", "#5c6272", "#de703b")
-
-staturdays_colors <- function(...) {
-  cols <- c(...)
-  
-  if (is.null(cols))
-    return (staturdays_col_list)
-  
-  staturdays_col_list[cols]
-}
-
-staturdays_theme <- theme(plot.caption = element_text(size = 12, hjust = 1, color = staturdays_colors("orange")), 
-                          plot.title = element_text(color = staturdays_colors("dark_blue"), size = 30, face = "bold"),
-                          plot.subtitle = element_text(color = staturdays_colors("light_blue"), size = 20),
-                          axis.text = element_text(color = staturdays_colors("lightest_blue"), size = 14),
-                          axis.title = element_text(color = staturdays_colors("lighter_blue"), size = 16, face = "bold"),
-                          legend.title = element_text(color = staturdays_colors("lighter_blue"), size = 16, face = "bold"),
-                          legend.text = element_text(color = staturdays_colors("lightest_blue"), size = 14),
-                          panel.background = element_blank(),
-                          panel.grid = element_line(color = "#d6d6d6"),
-                          panel.grid.minor = element_blank(),
-                          axis.ticks = element_line(color = "#d6d6d6")
-)
-
-# Power 5 List
-
-power_5 <- c("ACC", "Big 12", "Big Ten", "Pac-12", "SEC", "FBS Independents")
-group_of_5 <- c("American Athletic", "Conference USA", "Mid-American", "Mountain West", "Sun Belt")
+source("https://raw.githubusercontent.com/kylebennison/staturdays/master/Production/Staturdays%20Colors%20and%20Theme.R")
+source("https://raw.githubusercontent.com/kylebennison/staturdays/master/Production/cfbd_api_key_function.R")
+source("https://raw.githubusercontent.com/kylebennison/staturdays/master/Production/Play%20Types%20and%20Power%20Conference%20Names.R")
 
 # New Season Regression Factor
 regress <- (.95)
