@@ -56,3 +56,6 @@ moneylines <- d_final %>%
 
 ml_df <- moneylines %>% 
   mutate(join_key = paste0(label_favorite, label_underdog))
+
+# Remove everything except the final moneyline df
+rm(list = setdiff(ls(), "ml_df"))
