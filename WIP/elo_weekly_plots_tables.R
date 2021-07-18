@@ -15,6 +15,7 @@ library(data.table)
 source("https://raw.githubusercontent.com/kylebennison/staturdays/master/Production/Staturdays%20Colors%20and%20Theme.R")
 source("https://raw.githubusercontent.com/kylebennison/staturdays/master/Production/cfbd_api_key_function.R")
 source("https://raw.githubusercontent.com/kylebennison/staturdays/master/Production/Play%20Types%20and%20Power%20Conference%20Names.R")
+source("https://raw.githubusercontent.com/kylebennison/staturdays/master/WIP/dk_moneylines.R")
 
 # New Season Regression Factor
 regress <- (.95)
@@ -380,6 +381,42 @@ win_probabilities_this_week <- win_probs_w_lines %>%
 gtsave(data = win_probabilities_this_week, 
        filename = paste0(year(today()), "_win_probabilities_this_week_", week_of_upcoming_games, "_", str_replace_all(now(), ":", "."), ".png"),
        path = "C:/Users/Kyle/Documents/Kyle/Staturdays/R Plots")
+
+
+# Join in moneyline data from DraftKings ----------------------------------
+
+games_df <- win_probs_w_lines %>% 
+  mutate(join_key_1 = paste0(home_team, away_team),
+         join_key_2 = paste0(away_team, home_team))
+
+ml_top <- games_df %>% 
+  inner_join(ml_df, by = c("join_key_1" = "join_key")) %>% 
+  select(-c(join_key_2, join_key_1))
+
+ml_bottom <- games_df %>% 
+  inner_join(ml_df, by = c("join_key_2" = "join_key")) %>% 
+  select(-c(join_key_2, join_key_1))
+
+ml_joined <- rbind(ml_top, ml_bottom)
+
+ml_clean <- ml_joined %>% 
+  mutate(implied_wp_home = if_else(label_favorite == home_team,
+                                   implied_wp_favorite,
+                                   implied_wp_underdog),
+         implied_wp_away = if_else(label_favorite == home_team,
+                                   implied_wp_underdog,
+                                   implied_wp_favorite))
+
+ml_clean %>% 
+  ggplot(aes(x = home_pred_win_prob, y = implied_wp_home)) +
+  geom_point() +
+  geom_abline(linetype = 2) +
+  geom_text(aes(label = if_else(abs(home_pred_win_prob - implied_wp_home) > .1,
+                                paste0(away_team, " @ \n", home_team),
+                                ""))) +
+  labs(title = "Elo vs. Vegas Win Probabilities") +
+  annotate(geom = "label", x = .25, y = .75, label = "Vegas Overconfident") +
+  annotate(geom = "label", x = .75, y = .15, label = "Vegas Underconfident")
 
 ## Calculate biggest upsets week-over-week by win prob and change in Elo
 
