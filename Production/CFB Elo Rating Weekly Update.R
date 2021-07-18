@@ -320,7 +320,7 @@ fwrite(elo_ratings_updated, file = "C:/Users/Kyle/Documents/Kyle/Staturdays/Stat
 }
 }
 }
-# Rebuild upcoming.games with new Elo Ratings before updating all  --------
+# Rebuild upcoming.games with new Elo Ratings before updating all plots and tables --------
 {
 upcoming.games <- tibble(cfb_games)
 # Save a version of this year's games for later
