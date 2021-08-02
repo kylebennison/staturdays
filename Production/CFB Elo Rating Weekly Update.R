@@ -34,7 +34,7 @@ calc_expected_score <- function(team_rating, opp_team_rating){
   return(expected_score_home <- quotient_home / (quotient_home + quotient_away))
 }
 
-calc_new_elo_rating <- function(team_rating, actual_score, expected_score, k=85){
+calc_new_elo_rating <- function(team_rating, actual_score, expected_score, k){
   return(team_rating + k * (actual_score - expected_score))
 }
 
