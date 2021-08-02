@@ -24,6 +24,7 @@ source("https://raw.githubusercontent.com/kylebennison/staturdays/master/Product
 
 games <- fread("https://raw.githubusercontent.com/kylebennison/staturdays/master/games_historic.csv")
 
+# Get points scored over last 8 home games and away games
 games_record <- games %>% 
   group_by(home_team) %>% 
   mutate(last_8_home_points = frollmean(home_points, n = 8L),
@@ -32,6 +33,7 @@ games_record <- games %>%
   mutate(last_8_away_points = frollmean(away_points, n = 8L),
          last_8_away_points = lag(last_8_away_points, n = 1L))
 
+# Get points scored over last 8 games, home and away
 games_record_home_away <- games_record %>% 
   pivot_longer(cols = c(home_team, away_team), 
                names_to = "home_away", 
@@ -61,9 +63,11 @@ message("Done year ", yr)
 
 }
 
+# Get only the consensus lines
 betting_consensus <- betting_raw %>% 
   filter(provider == "consensus")
 
+# Add betting data to games data
 games_lines_joined <- games_record_home_away %>% 
   inner_join(betting_consensus, by = 
                c("id", 
@@ -73,15 +77,17 @@ games_lines_joined <- games_record_home_away %>%
                  "away_points" = "awayScore")) %>% 
   select(home_team, away_team, home_points, away_points, spread, formattedSpread, overUnder, everything())
 
+# Identify the favorite
 joined_2 <- games_lines_joined %>% 
-  mutate(favorite_team = str_replace_all(formattedSpread, "[0-9]", ""),
-         favorite_team = str_replace_all(favorite_team, "[//.//-]", ""),
-         favorite_team = str_trim(favorite_team, side = "both"))
+  mutate(favorite_team = str_replace_all(formattedSpread, "[0-9]", ""), # Get rid of the numbers in the spread
+         favorite_team = str_replace_all(favorite_team, "[//.//-]", ""), # Get rid of decimals and minuses
+         favorite_team = str_trim(favorite_team, side = "both")) # Get rid of whitespace
 
+# Modify columns
 joined_3 <- joined_2 %>% 
   mutate(spread = as.double(spread),
          overUnder = as.double(overUnder),
-         actual_spread = away_points - home_points,
+         actual_spread = away_points - home_points, # Positive means home team lost
          home_team_covered = if_else(actual_spread < spread, T, F),
          favorite_covered = case_when(actual_spread < spread & home_team == favorite_team ~ TRUE,
                                       actual_spread > spread & away_team == favorite_team ~ TRUE,
@@ -90,6 +96,7 @@ joined_3 <- joined_2 %>%
          over_hit = if_else(actual_total_points > overUnder, TRUE, FALSE)
          )
 
+# Rearrange columns
 joined_4 <- joined_3 %>% 
   select(1:7, favorite_team, actual_spread, home_team_covered, favorite_covered,
          actual_total_points, over_hit, everything())
@@ -104,7 +111,7 @@ joined_4 %>%
   geom_abline()
 
 # R-squared
-summary(lm(actual_total_points ~ overUnder, data = joined_4))
+summary(lm(actual_total_points ~ overUnder, data = joined_4)) # Significant relationship and good predictor of actual score
 
 # Spread vs. actual spread
 joined_4 %>% 
@@ -113,7 +120,7 @@ joined_4 %>%
   geom_abline()
 
 # R-squared
-summary(lm(actual_spread ~ spread, data = joined_4))
+summary(lm(actual_spread ~ spread, data = joined_4)) # Significant
 
 # Distribution of total points
 joined_4 %>% 
@@ -154,9 +161,8 @@ joined_4 %>%
   geom_bar(aes(x = over_hit))
 
 # Over Hit Rate by Over Bucket
-
 joined_4 %>% 
-  mutate(over_bucket = floor(overUnder/10)) %>% 
+  mutate(over_bucket = cut(overUnder, breaks = 10)) %>% 
   group_by(over_bucket) %>% 
   summarise(over_hit_rate = sum(over_hit) / n(),
             n_games = n()) %>% 
@@ -184,13 +190,13 @@ joined_4 %>%
 
 # Bring in pre-game team data ------------------------------------------------------
 
-# Previous season record
+### Using Previous season record
 
-# Last X games average score for over-under
+### Using Last X games average score for over-under
 summary(lm(actual_total_points ~ last_8_home_points + last_8_away_points, data = joined_4))
 
-# Previous result against this team
-# Elo Rating and Elo Win Probability
+### Using Previous result against this team
+### Using Elo Rating and Elo Win Probability
 elo_historic <- fread("https://raw.githubusercontent.com/kylebennison/staturdays/master/Production/elo_ratings_historic.csv",
                       encoding = "UTF-8")
 elo_join <- elo_historic %>% 
@@ -217,6 +223,6 @@ summary(glm(favorite_covered ~ favorite_elo + underdog_elo + spread, data = join
 # Actual over hit probability given Elo ratings
 summary(glm(over_hit ~ favorite_elo + underdog_elo + overUnder, data = joined_elo))
 
-# Advanced metrics for previous games including success rate
+### Advanced metrics for previous games including success rate
 
 View(joined_4)
