@@ -5,12 +5,10 @@ library(tidytext)
 library(lubridate)
 
 app_name <- "test app name4"
-consumer_key <- "lh1lzM04TOawNA3Soq9UjxiCq"
-consumer_secret <- "8tKD25e7kt8qzsYRYFZHGu89O6r4Hq17fLH0fO8vgZexzXfcX3"
-access_token <- "404429205-332mH0SVXxmDDKZcgx8SM2AINxPbg4Odj09cSrR6"
-access_secret <- "bfHa6i58YXy4CadhbEAueySMdbUJJfjeeyJyFMYjq9Uty"
-
-#AAAAAAAAAAAAAAAAAAAAAO53KwEAAAAAT20xPm4%2FOgCiCzrqo8MOcjXQUZ0%3DbjOIjjF2YjiPjtYJmG9EU0zcivB2OTErMKBXB9toVrxlaPdhGj
+consumer_key <- ""
+consumer_secret <- ""
+access_token <- ""
+access_secret <- ""
 
 tok <- create_token(app=app_name,
              consumer_key = consumer_key,
