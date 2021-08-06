@@ -2,9 +2,6 @@ source("Production/get_plays_and_add_success_features_api.r")
 source("Production/get_games_api.r")
 source("Production/get_drives_api.r")
 
-base_url_games <- "https://api.collegefootballdata.com/games?" # Base URL for games data
-base_url_drives <- "https://api.collegefootballdata.com/drives?" # Base URL for drives data
-
 plays.master <- get_plays(start_week = 1, end_week = 15, start_year = 2014, end_year = 2020)
 
 games.master = get_games(1, 15, 2014, 2020)
