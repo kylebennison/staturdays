@@ -6,7 +6,7 @@ plays.master <- get_plays(start_week = 1, end_week = 15, start_year = 2014, end_
 
 games.master = get_games(1, 15, 2014, 2020)
 
-drives.master = get_drives(1, 15, 2014, 2020)
+drives.master = get_drives(2014, 2020)
 
 # # Join Plays with Games to get additional info
 # games.temp <- games.master
