@@ -1,4 +1,6 @@
 # Script to get plays data from cfbd api and add success rate and other key stats
+get_plays <- function(start_week = 1, end_week = 1, start_year = 2020, end_year = 2020){
+  
 library(scales)
 library(tidyverse)
 library(RCurl)
@@ -14,10 +16,10 @@ source("https://raw.githubusercontent.com/kylebennison/staturdays/master/Product
 
 
 base_url_plays <- "https://api.collegefootballdata.com/plays?" # Base URL to work off of
-start_week <- 1
-end_week <- 3
-start_year <- 2020
-end_year <- 2020
+start_week <- start_week
+end_week <- end_week
+start_year <- start_year
+end_year <- end_year
 
 plays.master = data.frame()
 for (j in start_year:end_year) {
@@ -231,3 +233,5 @@ plays_temp_fast <- plays.master %>%
 plays.master <- plays_temp_fast
 
 rm(plays_temp_fast)
+return(plays.master)
+}
