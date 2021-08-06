@@ -29,156 +29,14 @@ drives.master = get_drives(2014, 2020)
 # plays_drives.master <- plays_drives.master %>% 
 #   mutate(start_yardline = if_else(offense.x != home, 100 - start_yardline, as.double(start_yardline)), end_yardline = if_else(offense.x != home, 100 - end_yardline, as.double(end_yardline)))
 
-## Mutate Plays with First Downs (Smart), Pass/Rush, Success
-plays.master2 <- plays.master %>% 
-  mutate(play_specifics = play_type) %>% 
-  mutate(first_down = 
-           case_when(
-             play_type %in% scrimmage_plays_all ~
-               ifelse(yards_gained >= distance 
-                      & lead(down, n=1, order_by = id) == 1 
-                      & lead(offense, n = 1, order_by = id) == offense 
-                      & lead(drive_id, n = 1, order_by = id) == drive_id 
-                      & (!play_specifics %in% scrimmage_plays_turnover), TRUE, 
-                      ifelse(play_specifics %in% c("Passing Touchdown", "Rushing Touchdown") 
-                             | ((str_detect(play_text, "TOUCHDOWN") 
-                                 | str_detect(play_text, "1ST down")) 
-                                & (!play_specifics %in% scrimmage_plays_turnover)), TRUE, FALSE)),
-             TRUE ~ NA
-           )
-  )
-# Calculate loss of yards on turnovers
-plays.master_temp <- plays.master %>% 
-  mutate(turnover_yards = case_when(play_type %in% scrimmage_plays_turnover ~ 70L - lead(yards_to_goal, order_by = id), #subtract starting field position of next drive from avg. starting field position to find how many yards that turnover cost you
-                                    TRUE ~ 0L))
-
-plays.master_temp <- plays.master_temp %>% mutate(yards_gained = case_when(play_type %in% scrimmage_plays_turnover ~ -turnover_yards,
-                                                                           TRUE ~ yards_gained))
-
-plays.master <- plays.master_temp
-rm(plays.master_temp)
-
-# Calculate avg. starting field pos on turnovers vs. normal
-drives.master %>% summarise(mean(start_yards_to_goal)) # 70 avg.
-
-plays.master %>% mutate(lead_start_yards_to_goal = 
-                          case_when(play_type %in% scrimmage_plays_turnover ~ lead(yards_to_goal, order_by = id),
-                                    TRUE ~ 0L)) %>% 
-  filter(play_type %in% scrimmage_plays_turnover) %>% 
-  group_by(play_type) %>% 
-  filter(!str_detect(play_type,"Touchdown")) %>% 
-  summarise(avg_yds_to_goal = mean(lead_start_yards_to_goal), count = n()) # 54.5 avg, so a turnover is worth -15.5 yds. vs. avg.
-
-# Classify the multiple play types into a simpler just rush or pass
-plays.master2$pass_rush[plays.master2$play_type %in% scrimmage_plays_pass] <- "Pass"
-plays.master2$pass_rush[plays.master2$play_type %in% scrimmage_plays_rush] <- "Rush"
-# Rush Fumble Rows
-rush_rows <- plays.master2 %>% 
-  filter(play_specifics %in% c("Fumble Recovery (Own)", 
-                               "Fumble Recovery (Opponent)", 
-                               "Fumble Return Touchdown", 
-                               "Safety"), 
-         str_detect(play_text, "run") 
-         & !str_detect(play_text, "kick") 
-         & !str_detect(play_text, "punt")) %>% 
-  mutate(pass_rush = "Rush")
-# Pass Fumble Rows
-pass_rows <- plays.master2 %>% 
-  filter(play_specifics %in% c("Fumble Recovery (Own)", "Fumble Recovery (Opponent)"), str_detect(play_text, "pass") | str_detect(play_text, "sack")) %>% 
-  mutate(pass_rush = "Pass")
-# Change fumbles to a pass or rush
-plays.master2[which(plays.master2$id %in% rush_rows$id), "pass_rush"] <- "Rush"
-plays.master2[which(plays.master2$id %in% pass_rows$id), "pass_rush"] <- "Pass"
-
-#Add Success Column
-plays.master2 <- plays.master2 %>% 
-  mutate(success = 
-           case_when(
-             play_type %in% scrimmage_plays_turnover ~ 0,
-             down == 1 & yards_gained >= 0.5 * distance ~ 1,
-             down == 2 & yards_gained >= 0.7 * distance ~ 1,
-             down == 3 & yards_gained >= 1 * distance ~ 1,
-             down == 4 & yards_gained >= 1 * distance ~ 1,
-             str_detect(play_text, "1ST down") == TRUE ~ 1,
-             str_detect(play_text, "TD") == TRUE ~ 1,
-             TRUE ~ 0
-           )
-  )
-plays.master <- plays.master2
-rm(plays.master2)
-##
-
-## Add Line Yards Stat
-
-plays.master.temp <- plays.master %>% 
-  mutate(lineYards = 
-           case_when(
-             pass_rush == "Rush" & yards_gained < 0 ~ yards_gained * 1.2,
-             pass_rush == "Rush" & yards_gained > 0 & yards_gained <= 4 ~ yards_gained * 1,
-             pass_rush == "Rush" & yards_gained > 4 & yards_gained <= 10 ~ 4 + yards_gained * 0.5,
-             pass_rush == "Rush" & yards_gained > 10 ~ 7,
-             TRUE ~ 0
-           )
-  )
-plays.master <- plays.master.temp
-rm(plays.master.temp)
-##
-
-## Garbage Time Indicator WIP
-
-plays.master.temp <- plays.master %>% 
-  mutate(garbage_time = 
-           case_when(
-             period == 2 & abs(offense_score - defense_score) > 38 ~ 1,
-             period == 3 & abs(offense_score - defense_score) > 28 ~ 1,
-             period == 4 & abs(offense_score - defense_score) > 22 ~ 1,
-             period == 4 & minutes < 2 & abs(offense_score - defense_score) > 16 ~ 1,
-             TRUE ~ 0
-           )
-  )
-plays.master <- plays.master.temp
-rm(plays.master.temp)
-##
-
-# Plays by percentile to help guide defining explosive
-percentile_explosiveness <- plays.master %>% group_by(pass_rush) %>% 
-  summarise(avg_yds = mean(yards_gained), 
-            stand_dev = sd(yards_gained), 
-            percentile = quantile(yards_gained, .90))
-
-explosive_pass <- as.numeric(percentile_explosiveness %>% filter(pass_rush == "Pass") %>% pull(percentile))
-explosive_rush <- as.numeric(percentile_explosiveness %>% filter(pass_rush == "Rush") %>% pull(percentile))
-
-# Passing vs. Standard Downs, Explosive Plays
-plays.master.temp <- plays.master %>% 
-  mutate(passing_down = case_when(down == 2 & distance >= 7 ~ 1,
-                                  down == 3 & distance >= 5 ~ 1,
-                                  down == 4 & distance >= 5 ~ 1,
-                                  TRUE ~ 0),
-         explosive = case_when(play_specifics %in% scrimmage_plays_turnover ~ 0,
-                               yards_gained >= explosive_pass 
-                               & play_specifics %in% scrimmage_plays_non_turnover 
-                               & pass_rush == "Pass" ~ 1,
-                               yards_gained >= explosive_rush
-                               & play_specifics %in% scrimmage_plays_non_turnover 
-                               & pass_rush == "Rush" ~ 1,
-                               TRUE ~ 0))
-
-plays.master <- plays.master.temp
-rm(plays.master.temp)
-
-# Create a master clock completely in seconds
-plays.master.temp <- plays.master %>% 
-  mutate(clock_in_seconds = 2700-(900*(period-1)) + minutes*60 + seconds)
-
-plays.master <- plays.master.temp
-rm(plays.master.temp)
-
+# Change id to character for joining purposes
+drives_data <- drives.master %>% 
+  mutate(id = as.character(id))
 
 # EPA Model ---------------------------------------------------------------
 
 # Join Drives to Plays
-plays_drives.temp <- plays.master %>% left_join(drives.master, by = c("drive_id" = "id"), suffix = c(".plays", ".drives"))
+plays_drives.temp <- plays.master %>% left_join(drives_data, by = c("drive_id" = "id"), suffix = c(".plays", ".drives"))
 
 # Add home and away scores
 plays_drives.temp2 <- plays_drives.temp %>% mutate(home_score = case_when(home == offense.plays ~ offense_score, # Get home lead/deficit
@@ -192,6 +50,14 @@ plays_drives.temp3 <- plays_drives.temp2 %>%
   mutate(home_poss_flag = if_else(home == offense.plays, 1, 0),
          home_timeouts = if_else(home == offense.plays, offense_timeouts, defense_timeouts),
          away_timeouts = if_else(away == offense.plays, offense_timeouts, defense_timeouts))
+
+
+# Try a better way of getting drive results -------------------------------
+
+# can't just use drive result because won't know if PAT was made or not
+
+# -------------------------------------------------------------------------
+
 
 # Get change in points for each drive # THIS ISN'T WORKING BECAUSE OFF / DEF SWITCH ON KICKOFFS, "Return Touchdown"
 plays_drives.temp4 <- plays_drives.temp3 %>% 
