@@ -45,19 +45,6 @@ for (j in 2020:2020) {
     plays$week = i
     plays$year = j
     plays.master = rbind(plays.master, plays, make.row.names=TRUE)
-    # 
-    # plays <- fromJSON(getURL(full_url_plays_encoded)) # Pull in API using url
-    # if(is_empty(plays) == F){
-    #   clockcolumns <- plays %>% unnest_legacy(clock) # Takes clock data out as it's own columns
-    #   plays <- plays %>%
-    #     select(-clock) %>%
-    #     as_tibble() %>%
-    #     mutate(minutes = clockcolumns$minutes, seconds = clockcolumns$seconds) %>% # Drop old clock dataframe, make a tibble, and add on each individual column of minutes and seconds
-    #     mutate_at(c("minutes", "seconds"), ~replace(., is.na(.), 0)) # need to turn NAs in clock into 0s
-    #   plays <- tibble(plays)
-    #   plays$week = i
-    #   plays$year = j
-    #   plays.master = rbind(plays.master, plays, make.row.names=TRUE)
     }
 }
 
