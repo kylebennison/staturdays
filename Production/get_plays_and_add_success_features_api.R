@@ -236,6 +236,6 @@ plays_temp_fast <- plays.master %>%
 plays.master <- plays_temp_fast
 
 rm(plays_temp_fast)
-return(plays.master)
 message("Done")
+return(plays.master)
 }
