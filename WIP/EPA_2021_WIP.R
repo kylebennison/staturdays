@@ -58,8 +58,11 @@ plays_drives.temp3 <- plays_drives.temp2 %>%
 
 # -------------------------------------------------------------------------
 
+# Clear unnecessary files
+rm(list = c("plays_drives.temp2", "plays_drives.temp"))
 
 # Get change in points for each drive # THIS ISN'T WORKING BECAUSE OFF / DEF SWITCH ON KICKOFFS, "Return Touchdown"
+# Drive number changes on kickoff after score, but offense/defense don't change
 plays_drives.temp4 <- plays_drives.temp3 %>% 
   filter(str_detect(play_type,"Kickoff") == F, play_type != "Penalty", !(play_type %in% no_action_plays)) %>% 
   group_by(drive_id) %>% 
@@ -91,8 +94,17 @@ plays_drives.temp4 %>%
   scale_x_continuous(limits = c(-9, 9), breaks = seq(-9,9, by = 1))
 
 # See where there are issues and inaccuracies
-plays_drives.temp4 %>% filter(drive_points > 8 | drive_points < -8) %>% 
-  select(id, drive_id, offense.plays, defense.plays, play_type, play_text, drive_points, offense_score, defense_score) %>% View()
+# Cases - 
+# - Possession switches but drive id inexplicably doesn't switch
+# - Fumble recovered by offense but for some reason they get labeled as the defense
+# - It's possible that CFB_Data has some logic that isn't always right for drive number and play number
+# - Maybe create my own logic for what constitutes a "Drive"
+# - Maybe calculate home and away score diff per drive, instead of offense/defense score_diff
+plays_drives.temp4 %>% 
+  filter(drive_points > 8 | drive_points < -8) %>% 
+  ungroup() %>% 
+  select(drive_number.drives, play_number, offense.plays, offense_score, defense_score, defense.plays, play_type, play_text, drive_points) %>% 
+  View()
 
 rm(list = c("plays_drives.temp", "plays_drives.temp2", "plays_drives.temp3"))
 # Build Model for EPA and Test --------------------------------------------
