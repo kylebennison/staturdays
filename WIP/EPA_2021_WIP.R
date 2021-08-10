@@ -2,39 +2,19 @@ source("Production/get_plays_and_add_success_features_api.r")
 source("Production/get_games_api.r")
 source("Production/get_drives_api.r")
 
-plays.master <- get_plays(start_week = 1, end_week = 15, start_year = 2014, end_year = 2020)
+# Run first time only
+# plays.master <- get_plays(start_week = 1, end_week = 15, start_year = 2014, end_year = 2020)
 
 games.master = get_games(2014, 2020)
 
 drives.master = get_drives(2014, 2020)
-
-# # Join Plays with Games to get additional info
-# games.temp <- games.master
-# games.temp <- mutate(games.temp, id = as.character(id))
-# plays.temp <- plays.master
-# plays.temp <- mutate(plays.temp, playid = id, id = substr(playid, 1, 9))
-# plays_games_joined.master <- left_join(plays.master, games.temp, by = 'id') # Get regular or post season from games data
-# games.temp <- data.frame()
-
-# # Join Plays with Drives to Get Start Yardline
-# drives.temp <- drives.master
-# drives.temp <- mutate(drives.temp, id = as.character(id))
-# plays.temp <- plays.master
-# plays.temp <- mutate(plays.temp, playid = id, driveid = substr(playid, 1, 10))
-# plays_drives.master <- left_join(plays.temp, drives.temp, by = c("drive_id" = "id"))
-# drives.temp <- data.frame()
-# plays.temp <- data.frame()
-
-# Adjust yards_gained and start_yardline stats
-# plays_drives.master <- plays_drives.master %>% 
-#   mutate(start_yardline = if_else(offense.x != home, 100 - start_yardline, as.double(start_yardline)), end_yardline = if_else(offense.x != home, 100 - end_yardline, as.double(end_yardline)))
 
 # Change id to character for joining purposes
 drives_data <- drives.master %>% 
   mutate(id = as.character(id))
 
 # EPA Model ---------------------------------------------------------------
-
+if(missing(plays.master) == FALSE){
 # Join Drives to Plays
 plays_drives.temp <- plays.master %>% left_join(drives_data, by = c("drive_id" = "id"), suffix = c(".plays", ".drives"))
 
@@ -50,7 +30,17 @@ plays_drives.temp3 <- plays_drives.temp2 %>%
   mutate(home_poss_flag = if_else(home == offense.plays, 1, 0),
          home_timeouts = if_else(home == offense.plays, offense_timeouts, defense_timeouts),
          away_timeouts = if_else(away == offense.plays, offense_timeouts, defense_timeouts))
+}
 
+if(missing(plays_drives.temp3) == TRUE){
+  
+# Load this data
+plays_drives.temp3 <- fread("Data/plays_2014_2020.csv")
+
+}
+
+# Store data locally so you don't have to load everytime
+#fwrite(plays_drives.temp3, "Data/plays_2014_2020.csv")
 
 # Try a better way of getting drive results -------------------------------
 
