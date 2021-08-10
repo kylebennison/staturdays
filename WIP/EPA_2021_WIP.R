@@ -4,7 +4,7 @@ source("Production/get_drives_api.r")
 
 plays.master <- get_plays(start_week = 1, end_week = 15, start_year = 2014, end_year = 2020)
 
-games.master = get_games(1, 15, 2014, 2020)
+games.master = get_games(2014, 2020)
 
 drives.master = get_drives(2014, 2020)
 
