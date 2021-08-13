@@ -34,6 +34,9 @@ for (j in start_year:end_year) {
   }
 }
 
+# Start data manipulation
+message("Starting success rate calculations")
+
 # Rename columns to match historic
 plays.master.temp <- plays.master %>% 
   rename(minutes = clock.minutes,
@@ -233,5 +236,6 @@ plays_temp_fast <- plays.master %>%
 plays.master <- plays_temp_fast
 
 rm(plays_temp_fast)
+message("Done")
 return(plays.master)
 }

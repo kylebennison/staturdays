@@ -2,39 +2,19 @@ source("Production/get_plays_and_add_success_features_api.r")
 source("Production/get_games_api.r")
 source("Production/get_drives_api.r")
 
-plays.master <- get_plays(start_week = 1, end_week = 15, start_year = 2014, end_year = 2020)
+# Run first time only
+# plays.master <- get_plays(start_week = 1, end_week = 15, start_year = 2014, end_year = 2020)
 
-games.master = get_games(1, 15, 2014, 2020)
+games.master = get_games(2014, 2020)
 
 drives.master = get_drives(2014, 2020)
-
-# # Join Plays with Games to get additional info
-# games.temp <- games.master
-# games.temp <- mutate(games.temp, id = as.character(id))
-# plays.temp <- plays.master
-# plays.temp <- mutate(plays.temp, playid = id, id = substr(playid, 1, 9))
-# plays_games_joined.master <- left_join(plays.master, games.temp, by = 'id') # Get regular or post season from games data
-# games.temp <- data.frame()
-
-# # Join Plays with Drives to Get Start Yardline
-# drives.temp <- drives.master
-# drives.temp <- mutate(drives.temp, id = as.character(id))
-# plays.temp <- plays.master
-# plays.temp <- mutate(plays.temp, playid = id, driveid = substr(playid, 1, 10))
-# plays_drives.master <- left_join(plays.temp, drives.temp, by = c("drive_id" = "id"))
-# drives.temp <- data.frame()
-# plays.temp <- data.frame()
-
-# Adjust yards_gained and start_yardline stats
-# plays_drives.master <- plays_drives.master %>% 
-#   mutate(start_yardline = if_else(offense.x != home, 100 - start_yardline, as.double(start_yardline)), end_yardline = if_else(offense.x != home, 100 - end_yardline, as.double(end_yardline)))
 
 # Change id to character for joining purposes
 drives_data <- drives.master %>% 
   mutate(id = as.character(id))
 
 # EPA Model ---------------------------------------------------------------
-
+if(missing(plays.master) == FALSE){
 # Join Drives to Plays
 plays_drives.temp <- plays.master %>% left_join(drives_data, by = c("drive_id" = "id"), suffix = c(".plays", ".drives"))
 
@@ -50,7 +30,17 @@ plays_drives.temp3 <- plays_drives.temp2 %>%
   mutate(home_poss_flag = if_else(home == offense.plays, 1, 0),
          home_timeouts = if_else(home == offense.plays, offense_timeouts, defense_timeouts),
          away_timeouts = if_else(away == offense.plays, offense_timeouts, defense_timeouts))
+}
 
+if(missing(plays_drives.temp3) == TRUE){
+  
+# Load this data
+plays_drives.temp3 <- fread("Data/plays_2014_2020.csv")
+
+}
+
+# Store data locally so you don't have to load everytime
+#fwrite(plays_drives.temp3, "Data/plays_2014_2020.csv")
 
 # Try a better way of getting drive results -------------------------------
 
@@ -58,8 +48,11 @@ plays_drives.temp3 <- plays_drives.temp2 %>%
 
 # -------------------------------------------------------------------------
 
+# Clear unnecessary files
+rm(list = c("plays_drives.temp2", "plays_drives.temp"))
 
 # Get change in points for each drive # THIS ISN'T WORKING BECAUSE OFF / DEF SWITCH ON KICKOFFS, "Return Touchdown"
+# Drive number changes on kickoff after score, but offense/defense don't change
 plays_drives.temp4 <- plays_drives.temp3 %>% 
   filter(str_detect(play_type,"Kickoff") == F, play_type != "Penalty", !(play_type %in% no_action_plays)) %>% 
   group_by(drive_id) %>% 
@@ -91,8 +84,17 @@ plays_drives.temp4 %>%
   scale_x_continuous(limits = c(-9, 9), breaks = seq(-9,9, by = 1))
 
 # See where there are issues and inaccuracies
-plays_drives.temp4 %>% filter(drive_points > 8 | drive_points < -8) %>% 
-  select(id, drive_id, offense.plays, defense.plays, play_type, play_text, drive_points, offense_score, defense_score) %>% View()
+# Cases - 
+# - Possession switches but drive id inexplicably doesn't switch
+# - Fumble recovered by offense but for some reason they get labeled as the defense
+# - It's possible that CFB_Data has some logic that isn't always right for drive number and play number
+# - Maybe create my own logic for what constitutes a "Drive"
+# - Maybe calculate home and away score diff per drive, instead of offense/defense score_diff
+plays_drives.temp4 %>% 
+  filter(drive_points > 8 | drive_points < -8) %>% 
+  ungroup() %>% 
+  select(drive_number.drives, play_number, offense.plays, offense_score, defense_score, defense.plays, play_type, play_text, drive_points) %>% 
+  View()
 
 rm(list = c("plays_drives.temp", "plays_drives.temp2", "plays_drives.temp3"))
 # Build Model for EPA and Test --------------------------------------------
