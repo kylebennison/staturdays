@@ -261,8 +261,18 @@ plays.master <- rbind(plays.historic, plays.master)
 # Check the data
 # plays_temp %>% filter(pass_rush == "Pass") %>% count(is.na(pass_player))
 
+## Explaining the regex
+
+# Start of string, either upper or lower case a-z or literal . - or ' for as many characters as there are, 
+# literal space, repeat it all over again for the last name and that's it
+# ---
+# ^[A-Z|a-z|\\.|\\-|\\']+\\s[A-Z|a-z|\\.|\\-|\\']+
+
 plays_temp_fast <- plays.master %>% 
   mutate(pass_player = if_else(pass_rush == "Pass",
+                               str_extract(play_text, "^[A-Z|a-z|\\.|\\-|\\']+\\s[A-Z|a-z|\\.|\\-|\\']+"),
+                               NA_character_),
+         rush_player = if_else(pass_rush == "Rush",
                                str_extract(play_text, "^[A-Z|a-z|\\.|\\-|\\']+\\s[A-Z|a-z|\\.|\\-|\\']+"),
                                NA_character_))
 
@@ -314,18 +324,41 @@ qb_grouped_summary %>%
   group_by(pass_player) %>% 
   mutate(cmp_rate_diff = comp_rate_vs_median - lag(comp_rate_vs_median, 1L),
          int_rate_diff = int_rate_vs_median - lag(int_rate_vs_median, 1L)) %>% 
+  filter(n > 30) %>% 
+  group_by(pass_player) %>% 
+  mutate(n_2 = n()) %>% 
+  filter(n_2 == 2) %>% 
   filter(losing_game == T) %>% 
   ggplot(aes(x = cmp_rate_diff, y = int_rate_diff)) +
-  geom_point(aes(alpha = if_else(abs(cmp_rate_diff) > .2 | abs(int_rate_diff) > .1, 0.9, 0.1))) +
+  geom_point(aes(alpha = if_else(abs(cmp_rate_diff) > .15 | abs(int_rate_diff) > .05, 0.9, 0.1)),
+             color = staturdays_colors("orange")) +
   geom_hline(yintercept = 0, alpha = .5) +
   geom_vline(xintercept = 0, alpha = .5) +
-  geom_text_repel(aes(label = if_else(abs(cmp_rate_diff) > .2 | abs(int_rate_diff) > .1, pass_player, "")),
+  geom_text_repel(aes(label = if_else(abs(cmp_rate_diff) > .15 | abs(int_rate_diff) > .05, pass_player, "")),
                   max.overlaps = 20) +
   theme(legend.position = "none") +
-  annotate(geom = "text", x = .25, y = .15, label = "Takes More Risks", color = "blue", fontface = "bold") +
-  annotate(geom = "text", x = .25, y = -.15, label = "Up Their Game", color = "blue", fontface = "bold") +
-  annotate(geom = "text", x = -.3, y = .15, label = "Makes More Mistakes", color = "red", fontface = "bold") +
-  annotate(geom = "text", x = -.3, y = -.15, label = "Plays More Conservative", color = "red", fontface = "bold")
+  annotate(geom = "text", x = .25, y = .15, label = "Takes More Risks", color = staturdays_colors("dark_blue"), fontface = "bold", size = 5) +
+  annotate(geom = "text", x = .25, y = -.15, label = "Up Their Game", color = staturdays_colors("dark_blue"), fontface = "bold", size = 5) +
+  annotate(geom = "text", x = -.25, y = .15, label = "Makes More Mistakes", color = "darkred", fontface = "bold", size = 5) +
+  annotate(geom = "text", x = -.25, y = -.15, label = "Plays More Conservative", color = "darkred", fontface = "bold", size = 5) +
+  labs(title = "Most Inconsistent QBs When Playing Down",
+       subtitle = "Minimum 30 attempts in 2020",
+       x = "Change in Completion Rate",
+       y = "Change in Interception Rate") +
+  xlim(-.3, .3) +
+  ylim(-.2, .2) +
+  staturdays_theme
+
+ggsave(filename = paste0("C:/Users/Kyle/Documents/Kyle/Staturdays/R Plots/",
+                         today(),
+                         "_",
+                         "losing_inconsistent",
+                         ".jpeg"),
+       plot = last_plot(),
+       width = 400,
+       height = 200,
+       dpi = 300,
+       units = "mm")
   
 
 # Consistent Passers when losing
@@ -336,18 +369,41 @@ qb_grouped_summary %>%
   group_by(pass_player) %>% 
   mutate(cmp_rate_diff = comp_rate_vs_median - lag(comp_rate_vs_median, 1L),
          int_rate_diff = int_rate_vs_median - lag(int_rate_vs_median, 1L)) %>% 
+  filter(n > 30) %>% 
+  group_by(pass_player) %>% 
+  mutate(n_2 = n()) %>% 
+  filter(n_2 == 2) %>% 
   filter(losing_game == T) %>% 
   ggplot(aes(x = cmp_rate_diff, y = int_rate_diff)) +
-  geom_point(aes(alpha = if_else(abs(cmp_rate_diff) < .05, 0.9, 0.1))) +
+  geom_point(aes(alpha = if_else(abs(cmp_rate_diff) < .02, 0.9, 0.1)),
+             color = staturdays_colors("orange")) +
   geom_hline(yintercept = 0, alpha = .5) +
   geom_vline(xintercept = 0, alpha = .5) +
-  geom_text_repel(aes(label = if_else(abs(cmp_rate_diff) < .05, pass_player, "")),
-                  max.overlaps = 20) +
+  geom_text_repel(aes(label = if_else(abs(cmp_rate_diff) < .02, pass_player, "")),
+                  max.overlaps = 50) +
   theme(legend.position = "none") +
-  annotate(geom = "text", x = .25, y = .15, label = "Takes More Risks", color = "blue", fontface = "bold") +
-  annotate(geom = "text", x = .25, y = -.15, label = "Up Their Game", color = "blue", fontface = "bold") +
-  annotate(geom = "text", x = -.3, y = .15, label = "Makes More Mistakes", color = "red", fontface = "bold") +
-  annotate(geom = "text", x = -.3, y = -.15, label = "Plays More Conservative", color = "red", fontface = "bold")
+  annotate(geom = "text", x = .25, y = .15, label = "Takes More Risks", color = staturdays_colors("dark_blue"), fontface = "bold", size = 5) +
+  annotate(geom = "text", x = .25, y = -.15, label = "Up Their Game", color = staturdays_colors("dark_blue"), fontface = "bold", size = 5) +
+  annotate(geom = "text", x = -.25, y = .15, label = "Makes More Mistakes", color = "darkred", fontface = "bold", size = 5) +
+  annotate(geom = "text", x = -.25, y = -.15, label = "Plays More Conservative", color = "darkred", fontface = "bold", size = 5) +
+  labs(title = "Most Consistent QBs When Playing Down",
+       subtitle = "Minimum 30 attempts in 2020",
+       x = "Change in Completion Rate",
+       y = "Change in Interception Rate") +
+  xlim(-.3, .3) +
+  ylim(-.2, .2) +
+  staturdays_theme
+
+ggsave(filename = paste0("C:/Users/Kyle/Documents/Kyle/Staturdays/R Plots/",
+                         today(),
+                         "_",
+                         "losing_consistent",
+                         ".jpeg"),
+       plot = last_plot(),
+       width = 400,
+       height = 200,
+       dpi = 300,
+       units = "mm")
 
 # Success Rate when losing
 qb_grouped_summary %>% 
@@ -357,16 +413,37 @@ qb_grouped_summary %>%
   group_by(pass_player) %>% 
   mutate(cmp_rate_diff = comp_rate_vs_median - lag(comp_rate_vs_median, 1L),
          succ_rate_diff = succ_rate_vs_median - lag(succ_rate_vs_median, 1L)) %>% 
+  filter(n > 30) %>% 
+  group_by(pass_player) %>% 
+  mutate(n_2 = n()) %>% 
+  filter(n_2 == 2) %>% 
   filter(losing_game == T) %>% 
   ggplot(aes(x = cmp_rate_diff, y = succ_rate_diff)) +
-  geom_point(aes(alpha = if_else(abs(succ_rate_diff) > .1, 0.9, 0.1))) +
+  geom_point(aes(alpha = if_else(succ_rate_diff > .1 | succ_rate_diff < -.15, 0.9, 0.1)),
+             color = staturdays_colors("orange")) +
   geom_hline(yintercept = 0, alpha = .5) +
   geom_vline(xintercept = 0, alpha = .5) +
-  geom_text_repel(aes(label = if_else(abs(succ_rate_diff) > .1, pass_player, "")),
-                  max.overlaps = 20) +
+  geom_text_repel(aes(label = if_else(succ_rate_diff > .1 | succ_rate_diff < -.15, pass_player, "")),
+                  max.overlaps = 50) +
   theme(legend.position = "none") +
-  annotate(geom = "text", x = .3, y = .4, label = "Play Better", color = "blue", fontface = "bold") +
-  annotate(geom = "text", x = -.3, y = -.4, label = "Play Worse", color = "red", fontface = "bold")
+  annotate(geom = "text", x = .2, y = .3, label = "Plays Better", color = staturdays_colors("dark_blue"), fontface = "bold", size = 5) +
+  annotate(geom = "text", x = -.2, y = -.3, label = "Plays Worse", color = "darkred", fontface = "bold", size = 5) +
+  labs(title = "Success Rate When Playing Down",
+       subtitle = "Minimum 30 attempts in 2020",
+       x = "Change in Completion Rate",
+       y = "Change in Success Rate") +
+  staturdays_theme
+
+ggsave(filename = paste0("C:/Users/Kyle/Documents/Kyle/Staturdays/R Plots/",
+                         today(),
+                         "_",
+                         "losing_success",
+                         ".jpeg"),
+       plot = last_plot(),
+       width = 400,
+       height = 200,
+       dpi = 300,
+       units = "mm")
 
 # Close game grouping
 qb_grouped_summary_close <- qb_plays %>% 
