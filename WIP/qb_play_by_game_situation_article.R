@@ -335,7 +335,7 @@ qb_grouped_summary %>%
   geom_hline(yintercept = 0, alpha = .5) +
   geom_vline(xintercept = 0, alpha = .5) +
   geom_text_repel(aes(label = if_else(abs(cmp_rate_diff) > .15 | abs(int_rate_diff) > .05, pass_player, "")),
-                  max.overlaps = 30) +
+                  max.overlaps = 30, size = 6) +
   theme(legend.position = "none") +
   annotate(geom = "text", x = .25, y = .15, label = "Takes More Risks", color = staturdays_colors("dark_blue"), fontface = "bold", size = 5) +
   annotate(geom = "text", x = .25, y = -.15, label = "Up Their Game", color = staturdays_colors("dark_blue"), fontface = "bold", size = 5) +
@@ -357,7 +357,7 @@ ggsave(filename = paste0("C:/Users/Kyle/Documents/Kyle/Staturdays/R Plots/",
                          ".jpeg"),
        plot = last_plot(),
        width = 400,
-       height = 200,
+       height = 400,
        dpi = 300,
        units = "mm")
   
@@ -381,7 +381,8 @@ qb_grouped_summary %>%
   geom_hline(yintercept = 0, alpha = .5) +
   geom_vline(xintercept = 0, alpha = .5) +
   geom_text_repel(aes(label = if_else(abs(cmp_rate_diff) < .02, pass_player, "")),
-                  max.overlaps = 70) +
+                  max.overlaps = 70,
+                  size = 6, force = 20) +
   theme(legend.position = "none") +
   annotate(geom = "text", x = .25, y = .15, label = "Takes More Risks", color = staturdays_colors("dark_blue"), fontface = "bold", size = 5) +
   annotate(geom = "text", x = .25, y = -.15, label = "Up Their Game", color = staturdays_colors("dark_blue"), fontface = "bold", size = 5) +
@@ -403,7 +404,7 @@ ggsave(filename = paste0("C:/Users/Kyle/Documents/Kyle/Staturdays/R Plots/",
                          ".jpeg"),
        plot = last_plot(),
        width = 400,
-       height = 200,
+       height = 400,
        dpi = 300,
        units = "mm")
 
@@ -426,7 +427,7 @@ qb_grouped_summary %>%
   geom_hline(yintercept = 0, alpha = .5) +
   geom_vline(xintercept = 0, alpha = .5) +
   geom_text_repel(aes(label = if_else(succ_rate_diff > .1 | succ_rate_diff < -.15, pass_player, "")),
-                  max.overlaps = 50) +
+                  max.overlaps = 50, size = 6) +
   theme(legend.position = "none") +
   annotate(geom = "text", x = .2, y = .3, label = "Plays Better", color = staturdays_colors("dark_blue"), fontface = "bold", size = 5) +
   annotate(geom = "text", x = -.2, y = -.3, label = "Plays Worse", color = "darkred", fontface = "bold", size = 5) +
@@ -444,7 +445,7 @@ ggsave(filename = paste0("C:/Users/Kyle/Documents/Kyle/Staturdays/R Plots/",
                          ".jpeg"),
        plot = last_plot(),
        width = 400,
-       height = 200,
+       height = 400,
        dpi = 300,
        units = "mm")
 
@@ -477,7 +478,7 @@ qb_grouped_summary_close %>%
   geom_hline(yintercept = 0, alpha = .5) +
   geom_vline(xintercept = 0, alpha = .5) +
   geom_text_repel(aes(label = if_else(succ_rate_diff > .1 | succ_rate_diff < -.15, pass_player, "")),
-                  max.overlaps = 60) +
+                  max.overlaps = 60, size = 6, force = 10) +
   theme(legend.position = "none") +
   annotate(geom = "text", x = .2, y = .3, label = "Plays Better", color = staturdays_colors("dark_blue"), fontface = "bold", size = 5) +
   annotate(geom = "text", x = -.2, y = -.3, label = "Plays Worse", color = "darkred", fontface = "bold", size = 5) +
@@ -495,7 +496,7 @@ ggsave(filename = paste0("C:/Users/Kyle/Documents/Kyle/Staturdays/R Plots/",
                          ".jpeg"),
        plot = last_plot(),
        width = 400,
-       height = 200,
+       height = 400,
        dpi = 300,
        units = "mm")
 
@@ -518,7 +519,8 @@ qb_grouped_summary_close %>%
   geom_hline(yintercept = 0, alpha = .5) +
   geom_vline(xintercept = 0, alpha = .5) +
   geom_text_repel(aes(label = if_else(abs(succ_rate_diff) < .02, pass_player, "")),
-                  max.overlaps = 70) +
+                  max.overlaps = 70,
+                  size = 6, force = 20) +
   theme(legend.position = "none") +
   annotate(geom = "text", x = .2, y = .3, label = "Plays Better", color = staturdays_colors("dark_blue"), fontface = "bold", size = 5) +
   annotate(geom = "text", x = -.2, y = -.3, label = "Plays Worse", color = "darkred", fontface = "bold", size = 5) +
@@ -536,7 +538,7 @@ ggsave(filename = paste0("C:/Users/Kyle/Documents/Kyle/Staturdays/R Plots/",
                          ".jpeg"),
        plot = last_plot(),
        width = 400,
-       height = 200,
+       height = 400,
        dpi = 300,
        units = "mm")
 
@@ -565,7 +567,7 @@ qb_grouped_summary_late %>%
   geom_hline(yintercept = 0, alpha = .5) +
   geom_vline(xintercept = 0, alpha = .5) +
   geom_text_repel(aes(label = pass_player),
-                  max.overlaps = 50) +
+                  max.overlaps = 50, size = 6) +
   theme(legend.position = "none") +
   annotate(geom = "text", x = .3, y = .4, label = "Play Better", color = staturdays_colors("dark_blue"), fontface = "bold", size = 5) +
   annotate(geom = "text", x = -.4, y = -.4, label = "Play Worse", color = "darkred", fontface = "bold", size = 5) +
@@ -583,7 +585,7 @@ ggsave(filename = paste0("C:/Users/Kyle/Documents/Kyle/Staturdays/R Plots/",
                          ".jpeg"),
        plot = last_plot(),
        width = 400,
-       height = 200,
+       height = 400,
        dpi = 300,
        units = "mm")
 
@@ -613,7 +615,8 @@ qb_in_1 <- qb_grouped_summary_quarter %>%
 qb_in_1 %>% 
   ggplot(aes(x = period, y = success_rate)) +
   geom_smooth(color = staturdays_colors("orange")) +
-  facet_wrap(vars(pass_player)) +
+  facet_wrap(vars(pass_player),
+             ncol = 5) +
   theme(legend.position = "none") +
   staturdays_theme +
   labs(title = "Passing Performance by Quarter",
@@ -625,7 +628,8 @@ qb_in_1 %>%
   geom_rect(data = subset(qb_in_1, variation >= .2 | variation <= -.2),
             fill = staturdays_colors("lightest_blue"), alpha = .1, 
             xmin = -Inf, xmax = Inf,
-            ymin = -Inf, ymax = Inf)
+            ymin = -Inf, ymax = Inf) +
+  theme(strip.text = element_text(size = 20))
 
 ggsave(filename = paste0("C:/Users/Kyle/Documents/Kyle/Staturdays/R Plots/",
                          today(),
@@ -634,7 +638,7 @@ ggsave(filename = paste0("C:/Users/Kyle/Documents/Kyle/Staturdays/R Plots/",
                          ".jpeg"),
        plot = last_plot(),
        width = 400,
-       height = 400,
+       height = 800,
        dpi = 300,
        units = "mm")
 
@@ -653,7 +657,8 @@ qb_in_2 <- qb_grouped_summary_quarter %>%
 qb_in_2 %>% 
   ggplot(aes(x = period, y = completion_rate)) +
   geom_smooth(color = staturdays_colors("orange")) +
-  facet_wrap(vars(pass_player)) +
+  facet_wrap(vars(pass_player),
+             ncol = 5) +
   theme(legend.position = "none") +
   staturdays_theme +
   labs(title = "Passing Performance by Quarter",
@@ -665,7 +670,8 @@ qb_in_2 %>%
   geom_rect(data = subset(qb_in_2, variation >= .2 | variation <= -.2),
             fill = staturdays_colors("lightest_blue"), alpha = .1, 
             xmin = -Inf, xmax = Inf,
-            ymin = -Inf, ymax = Inf)
+            ymin = -Inf, ymax = Inf) +
+  theme(strip.text = element_text(size = 20))
 
 ggsave(filename = paste0("C:/Users/Kyle/Documents/Kyle/Staturdays/R Plots/",
                          today(),
@@ -674,6 +680,6 @@ ggsave(filename = paste0("C:/Users/Kyle/Documents/Kyle/Staturdays/R Plots/",
                          ".jpeg"),
        plot = last_plot(),
        width = 400,
-       height = 400,
+       height = 800,
        dpi = 300,
        units = "mm")
