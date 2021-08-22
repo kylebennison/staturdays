@@ -40,16 +40,16 @@ staturdays_theme <- theme(plot.caption = element_text(size = 12, hjust = 1, colo
                           legend.text = element_text(color = staturdays_colors("lightest_blue"), size = 15))
 }
 
-elo_ratings <- fread("https://raw.githubusercontent.com/kylebennison/staturdays/master/elo_ratings_historic.csv")
-cfb_schedule_url <- "https://api.collegefootballdata.com/games?year=2020&seasonType=regular"
+elo_ratings <- fread("https://raw.githubusercontent.com/kylebennison/staturdays/master/Production/elo_ratings_historic.csv")
+cfb_schedule_url <- "https://api.collegefootballdata.com/games?year=2021&seasonType=regular"
 
 #get the current Elo ratings for all teams
-elo_ratings$date <- ymd(elo_ratings$date)
+elo_ratings$date <- as_datetime(elo_ratings$date)
 current_elo_ratings <- elo_ratings[elo_ratings[, .I[which.max(date)], by = team]$V1]
 current_elo_ratings <- current_elo_ratings[,c(1,3,6)]
 
 #bring in 2020 schedule
-schedule <- fromJSON(getURL(cfb_schedule_url))
+schedule <- cfbd_api(cfb_schedule_url,cfbd_staturdays_key)
 
 schedule$start_date <- as_date(schedule$start_date)
 
@@ -103,13 +103,14 @@ to_be_played$elo_home_win_prob <- 1/(1+ (10^ ( (to_be_played$elo_rating_away - t
 to_be_played <- to_be_played[order(to_be_played$start_date),]
 
 results <- data.table()
-for(szn in c(1:3000)){
+for(szn in c(1:1000)){
   season_elo_ratings <- current_elo_ratings
   season_results <- data.table()
   message("Simulating Season ", szn, "/3000")
   
   for(wk in c(min(to_be_played$week):max(to_be_played$week))){
     to_be_played_week <- to_be_played[to_be_played$week == wk,]
+    if(nrow(to_be_played_week !=0)) {
     to_be_played_week$rand_draw <- runif(nrow(to_be_played_week), 0, 1)
     to_be_played_week$home_result <- ifelse(to_be_played_week$rand_draw < to_be_played_week$elo_home_win_prob, 1, 0)
     to_be_played_week$elo_rating_home_new <- to_be_played_week$elo_rating_home + 85*(to_be_played_week$home_result - to_be_played_week$elo_home_win_prob)
@@ -120,11 +121,14 @@ for(szn in c(1:3000)){
     new_away_elo <- new_elo[,c("away_team", "elo_rating_away_new", "start_date")]
     setnames(new_away_elo, c("away_team", "elo_rating_away_new", "start_date"), c("team", "elo_rating", "date"))
     new_elo <- rbind(new_home_elo, new_away_elo)
+    new_elo$date <- as_datetime(new_elo$date)
+    season_elo_ratings$date <- as_datetime(season_elo_ratings$date)
     season_elo_ratings <- rbind(season_elo_ratings, new_elo)
     season_elo_ratings <- season_elo_ratings[season_elo_ratings[, .I[which.max(date)], by = team]$V1]
     temp_tbp <- to_be_played_week
     temp_tbp$szn <- szn
     season_results <- rbind(season_results, temp_tbp)
+    }
   }
   results <- rbind(results, season_results)
 }
@@ -212,7 +216,8 @@ combined_results %>%
   geom_histogram()
 
 # Get conferences
-conf <- fromJSON(getURL("https://api.collegefootballdata.com/teams/fbs?year=2020"))
+conf <- cfbd_api("https://api.collegefootballdata.com/teams/fbs?year=2021",cfbd_staturdays_key)
+#conf <- fromJSON(getURL("https://api.collegefootballdata.com/teams/fbs?year=2021"))
 conf <- conf %>% select(school, conference)
 
 # GT Table
@@ -255,4 +260,4 @@ win_loss_gt <- win_loss_tbl %>%
 
 gtsave(data = win_loss_gt, 
        filename = paste0("sim_win_loss_tbl_", str_replace_all(now(), ":", "."), ".png"),
-       path = "C:/Users/Kyle/Documents/Kyle/Staturdays/R Plots")
+       path = "C:/Users/drewb/Desktop/")
