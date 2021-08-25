@@ -63,6 +63,47 @@ for(yr in 2014:2019){
   message("Done year ", yr)
   
 }
+returning <- tibble()
+for(yr in 2014:2019){
+  
+  returning_url <- paste0("https://api.collegefootballdata.com/player/returning?year=", as.character(yr))
+  r1 <- cfbd_api(returning_url, key = my_key)
+  r1 <- r1
+  returning <- rbind(returning, r1)
+  message("Done year ", yr)
+  
+}
+recruiting <- tibble()
+for(yr in 2014:2019){
+  
+  recruiting_url <- paste0("https://api.collegefootballdata.com/recruiting/teams?year=", as.character(yr))
+  r1 <- cfbd_api(recruiting_url, key = my_key)
+  r1 <- r1
+  recruiting <- rbind(recruiting, r1)
+  message("Done year ", yr)
+  
+}
+ppa <- tibble()
+for(yr in 2014:2019){
+  
+  ppa_url <- paste0("https://api.collegefootballdata.com/ppa/players/season?year=", as.character(yr))
+  p1 <- cfbd_api(ppa_url, key = my_key)
+  p1 <- p1
+  ppa <- rbind(ppa, p1)
+  message("Done year ", yr)
+  
+}
+stats_advanced <- tibble()
+for(yr in 2014:2019){
+  
+  stats_url <- paste0("https://api.collegefootballdata.com/stats/season/advanced?year=", as.character(yr))
+  s1 <- cfbd_api(stats_url, key = my_key)
+  s1 <- s1
+  stats_advanced <- rbind(stats_advanced, s1)
+  message("Done year ", yr)
+  
+}
+
 
 
 
