@@ -110,12 +110,13 @@ rm(list = c("p1", "r1", "s1", "t1", "b1"))
 rankings <- rankings %>% unnest(cols = polls) %>% unnest(cols = ranks)
 
 # Summarise a single line per game
-lines %>% 
+lines_tmp <- lines %>% 
   mutate(spread = as.double(spread),
          overUnder = as.integer(overUnder)) %>% 
-  group_by(id) %>% 
+  group_by(id, season, seasonType, week, homeTeam, awayTeam,
+           homeScore, awayScore) %>% 
   summarise(avg_spread = mean(spread),
-            avg_over_under = mean(overUnder))
+            avg_over_under = mean(overUnder, na.rm = T))
 
 # Build a giant table -----------------------------------------------------
 
