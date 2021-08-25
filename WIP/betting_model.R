@@ -27,7 +27,6 @@ for(yr in 2014:2019){
   
   record_url <- paste0("https://api.collegefootballdata.com/records?year=", as.character(yr), "&seasonType=both")
   r1 <- cfbd_api(record_url, key = my_key)
-  r1 <- r1 %>% unnest(cols = lines)
   records <- rbind(records, r1)
   message("Done year ", yr)
   
@@ -37,9 +36,9 @@ lines <- tibble()
 for(yr in 2014:2019){
   
   betting_url <- paste0("https://api.collegefootballdata.com/lines?year=", as.character(yr), "&seasonType=both")
-  betting <- cfbd_api(betting_url, key = my_key)
-  betting <- betting %>% unnest(cols = lines)
-  lines <- rbind(lines, betting)
+  b1 <- cfbd_api(betting_url, key = my_key)
+  b1 <- b1 %>% unnest(cols = lines)
+  lines <- rbind(lines, b1)
   message("Done year ", yr)
   
 }
@@ -48,7 +47,6 @@ for(yr in 2014:2019){
   
   talent_url <- paste0("https://api.collegefootballdata.com/talent?year=", as.character(yr))
   t1 <- cfbd_api(talent_url, key = my_key)
-  t1 <- t1 %>% unnest(cols = lines)
   talent <- rbind(talent, t1)
   message("Done year ", yr)
   
@@ -58,7 +56,6 @@ for(yr in 2014:2019){
   
   rankings_url <- paste0("https://api.collegefootballdata.com/rankings?year=", as.character(yr))
   r1 <- cfbd_api(rankings_url, key = my_key)
-  r1 <- r1 %>% unnest(cols = lines)
   rankings <- rbind(rankings, r1)
   message("Done year ", yr)
   
@@ -104,6 +101,23 @@ for(yr in 2014:2019){
   
 }
 
+rm(list = c("p1", "r1", "s1", "t1", "b1"))
+
+
+# Clean any data ----------------------------------------------------------
+
+# Unnest columns
+rankings <- rankings %>% unnest(cols = polls) %>% unnest(cols = ranks)
+
+# Summarise a single line per game
+lines %>% 
+  mutate(spread = as.double(spread),
+         overUnder = as.integer(overUnder)) %>% 
+  group_by(id) %>% 
+  summarise(avg_spread = mean(spread),
+            avg_over_under = mean(overUnder))
+
+# Build a giant table -----------------------------------------------------
 
 
 
