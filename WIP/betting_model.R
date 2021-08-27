@@ -118,10 +118,62 @@ lines_tmp <- lines %>%
   summarise(avg_spread = mean(spread),
             avg_over_under = mean(overUnder, na.rm = T))
 
+lines <- lines_tmp
+
+rm(lines_tmp)
+
+
+# Prep for joining ---------
+
+# Join last years stats to this year's games for predictions
+ppa_prep <- ppa %>% 
+  mutate(join_year = season + 1L)
+
+records_prep <- records %>% 
+  mutate(join_year = year + 1L)
+
+stats_prep <- stats_advanced %>% 
+  mutate(join_year = season + 1L)
+
+# Need to confirm that the rankings come out after that week is played.
+# i.e. Week 1 rankings should be used to predict Week 2 games.
+# If they come out before the week, they should be used to predict the same week
+rankings_prep <- rankings %>% 
+  filter(poll %in% c("AP Top 25", 
+                     "Playoff Committee Rankings")) %>% 
+  mutate(consensus_rank == mean(rank, na.rm = TRUE),
+         join_week = week + 1L)
+
 # Build a giant table -----------------------------------------------------
 
+big_table1 <- games %>% 
+  inner_join(lines, by = 
+               c("id", 
+                 "home_team" = "homeTeam", 
+                 "away_team" = "awayTeam",
+                 "home_points" = "homeScore",
+                 "away_points" = "awayScore"))
+
+big_table2 <- big_table1 %>% 
+  left_join(stats_advanced, by = c("home_team" = "team",
+                                   "season" = "season"-1))
+
+# These three can join with the same season as games
+recruiting, returning, talent
+
+# Cross-validate xgboost model --------------------------------------------
 
 
+# Apply model to get predicted WP vs. implied odds ------------------------
+
+
+# Set betting rules on when to bet and how much ---------------------------
+
+
+# Calculate season returns ------------------------------------------------
+
+
+# --------------------------- Old Code -----------------
 # Games Historic
 
 games <- fread("https://raw.githubusercontent.com/kylebennison/staturdays/master/games_historic.csv")
