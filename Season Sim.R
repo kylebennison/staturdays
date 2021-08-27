@@ -39,7 +39,7 @@ staturdays_theme <- theme(plot.caption = element_text(size = 12, hjust = 1, colo
                           legend.title = element_text(color = staturdays_colors("lightest_blue"), size = 15),
                           legend.text = element_text(color = staturdays_colors("lightest_blue"), size = 15))
 }
-
+source("Production/source_everything.R")
 elo_ratings <- fread("https://raw.githubusercontent.com/kylebennison/staturdays/master/Production/elo_ratings_historic.csv")
 cfb_schedule_url <- "https://api.collegefootballdata.com/games?year=2021&seasonType=regular"
 
@@ -49,7 +49,7 @@ current_elo_ratings <- elo_ratings[elo_ratings[, .I[which.max(date)], by = team]
 current_elo_ratings <- current_elo_ratings[,c(1,3,6)]
 
 #bring in 2020 schedule
-schedule <- cfbd_api(cfb_schedule_url,cfbd_staturdays_key)
+schedule <- cfbd_api(cfb_schedule_url,my_key)
 
 schedule$start_date <- as_date(schedule$start_date)
 
@@ -216,7 +216,7 @@ combined_results %>%
   geom_histogram()
 
 # Get conferences
-conf <- cfbd_api("https://api.collegefootballdata.com/teams/fbs?year=2021",cfbd_staturdays_key)
+conf <- cfbd_api("https://api.collegefootballdata.com/teams/fbs?year=2021",my_key)
 #conf <- fromJSON(getURL("https://api.collegefootballdata.com/teams/fbs?year=2021"))
 conf <- conf %>% select(school, conference)
 
@@ -261,3 +261,31 @@ win_loss_gt <- win_loss_tbl %>%
 gtsave(data = win_loss_gt, 
        filename = paste0("sim_win_loss_tbl_", str_replace_all(now(), ":", "."), ".png"),
        path = "C:/Users/drewb/Desktop/")
+
+win_loss_tbl %>% 
+  left_join(conf, by = c("team" = "school")) %>% 
+  filter(conference == "Big Ten") %>% 
+  pivot_longer(cols = c(lower_95_wins, upper_95_wins)) %>% 
+  ggplot(aes(x = value, y = fct_rev(fct_reorder2(team, name, value)), color = name)) +
+  geom_point(size = 5) +
+  geom_line(aes(group = team), color = staturdays_colors("light_blue"), size = 3, alpha = .5) +
+  scale_x_continuous(breaks = seq(1, 12, 1)) +
+  staturdays_theme +
+  labs(x = "Wins",
+       y = "Team",
+       title = "Big Ten Win Distribution",
+       subtitle = "Based on Season Simulation using Elo Ratings",
+       caption = "@kylebeni012 for @staturdays | Data: @cfb_data") +
+  theme(legend.title = element_blank()) +
+  scale_color_manual(values = c(staturdays_colors("lightest_blue"), as.character(staturdays_colors("orange"))), labels = c("Lower 95th Percentile", "Upper 95th Percentile"))
+
+ggsave(plot = last_plot(),
+       filename = paste0(today(), "_",
+                         "big_ten_",
+                         "win_dist_sim",
+                         ".jpeg"),
+       height = 200,
+       width = 400,
+       units = "mm",
+       dpi = 300,
+       path = "C:/Users/Kyle/Documents/Kyle/Staturdays/R Plots")
