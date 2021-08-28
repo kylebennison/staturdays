@@ -400,18 +400,18 @@ ml_bottom <- games_df %>%
 ml_joined <- rbind(ml_top, ml_bottom)
 
 ml_clean <- ml_joined %>% 
-  mutate(implied_wp_home = if_else(label_favorite == home_team,
-                                   implied_wp_favorite,
-                                   implied_wp_underdog),
-         implied_wp_away = if_else(label_favorite == home_team,
-                                   implied_wp_underdog,
-                                   implied_wp_favorite))
+  mutate(implied_odds_home = if_else(label_favorite == home_team,
+                                   implied_odds_favorite,
+                                   implied_odds_underdog),
+         implied_odds_away = if_else(label_favorite == home_team,
+                                   implied_odds_underdog,
+                                   implied_odds_favorite))
 
 ml_clean %>% 
-  ggplot(aes(x = home_pred_win_prob, y = implied_wp_home)) +
+  ggplot(aes(x = home_pred_win_prob, y = implied_odds_home)) +
   geom_point() +
   geom_abline(linetype = 2) +
-  geom_text(aes(label = if_else(abs(home_pred_win_prob - implied_wp_home) > .1,
+  geom_text(aes(label = if_else(abs(home_pred_win_prob - implied_odds_home) > .1,
                                 paste0(away_team, " @ \n", home_team),
                                 ""))) +
   labs(title = "Elo vs. Vegas Win Probabilities") +
