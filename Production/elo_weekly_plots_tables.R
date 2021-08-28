@@ -5,7 +5,6 @@ library(scales)
 library(tidyverse)
 library(RCurl)
 library(XML)
-library(rjson)
 library(jsonlite)
 library(stringr)
 library(lubridate)
@@ -16,6 +15,7 @@ source("https://raw.githubusercontent.com/kylebennison/staturdays/master/Product
 source("https://raw.githubusercontent.com/kylebennison/staturdays/master/Production/cfbd_api_key_function.R")
 source("https://raw.githubusercontent.com/kylebennison/staturdays/master/Production/Play%20Types%20and%20Power%20Conference%20Names.R")
 source("https://raw.githubusercontent.com/kylebennison/staturdays/master/WIP/dk_moneylines.R")
+source("Production/source_everything.r")
 
 # New Season Regression Factor
 regress <- (.95)
