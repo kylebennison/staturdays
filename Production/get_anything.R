@@ -1,0 +1,41 @@
+source("Production/cfbd_api_key_function.r")
+
+get_anything <- function(url, start_year, end_year, start_week, end_week, key){
+  
+  if(missing(key)){
+    
+    message("You must supply an API key. You can get one for free at collegefootballdata.com")
+    
+  } else if(missing(start_week) & missing(end_week)){
+  
+  response <- tibble()
+  for(yr in start_year:end_year){
+    
+    response_url <- paste0(url, "?year=", as.character(yr))
+    r1 <- cfbd_api(response_url, key = key)
+    response <- rbind(response, r1)
+    message("Done year ", yr)
+    
+  }
+  } else {
+    
+    response <- tibble()
+    for(yr in start_year:end_year){
+      for(wk in start_week:end_week){
+        
+        response_url <- paste0(url, 
+                               "?year=", as.character(yr), 
+                               "&week=", as.character(wk))
+        r1 <- cfbd_api(response_url, key = key)
+        response <- rbind(response, r1)
+        message("Done year ", yr, " week ", wk)
+        
+      }
+      
+    }
+    
+  }
+  
+return(response)
+  
+}
