@@ -12,7 +12,7 @@ response <- GET(url = url,
                 content_type_json())
 
 data <- content(response, as = "text", enconding = "UTF-8") %>% 
-  fromJSON(flatten = TRUE) %>% 
+  jsonlite::fromJSON(flatten = TRUE) %>% 
   tibble() %>% 
   readr::type_convert()
 
@@ -40,12 +40,23 @@ d_final <- rbind(d_final, d7)
 
 # d_final contains moneyline odds for each team, for multiple matchups throughout the season
 # Pivoting wider to get matchups
+# Issue: When both teams have "-" odds, both are labelled as the favorite and can't pivot_wider
 
 moneylines <- d_final %>% 
   select(providerOfferId, oddsAmerican, label) %>% 
   mutate(favorite = case_when(str_detect(oddsAmerican, "-") == TRUE ~ "favorite",
                               str_detect(oddsAmerican, "\\+") == TRUE ~ "underdog",
                               TRUE ~ "unknown")) %>% 
+  group_by(providerOfferId) %>% 
+  mutate(odds_sum = sum(abs(as.integer(oddsAmerican)))) %>% 
+  mutate(cnt = favorite == "favorite",
+         cnt = sum(cnt)) %>% 
+  ungroup() %>% 
+  mutate(implied_odds = case_when(str_detect(oddsAmerican, "-") == TRUE ~ abs(as.integer(oddsAmerican))/(abs(as.integer(oddsAmerican)) + 100),
+                                  str_detect(oddsAmerican, "\\+") == TRUE ~ 100/(abs(as.integer(oddsAmerican))+100),
+                                  TRUE ~ 0)) %>% 
+  arrange(providerOfferId, oddsAmerican) %>% 
+  mutate(favorite = case_when(cnt == 2 ~ )
   pivot_wider(names_from = c(favorite), values_from = c(label, oddsAmerican)) %>% 
   mutate(across(.cols = c(oddsAmerican_favorite, oddsAmerican_underdog), .fns = as.integer)) %>% 
   mutate(implied_wp_favorite = abs(oddsAmerican_favorite) / (abs(oddsAmerican_favorite) + 100),
