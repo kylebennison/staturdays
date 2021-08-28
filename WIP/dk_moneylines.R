@@ -49,18 +49,21 @@ moneylines <- d_final %>%
                               TRUE ~ "unknown")) %>% 
   group_by(providerOfferId) %>% 
   mutate(odds_sum = sum(abs(as.integer(oddsAmerican)))) %>% 
-  mutate(cnt = favorite == "favorite",
+  mutate(cnt = favorite == "favorite", # Check how many teams per game are marked as the favorite
          cnt = sum(cnt)) %>% 
   ungroup() %>% 
   mutate(implied_odds = case_when(str_detect(oddsAmerican, "-") == TRUE ~ abs(as.integer(oddsAmerican))/(abs(as.integer(oddsAmerican)) + 100),
                                   str_detect(oddsAmerican, "\\+") == TRUE ~ 100/(abs(as.integer(oddsAmerican))+100),
                                   TRUE ~ 0)) %>% 
-  arrange(providerOfferId, oddsAmerican) %>% 
-  mutate(favorite = case_when(cnt == 2 ~ )
-  pivot_wider(names_from = c(favorite), values_from = c(label, oddsAmerican)) %>% 
-  mutate(across(.cols = c(oddsAmerican_favorite, oddsAmerican_underdog), .fns = as.integer)) %>% 
-  mutate(implied_wp_favorite = abs(oddsAmerican_favorite) / (abs(oddsAmerican_favorite) + 100),
-         implied_wp_underdog = 100 / (abs(oddsAmerican_underdog) + 100))
+  group_by(providerOfferId) %>% 
+  mutate(cnt_odds = max(implied_odds) == implied_odds, # Check if the teams odds are the highest odds
+         cnt_odds = sum(cnt_odds),
+         team_num = rank(label)) %>% # Check if both teams have the same odds
+  mutate(favorite = case_when(cnt != 1 & cnt_odds == 1 & implied_odds == max(implied_odds) ~ "favorite", # If both teams have negative odds or both have positive odds, then pick a favorite based on implied odds, and if both are have the same exact implied odds, label them as a toss up
+                              cnt != 1 & cnt_odds == 1 & implied_odds < max(implied_odds) ~ "underdog",
+                              cnt != 1 & cnt_odds == 2 ~ paste0("toss_up", "_", team_num),
+                              TRUE ~ favorite)) %>% 
+  pivot_wider(names_from = c(favorite), values_from = c(label, oddsAmerican, implied_odds))
 
 # Now you can join this with games data to get moneyline by game.
 # Just need to figure out join keys. Team names should be unique but we don't know home and away based on this data, so date would be better but we don't have it.
