@@ -217,7 +217,6 @@ combined_results %>%
 
 # Get conferences
 conf <- cfbd_api("https://api.collegefootballdata.com/teams/fbs?year=2021",my_key)
-#conf <- fromJSON(getURL("https://api.collegefootballdata.com/teams/fbs?year=2021"))
 conf <- conf %>% select(school, conference)
 
 # GT Table
@@ -256,7 +255,7 @@ win_loss_gt <- win_loss_tbl %>%
     )
   )
   ) %>% 
-  tab_source_note("@kylebeni012 | @staturdays — Data: @cfb_data")
+  tab_source_note("@staturdays — Data: @cfb_data")
 
 gtsave(data = win_loss_gt, 
        filename = paste0("sim_win_loss_tbl_", str_replace_all(now(), ":", "."), ".png"),
