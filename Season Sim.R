@@ -78,35 +78,37 @@ already_played_sum <- joined_already_played %>%
 
 to_be_played <- schedule[is.na(schedule$home_points),]
 
-to_be_played <- merge(to_be_played, current_elo_ratings, by.x = "home_team", by.y = "team", all.x = TRUE)
-setnames(to_be_played, "elo_rating", "elo_rating_home")
-to_be_played <- merge(to_be_played, current_elo_ratings, by.x = "away_team", by.y = "team", all.x = TRUE)
-setnames(to_be_played, "elo_rating", "elo_rating_away")
-
-#fill NA to 1200
-to_be_played$elo_rating_home[is.na(to_be_played$elo_rating_home)] <- 1200
-to_be_played$elo_rating_away[is.na(to_be_played$elo_rating_away)] <- 1200
-
-#add in home field advantage
-to_be_played$elo_home_win_prob <- 1/(1+ (10^ ( (to_be_played$elo_rating_away - to_be_played$elo_rating_home + 55)/400)))
-
 #order for sim
 to_be_played <- to_be_played[order(to_be_played$start_date),]
 
 results <- data.table()
 
 #testing
-for(szn in c(1:10000)){
-  print("here")
+for(szn in c(1:1000)){
   season_elo_ratings <- current_elo_ratings
   season_results <- data.table()
-  message("Simulating Season ", szn, "/10000")
+  message("Simulating Season ", szn, "/1000")
   
   for(wk in c(min(to_be_played$week):max(to_be_played$week))){
     to_be_played_week <- to_be_played[to_be_played$week == wk,]
     if(nrow(to_be_played_week) !=0) {
+      
+    to_be_played_week <- merge(to_be_played_week, season_elo_ratings, by.x = "home_team", by.y = "team", all.x = TRUE)
+    setnames(to_be_played_week, "elo_rating", "elo_rating_home")
+    to_be_played_week <- merge(to_be_played_week, season_elo_ratings, by.x = "away_team", by.y = "team", all.x = TRUE)
+    setnames(to_be_played_week, "elo_rating", "elo_rating_away")
+       
+    #fill NA to 1200
+    to_be_played_week$elo_rating_home[is.na(to_be_played_week$elo_rating_home)] <- 1200
+    to_be_played_week$elo_rating_away[is.na(to_be_played_week$elo_rating_away)] <- 1200
+       
+    #add in home field advantage
+    to_be_played_week$elo_home_win_prob <- 1/(1+ (10^ ( (to_be_played_week$elo_rating_away - to_be_played_week$elo_rating_home + 55)/400)))
+      
     to_be_played_week$rand_draw <- runif(nrow(to_be_played_week), 0, 1)
     to_be_played_week$home_result <- ifelse(to_be_played_week$rand_draw < to_be_played_week$elo_home_win_prob, 1, 0)
+    
+    #update elo ratings
     to_be_played_week$elo_rating_home_new <- to_be_played_week$elo_rating_home + 85*(to_be_played_week$home_result - to_be_played_week$elo_home_win_prob)
     to_be_played_week$elo_rating_away_new <- to_be_played_week$elo_rating_away + 85*( (1-to_be_played_week$home_result) - (1-to_be_played_week$elo_home_win_prob))
     new_elo <- to_be_played_week[,c("home_team", "away_team", "elo_rating_home_new", "elo_rating_away_new", "start_date")]
@@ -192,15 +194,17 @@ combined_results %>%
 conf <- cfbd_api("https://api.collegefootballdata.com/teams/fbs?year=2021",my_key)
 conf <- conf %>% select(school, conference)
 
+for(conf_name in c("ACC", "Big Ten", "Big 12", "Pac-12", "SEC")) {
+
 # GT Table
 win_loss_gt <- win_loss_tbl %>% 
   select(team, wins, losses, win_perc, prob_undefeated, win_range, games, std_dev_wins) %>% 
   arrange((team)) %>% 
   left_join(conf, by = c("team" = "school")) %>% 
-  filter(conference == "Big Ten") %>% 
+  filter(conference == conf_name) %>% 
   relocate(games, .before = win_range) %>% 
   gt() %>% 
-  tab_header(title = md(paste0("**Big Ten - 2020 Season Sim**")),
+  tab_header(title = md(paste0("**",conf_name," - 2021 Season Sim**")),
              subtitle = paste0("Results as of ", today())) %>% 
   cols_hide(columns = vars(conference)) %>% 
   cols_label(team = "Team", wins = "Expected Wins", losses = "Expected Losses", 
@@ -231,12 +235,14 @@ win_loss_gt <- win_loss_tbl %>%
   tab_source_note("@staturdays — Data: @cfb_data")
 
 gtsave(data = win_loss_gt, 
-       filename = paste0("sim_win_loss_tbl_", str_replace_all(now(), ":", "."), ".png"),
+       filename = paste0("sim_win_loss_tbl_", str_replace_all(now(), ":", "."), conf_name, ".png"),
        path = "C:/Users/drewb/Desktop/")
+
+
 
 win_loss_tbl %>% 
   left_join(conf, by = c("team" = "school")) %>% 
-  filter(conference == "Big Ten") %>% 
+  filter(conference == conf_name) %>% 
   pivot_longer(cols = c(lower_95_wins, upper_95_wins)) %>% 
   ggplot(aes(x = value, y = fct_rev(fct_reorder2(team, name, value)), color = name)) +
   geom_point(size = 5) +
@@ -245,19 +251,21 @@ win_loss_tbl %>%
   staturdays_theme +
   labs(x = "Wins",
        y = "Team",
-       title = "Big Ten Win Distribution",
+       title = paste0(conf_name, " Win Distribution"),
        subtitle = "Based on Season Simulation using Elo Ratings",
-       caption = "@kylebeni012 for @staturdays | Data: @cfb_data") +
+       caption = "@staturdays | Data: @cfb_data") +
   theme(legend.title = element_blank()) +
   scale_color_manual(values = c(staturdays_colors("lightest_blue"), as.character(staturdays_colors("orange"))), labels = c("Lower 95th Percentile", "Upper 95th Percentile"))
 
 ggsave(plot = last_plot(),
        filename = paste0(today(), "_",
-                         "big_ten_",
+                         conf_name,
                          "win_dist_sim",
-                         ".jpeg"),
+                         ".png"),
        height = 200,
        width = 400,
        units = "mm",
        dpi = 300,
-       path = "C:/Users/Kyle/Documents/Kyle/Staturdays/R Plots")
+       path = "C:/Users/drewb/Desktop/")
+
+}
