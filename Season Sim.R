@@ -76,15 +76,6 @@ already_played_sum <- joined_already_played %>%
                                  losses = sum(home_losses, away_losses, na.rm = T)) %>% 
   select(team, wins, losses)
 
-# #make alread6y_played length of sims and add szn
-# already_played_new <- data.table()
-# for(szn in c(1:3000)){
-#   message(paste0("Running Already Played Season ", szn))
-#   already_played$szn <- szn
-#   already_played_new <- rbind(already_played_new, already_played)
-# }
-
-
 to_be_played <- schedule[is.na(schedule$home_points),]
 
 to_be_played <- merge(to_be_played, current_elo_ratings, by.x = "home_team", by.y = "team", all.x = TRUE)
@@ -103,14 +94,17 @@ to_be_played$elo_home_win_prob <- 1/(1+ (10^ ( (to_be_played$elo_rating_away - t
 to_be_played <- to_be_played[order(to_be_played$start_date),]
 
 results <- data.table()
-for(szn in c(1:1000)){
+
+#testing
+for(szn in c(1:10000)){
+  print("here")
   season_elo_ratings <- current_elo_ratings
   season_results <- data.table()
-  message("Simulating Season ", szn, "/3000")
+  message("Simulating Season ", szn, "/10000")
   
   for(wk in c(min(to_be_played$week):max(to_be_played$week))){
     to_be_played_week <- to_be_played[to_be_played$week == wk,]
-    if(nrow(to_be_played_week !=0)) {
+    if(nrow(to_be_played_week) !=0) {
     to_be_played_week$rand_draw <- runif(nrow(to_be_played_week), 0, 1)
     to_be_played_week$home_result <- ifelse(to_be_played_week$rand_draw < to_be_played_week$elo_home_win_prob, 1, 0)
     to_be_played_week$elo_rating_home_new <- to_be_played_week$elo_rating_home + 85*(to_be_played_week$home_result - to_be_played_week$elo_home_win_prob)
@@ -140,18 +134,6 @@ setnames(summary_results_away, c("away_team","0", "1"), c("team","1", "0"))
 setnames(summary_results_home, c("home_team"), c("team"))
 combined_results <- rbind(summary_results_home, summary_results_away)
 
-# #process already completed games
-# summary_results_home_completed <- dcast(already_played_new, home_team+szn~home_result, value.var = "home_result")
-# summary_results_away_completed <- dcast(already_played_new, away_team+szn~home_result, value.var = "home_result")
-# setnames(summary_results_away_completed, c("away_team","0", "1"), c("team","1", "0"))
-# setnames(summary_results_home_completed, c("home_team"), c("team"))
-# combined_results2 <- rbind(summary_results_home_completed, summary_results_away_completed)
-# combined_results2[is.na(combined_results2$`0`),3] <- 0
-# combined_results2[is.na(combined_results2$`1`),4] <- 1
-# #new
-# combined_results <- rbind(combined_results, combined_results2)
-
-
 #wins and losses per season
 combined_results <- dcast(combined_results, team+szn~., value.var = c("0", "1"), fun.aggregate = sum)
 
@@ -178,15 +160,6 @@ combined_results_3 <- combined_results %>%
             win_perc = mean(win_perc),
             std_dev_wins = sd(`1`), # std dev of wins (same as losses)
             prob_undefeated = mean(undefeated))
-
-# combined_results_3 <- combined_results[,list(wins = mean(`1`),
-#                                              losses = mean(`0`),
-#                                              games = mean(`1`)+mean(`0`), # total games on schedule
-#                                              win_perc = mean(win_perc),
-#                                              std_dev_wins = sd(`1`), # std dev of wins (same as losses)
-#                                              prob_undefeated = mean(undefeated)
-#                                              ),
-#                                        by='team']
 
 # Adding a 95th percentile confidence interval for wins and losses, assuming normal distribution
 combined_results_4 <- combined_results_3 %>% 
