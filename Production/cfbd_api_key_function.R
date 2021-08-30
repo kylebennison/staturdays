@@ -14,7 +14,7 @@ data <- httr::GET(url = url,
                   add_headers('Authorization' = paste('Bearer', key)))
 
 data <- content(data, as="text", encoding = "UTF-8") %>% 
-  fromJSON(flatten = TRUE) %>% 
+  jsonlite::fromJSON(flatten = TRUE) %>% 
   tibble() %>% 
   readr::type_convert()
 
