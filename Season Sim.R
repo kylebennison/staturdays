@@ -41,14 +41,14 @@ staturdays_theme <- theme(plot.caption = element_text(size = 12, hjust = 1, colo
 }
 source("Production/source_everything.R")
 elo_ratings <- fread("https://raw.githubusercontent.com/kylebennison/staturdays/master/Production/elo_ratings_historic.csv")
-cfb_schedule_url <- "https://api.collegefootballdata.com/games?year=2021&seasonType=regular"
 
 #get the current Elo ratings for all teams
 elo_ratings$date <- as_datetime(elo_ratings$date)
 current_elo_ratings <- elo_ratings[elo_ratings[, .I[which.max(date)], by = team]$V1]
 current_elo_ratings <- current_elo_ratings[,c(1,3,6)]
 
-#bring in 2020 schedule
+#bring in 2021 schedule
+cfb_schedule_url <- "https://api.collegefootballdata.com/games?year=2021&seasonType=regular"
 schedule <- cfbd_api(cfb_schedule_url,my_key)
 
 schedule$start_date <- as_date(schedule$start_date)

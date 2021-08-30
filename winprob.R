@@ -12,7 +12,7 @@ library(lubridate)
 library(caret)
 library(xgboost)
 
-
+source("Production/source_everything.R")
 #library(ggimage)
 
 #Staturdays Colors
@@ -133,13 +133,16 @@ base_url_plays <- "https://api.collegefootballdata.com/plays?" # Base URL to wor
 base_url_games <- "https://api.collegefootballdata.com/games?" # Base URL for games data
 base_url_drives <- "https://api.collegefootballdata.com/drives?" # Base URL for drives data
 
+
+plays.master <- get_plays(start_week = 1, end_week = 15, start_year = 2019, end_year = 2020)
+
 plays.master = data.frame()
-for (j in 2014:2019) {
+for (j in 2014:2020) {
   for (i in 1:15) {
     cat('Loading Plays', j, 'Week', i, '\n')
     full_url_plays <- paste0(base_url_plays, "seasonType=both&", "year=", as.character(j), "&","week=", as.character(i)) # Concatenating year and week
     full_url_plays_encoded <- URLencode(full_url_plays) # If there are spaces in query, formats them correctly
-    plays <- fromJSON(getURL(full_url_plays_encoded)) # Pull in API using url
+    plays <- cfbd_api(full_url_plays_encoded,my_key) # Pull in API using url
     if(is_empty(plays) == F){
       clockcolumns <- plays %>% unnest_legacy(clock) # Takes clock data out as it's own columns
       plays <- plays %>%
