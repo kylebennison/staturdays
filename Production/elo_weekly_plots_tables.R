@@ -266,7 +266,7 @@ preseason_2020_rankings <- joined_stats %>%
 
 gtsave(data = preseason_2020_rankings, 
        filename = paste0(year(today()), "_preseason_rankings_", str_replace_all(now(), ":", "."), ".png"),
-       path = "C:/Users/Kyle/Documents/Kyle/Staturdays/R Plots")
+       path = "R Plots/")
 
 # Top 25
 preseason_2020_top_25 <- joined_stats %>% 
@@ -291,7 +291,7 @@ preseason_2020_top_25 <- joined_stats %>%
 
 gtsave(data = preseason_2020_top_25, 
        filename = paste0(year(today()), "_preseason_top_25_", str_replace_all(now(), ":", "."), ".png"),
-       path = "C:/Users/Kyle/Documents/Kyle/Staturdays/R Plots")
+       path = "R Plots/")
 
 # Weekly Win Probabilities and Bets ------------------------------------------------
 
@@ -383,8 +383,114 @@ win_probabilities_this_week <- win_probs_w_lines %>%
 
 gtsave(data = win_probabilities_this_week, 
        filename = paste0(year(today()), "_win_probabilities_this_week_", week_of_upcoming_games, "_", str_replace_all(now(), ":", "."), ".png"),
-       path = "C:/Users/Kyle/Documents/Kyle/Staturdays/R Plots")
+       path = "R Plots/")
 
+## Calculate biggest upsets week-over-week by win prob and change in Elo
+
+home_wow_elo_change <- elo_ratings %>% 
+  filter(season == max(season)) %>% 
+  arrange(desc(date)) %>% 
+  group_by(team) %>% 
+  mutate(wow_change = ((elo_rating) - lag(elo_rating, n = 1, order_by = date))/(lag(elo_rating, n = 1, order_by = date)), previous_elo = lag(elo_rating, n =1, order_by = date)) %>% 
+  slice_max(order_by = date, n = 1L) %>% 
+  inner_join(upcoming.games, by = c("team" = "home_team", "week", "season")) %>% 
+  filter(game_date < lubridate::now())
+
+away_wow_elo_change <- elo_ratings %>% 
+  filter(season == max(season)) %>% 
+  arrange(desc(date)) %>% 
+  group_by(team) %>% 
+  mutate(wow_change = ((elo_rating) - lag(elo_rating, n = 1, order_by = date))/(lag(elo_rating, n = 1, order_by = date)), previous_elo = lag(elo_rating, n =1, order_by = date)) %>% 
+  slice_max(order_by = date, n = 1L) %>% 
+  inner_join(upcoming.games, by = c("team" = "away_team", "week", "season")) %>% 
+  filter(game_date < lubridate::now())
+
+wow_elo_change <- rbind(home_wow_elo_change, away_wow_elo_change) %>% 
+  select(1:8, home_team, away_team, home_points, away_points, game_outcome_home, home_pred_win_prob, away_pred_win_prob) %>% 
+  mutate(home_surprise = game_outcome_home - home_pred_win_prob, away_surprise = (1-game_outcome_home) - away_pred_win_prob)
+
+wow_elo_change_top <- wow_elo_change %>% 
+  arrange(desc(wow_change)) %>% 
+  filter(week == week_of_elo_last_updated) %>% 
+  select(-date, -home_surprise, -away_surprise, -conference, -game_outcome_home) %>% 
+  ungroup() %>% 
+  slice_max(order_by = wow_change, n = 10)
+
+wow_elo_change_bottom <- wow_elo_change %>% 
+  arrange((wow_change)) %>% 
+  filter(week == week_of_elo_last_updated) %>% 
+  select(-date, -home_surprise, -away_surprise, -conference, -game_outcome_home) %>% 
+  ungroup() %>% 
+  slice_min(order_by = wow_change, n = 10)
+
+wow_elo_change_combined <- wow_elo_change_top %>% 
+  rbind(wow_elo_change_bottom) %>% 
+  arrange(desc(wow_change)) %>% 
+  mutate(opponent = if_else(is.na(home_team)==T, away_team, home_team)) %>% 
+  mutate(win_prob = if_else(is.na(home_team)==T, home_pred_win_prob, 1-home_pred_win_prob)) %>% 
+  select(-home_team, -away_team, -home_pred_win_prob) %>% 
+  distinct()
+
+# Table of movers
+
+wow_elo_change_tbl <- wow_elo_change_combined %>% 
+  select(team, opponent, elo_rating, previous_elo, wow_change, win_prob) %>% 
+  gt() %>% 
+  tab_header(title = paste0(as.character(max(upcoming.games$season)), " Week ", as.character(week_of_elo_last_updated), " Biggest Elo Movers"),
+             subtitle = "Largest changes in Elo") %>% 
+  cols_label(team = "Team", elo_rating = "New Elo", previous_elo = "Old Elo", wow_change = "Pct. Change", opponent = "Opponent", win_prob = "Win Probability") %>% 
+  fmt_number(columns = c(elo_rating, previous_elo), decimals = 0, use_seps = FALSE) %>% 
+  fmt_percent(columns = c(wow_change, win_prob), decimals = 1, use_seps = FALSE) %>% 
+  data_color(columns = c(wow_change), # Use a color scale on win prob
+             colors = scales::col_numeric(
+               palette = staturdays_palette,
+               domain = NULL),
+             alpha = 0.7) %>% 
+  tab_source_note("@kylebeni012 | @staturdays — Data: @cfb_data")
+
+if(week_of_elo_last_updated > 0){
+  gtsave(data = wow_elo_change_tbl, 
+         filename = paste0(year(today()), "_wow_elo_change_tbl_", week_of_elo_last_updated, "_", str_replace_all(now(), ":", "."), ".png"),
+         path = "R Plots/")
+}
+
+# Latest Brier for the season
+brier <- upcoming.games %>% summarise(brier = mean((game_outcome_home - home_pred_win_prob)^2))
+
+# Evaluate Elo
+elo_brier_plot <- upcoming.games %>% 
+  filter(is.na(home_points) == F) %>% 
+  mutate(win_prob_bucket = round(home_pred_win_prob, 1)) %>% 
+  group_by(win_prob_bucket) %>% 
+  summarise(avg_actual_outcome = mean(game_outcome_home)) %>% 
+  ggplot(aes(x = win_prob_bucket, y = avg_actual_outcome)) +
+  geom_point(color = staturdays_colors("dark_blue"), size = 4, alpha = 0.7) +
+  geom_abline(linetype = "dashed", color = staturdays_colors("orange")) +
+  geom_label(aes(x = .75, y = .15, label = "Winning Less \nThan Expected"), 
+             color = staturdays_colors("white"), fontface = "bold", size = 4, 
+             fill = staturdays_colors("orange")) +
+  geom_label(aes(x = .25, y = .85, label = "Winning More \nThan Expected"),
+             color = staturdays_colors("white"), fontface = "bold", size = 4, 
+             fill = staturdays_colors("orange")) +
+  staturdays_theme +
+  labs(title = paste0("Elo Predicted vs. Actual \nThrough Week ", week_of_elo_last_updated),
+       subtitle = paste0("Brier Score of ", round(brier, 2)),
+       caption = "@staturdays | @kylebeni012 - Data: @cfb_data",
+       x = "Predicted Win Probability",
+       y = "Actual Average Wins") +
+  scale_y_continuous(labels = percent) +
+  scale_x_continuous(labels = percent)
+
+if(week_of_elo_last_updated > 0){
+  ggsave(filename = paste0(year(now()), "_elo_brier_plot_", str_replace_all(now(), ":", "."), ".png"), 
+         plot = elo_brier_plot,
+         path = "R Plots/",
+         dpi = 300, width = 200, height = 200, units = "mm")
+}
+
+# WIP ---------------------------------------------------------------------
+
+# Do the below but use the cfbd moneyline instead
 
 # Join in moneyline data from DraftKings ----------------------------------
 
@@ -420,101 +526,3 @@ ml_clean %>%
   labs(title = "Elo vs. Vegas Win Probabilities") +
   annotate(geom = "label", x = .25, y = .75, label = "Vegas Overconfident") +
   annotate(geom = "label", x = .75, y = .15, label = "Vegas Underconfident")
-
-## Calculate biggest upsets week-over-week by win prob and change in Elo
-
-home_wow_elo_change <- elo_ratings %>% 
-  filter(season == max(season)) %>% 
-  arrange(desc(date)) %>% 
-  group_by(team) %>% 
-  mutate(wow_change = ((elo_rating) - lag(elo_rating, n = 1, order_by = date))/(lag(elo_rating, n = 1, order_by = date)), previous_elo = lag(elo_rating, n =1, order_by = date)) %>% 
-  inner_join(upcoming.games, by = c("team" = "home_team", "week", "season"))
-
-away_wow_elo_change <- elo_ratings %>% 
-  filter(season == max(season)) %>% 
-  arrange(desc(date)) %>% 
-  group_by(team) %>% 
-  mutate(wow_change = ((elo_rating) - lag(elo_rating, n = 1, order_by = date))/(lag(elo_rating, n = 1, order_by = date)), previous_elo = lag(elo_rating, n =1, order_by = date)) %>% 
-  inner_join(upcoming.games, by = c("team" = "away_team", "week", "season"))
-
-wow_elo_change <- rbind(home_wow_elo_change, away_wow_elo_change) %>% 
-  select(1:8, home_team, away_team, home_points, away_points, game_outcome_home, home_pred_win_prob, away_pred_win_prob) %>% 
-  mutate(home_surprise = game_outcome_home - home_pred_win_prob, away_surprise = (1-game_outcome_home) - away_pred_win_prob)
-
-wow_elo_change_top <- wow_elo_change %>% 
-  arrange(desc(wow_change)) %>% 
-  filter(week == week_of_elo_last_updated) %>% 
-  select(-date, -home_surprise, -away_surprise, -conference, -game_outcome_home) %>% 
-  ungroup() %>% 
-  slice_max(order_by = wow_change, n = 10)
-
-wow_elo_change_bottom <- wow_elo_change %>% 
-  arrange((wow_change)) %>% 
-  filter(week == week_of_elo_last_updated) %>% 
-  select(-date, -home_surprise, -away_surprise, -conference, -game_outcome_home) %>% 
-  ungroup() %>% 
-  slice_min(order_by = wow_change, n = 10)
-
-wow_elo_change_combined <- wow_elo_change_top %>% 
-  rbind(wow_elo_change_bottom) %>% 
-  arrange(desc(wow_change)) %>% 
-  mutate(opponent = if_else(is.na(home_team)==T, away_team, home_team)) %>% 
-  mutate(win_prob = if_else(is.na(home_team)==T, home_pred_win_prob, 1-home_pred_win_prob)) %>% 
-  select(-home_team, -away_team, -home_pred_win_prob)
-
-# Table of movers
-
-wow_elo_change_tbl <- wow_elo_change_combined %>% 
-  select(team, opponent, elo_rating, previous_elo, wow_change, win_prob) %>% 
-  gt() %>% 
-  tab_header(title = paste0(as.character(max(upcoming.games$season)), " Week ", as.character(week_of_elo_last_updated), " Biggest Elo Movers"),
-             subtitle = "Largest changes in Elo") %>% 
-  cols_label(team = "Team", elo_rating = "New Elo", previous_elo = "Old Elo", wow_change = "Pct. Change", opponent = "Opponent", win_prob = "Win Probability") %>% 
-  fmt_number(columns = c(elo_rating, previous_elo), decimals = 0, use_seps = FALSE) %>% 
-  fmt_percent(columns = c(wow_change, win_prob), decimals = 1, use_seps = FALSE) %>% 
-  data_color(columns = c(wow_change), # Use a color scale on win prob
-             colors = scales::col_numeric(
-               palette = staturdays_palette,
-               domain = NULL),
-             alpha = 0.7) %>% 
-  tab_source_note("@kylebeni012 | @staturdays — Data: @cfb_data")
-
-if(week_of_elo_last_updated > 0){
-  gtsave(data = wow_elo_change_tbl, 
-         filename = paste0(year(today()), "_wow_elo_change_tbl_", week_of_elo_last_updated, "_", str_replace_all(now(), ":", "."), ".png"),
-         path = "C:/Users/Kyle/Documents/Kyle/Staturdays/R Plots")
-}
-
-# Latest Brier for the season
-brier <- upcoming.games %>% summarise(brier = mean((game_outcome_home - home_pred_win_prob)^2))
-
-# Evaluate Elo
-elo_brier_plot <- upcoming.games %>% 
-  filter(is.na(home_points) == F) %>% 
-  mutate(win_prob_bucket = round(home_pred_win_prob, 1)) %>% 
-  group_by(win_prob_bucket) %>% 
-  summarise(avg_actual_outcome = mean(game_outcome_home)) %>% 
-  ggplot(aes(x = win_prob_bucket, y = avg_actual_outcome)) +
-  geom_point(color = staturdays_colors("dark_blue"), size = 4, alpha = 0.7) +
-  geom_abline(linetype = "dashed", color = staturdays_colors("orange")) +
-  geom_label(aes(x = .75, y = .15, label = "Winning Less \nThan Expected"), 
-             color = staturdays_colors("white"), fontface = "bold", size = 4, 
-             fill = staturdays_colors("orange")) +
-  geom_label(aes(x = .25, y = .85, label = "Winning More \nThan Expected"),
-             color = staturdays_colors("white"), fontface = "bold", size = 4, 
-             fill = staturdays_colors("orange")) +
-  staturdays_theme +
-  labs(title = paste0("Elo Predicted vs. Actual \nThrough Week ", week_of_elo_last_updated),
-       subtitle = paste0("Brier Score of ", round(brier, 2)),
-       caption = "@staturdays | @kylebeni012 - Data: @cfb_data",
-       x = "Predicted Win Probability",
-       y = "Actual Average Wins") +
-  scale_y_continuous(labels = percent) +
-  scale_x_continuous(labels = percent)
-
-if(week_of_elo_last_updated > 0){
-  ggsave(filename = paste0(year(now()), "_elo_brier_plot_", str_replace_all(now(), ":", "."), ".png"), 
-         plot = elo_brier_plot,
-         path = "C:/Users/Kyle/Documents/Kyle/Staturdays/R Plots",
-         dpi = 300, width = 200, height = 200, units = "mm")
-}
