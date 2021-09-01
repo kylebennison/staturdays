@@ -504,42 +504,42 @@ if(week_of_elo_last_updated > 0){
          path = "R Plots/",
          dpi = 300, width = 200, height = 200, units = "mm")
 }
-
-# WIP ---------------------------------------------------------------------
-
-# Do the below but use the cfbd moneyline instead
-
-# Join in moneyline data from DraftKings ----------------------------------
-
-games_df <- win_probs_w_lines %>% 
-  mutate(join_key_1 = paste0(home_team, away_team),
-         join_key_2 = paste0(away_team, home_team))
-
-ml_top <- games_df %>% 
-  inner_join(ml_df, by = c("join_key_1" = "join_key")) %>% 
-  select(-c(join_key_2, join_key_1))
-
-ml_bottom <- games_df %>% 
-  inner_join(ml_df, by = c("join_key_2" = "join_key")) %>% 
-  select(-c(join_key_2, join_key_1))
-
-ml_joined <- rbind(ml_top, ml_bottom)
-
-ml_clean <- ml_joined %>% 
-  mutate(implied_odds_home = if_else(label_favorite == home_team,
-                                   implied_odds_favorite,
-                                   implied_odds_underdog),
-         implied_odds_away = if_else(label_favorite == home_team,
-                                   implied_odds_underdog,
-                                   implied_odds_favorite))
-
-ml_clean %>% 
-  ggplot(aes(x = home_pred_win_prob, y = implied_odds_home)) +
-  geom_point() +
-  geom_abline(linetype = 2) +
-  geom_text(aes(label = if_else(abs(home_pred_win_prob - implied_odds_home) > .1,
-                                paste0(away_team, " @ \n", home_team),
-                                ""))) +
-  labs(title = "Elo vs. Vegas Win Probabilities") +
-  annotate(geom = "label", x = .25, y = .75, label = "Vegas Overconfident") +
-  annotate(geom = "label", x = .75, y = .15, label = "Vegas Underconfident")
+# 
+# # WIP ---------------------------------------------------------------------
+# 
+# # Do the below but use the cfbd moneyline instead
+# 
+# # Join in moneyline data from DraftKings ----------------------------------
+# 
+# games_df <- win_probs_w_lines %>% 
+#   mutate(join_key_1 = paste0(home_team, away_team),
+#          join_key_2 = paste0(away_team, home_team))
+# 
+# ml_top <- games_df %>% 
+#   inner_join(ml_df, by = c("join_key_1" = "join_key")) %>% 
+#   select(-c(join_key_2, join_key_1))
+# 
+# ml_bottom <- games_df %>% 
+#   inner_join(ml_df, by = c("join_key_2" = "join_key")) %>% 
+#   select(-c(join_key_2, join_key_1))
+# 
+# ml_joined <- rbind(ml_top, ml_bottom)
+# 
+# ml_clean <- ml_joined %>% 
+#   mutate(implied_odds_home = if_else(label_favorite == home_team,
+#                                    implied_odds_favorite,
+#                                    implied_odds_underdog),
+#          implied_odds_away = if_else(label_favorite == home_team,
+#                                    implied_odds_underdog,
+#                                    implied_odds_favorite))
+# 
+# ml_clean %>% 
+#   ggplot(aes(x = home_pred_win_prob, y = implied_odds_home)) +
+#   geom_point() +
+#   geom_abline(linetype = 2) +
+#   geom_text(aes(label = if_else(abs(home_pred_win_prob - implied_odds_home) > .1,
+#                                 paste0(away_team, " @ \n", home_team),
+#                                 ""))) +
+#   labs(title = "Elo vs. Vegas Win Probabilities") +
+#   annotate(geom = "label", x = .25, y = .75, label = "Vegas Overconfident") +
+#   annotate(geom = "label", x = .75, y = .15, label = "Vegas Underconfident")
