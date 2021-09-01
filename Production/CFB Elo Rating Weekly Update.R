@@ -115,7 +115,7 @@ if (now()-max(elo_ratings$date) > 90){
     select(-conference_class)
   elo_ratings <- elo_ratings %>% 
     bind_rows(preseason_elo)
-  fwrite(preseason_elo, file = "C:/Users/Kyle/Documents/Kyle/Staturdays/Staturdays Github/Github/staturdays/Production/elo_ratings_historic.csv", append = TRUE, col.names = FALSE)
+  fwrite(preseason_elo, file = "Production/elo_ratings_historic.csv", append = TRUE, col.names = FALSE)
 }
 
 # Filter only games that haven't been rated yet
@@ -288,7 +288,7 @@ elo_ratings <- elo_ratings %>%
   bind_rows(updated_ratings_away)
 
 # Write new data to github
-fwrite(elo_ratings_updated, file = "C:/Users/Kyle/Documents/Kyle/Staturdays/Staturdays Github/Github/staturdays/Production/elo_ratings_historic.csv", append = TRUE, col.names = FALSE)
+fwrite(elo_ratings_updated, file = "Production/elo_ratings_historic.csv", append = TRUE, col.names = FALSE)
 }
 }
 }
