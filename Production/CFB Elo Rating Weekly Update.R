@@ -231,7 +231,7 @@ rm(list = c("upcoming.tmp", "upcoming.tmp2", "upcoming.tmp3", "upcoming.tmp4"))
 cfb_games <- lastweek.games
 
 # Calculate max week in elo so you can update the next week
-week_of_elo_last_updated <- elo_ratings %>% filter(season == max(season)) %>% slice_max(week, order_by = week, n = 1) %>% pull(week) %>% unique()
+week_of_elo_last_updated <- elo_ratings %>% filter(season == max(season)) %>% slice_max(order_by = week, n = 1) %>% pull(week) %>% unique()
 week_of_games_just_played <- week_of_elo_last_updated + 1L
 week_of_upcoming_games <- week_of_games_just_played + 1L
 
