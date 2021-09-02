@@ -321,7 +321,7 @@ betting_consensus <- betting.master %>% mutate(spread = as.double(spread)) %>%
 
 win_probs <- upcoming.games %>% 
   filter(week == week_of_upcoming_games) %>% 
-  select(id, home_team,home_elo, home_pred_win_prob, home_conference, away_team, away_elo, away_pred_win_prob, away_conference) %>%
+  select(id, game_date, home_team,home_elo, home_pred_win_prob, home_conference, away_team, away_elo, away_pred_win_prob, away_conference) %>%
   arrange(desc(home_pred_win_prob))
 
 win_probs_w_lines <- win_probs %>% 
@@ -336,25 +336,40 @@ win_probs_w_lines <- win_probs_w_lines %>%
                                    (home_favorite == FALSE) & (home_pred_win_prob >= 0.5) ~ T,
                                    TRUE ~ F))
 
+# Filter any games already played from win prob this week table (covers cases where teams play twice in one week (e.g. Week 0 and Week 1))
+win_probs_w_lines <- win_probs_w_lines %>% 
+  filter(game_date >= lubridate::now()) %>% 
+  arrange(game_date, home_team) %>% # arrange by date first, then home team
+  mutate(game_date = lubridate::with_tz(game_date, "America/New_York")) # convert to Eastern timezone
+
+list_of_conferences <- win_probs_w_lines %>% pull(home_conference, away_conference) %>% unique()
+for(i in 1:length(list_of_conferences)){
+  
+  conf_name <- list_of_conferences[i]
+  
 # Table of win probabilities for the week
-win_probabilities_this_week <- win_probs_w_lines %>% 
+win_probabilities_this_week <- win_probs_w_lines %>%
+  filter(home_conference == conf_name | away_conference == conf_name) %>% 
   mutate(elo_different = if_else(elo_different == T, "Yes", "No")) %>% 
-  select(home_team,home_elo, home_pred_win_prob, home_conference, away_team, away_elo, away_pred_win_prob, away_conference, formattedSpread, elo_different) %>%
-  arrange(desc(home_pred_win_prob)) %>% 
+  select(game_date, home_team,home_elo, home_pred_win_prob, home_conference, away_team, away_elo, away_pred_win_prob, away_conference, formattedSpread, elo_different) %>%
+  mutate(game_date = as.character(game_date)) %>% 
   gt() %>% 
   tab_header(title = paste0(max(upcoming.games$season), " Week ", week_of_upcoming_games, " Win Probabilities"),
-             subtitle = "Based on head-to-head Elo Ratings") %>% 
+             subtitle = paste0(conf_name, " — Based on head-to-head Elo Ratings")) %>% 
+  tab_spanner(label = "Start Time",
+              columns = c(game_date)) %>% 
   tab_spanner(label = "Home", # Add a column spanning header
               columns = c(home_team,home_elo, home_pred_win_prob, home_conference)) %>% 
   tab_spanner(label = "Away", # Add a column spanning header
               columns = c(away_team, away_elo, away_pred_win_prob, away_conference)) %>% 
   tab_spanner(label = "Betting",
               columns = c(formattedSpread, elo_different)) %>% 
-  cols_label(home_team = "Team", home_elo = "Elo Rating", home_pred_win_prob = "Win Probability", home_conference = "Conference",
+  cols_label(game_date = "Kickoff (Eastern)", home_team = "Team", home_elo = "Elo Rating", home_pred_win_prob = "Win Probability", home_conference = "Conference",
              away_team = "Team", away_elo = "Elo Rating", away_pred_win_prob = "Win Probability", away_conference = "Conference",
              formattedSpread = "Spread", elo_different = "Elo Mismatch?") %>% 
   fmt_percent(columns = c(home_pred_win_prob, away_pred_win_prob), decimals = 1) %>% 
   fmt_number(columns = c(home_elo, away_elo), decimals = 0, use_seps = FALSE) %>% 
+  fmt_datetime(columns = c(game_date), date_style = 6, time_style = 4) %>% 
   data_color(columns = c(home_pred_win_prob, away_pred_win_prob), # Use a color scale on win prob
              colors = scales::col_numeric(
                palette = staturdays_palette,
@@ -375,16 +390,16 @@ win_probabilities_this_week <- win_probs_w_lines %>%
     ),
     locations = list(
       cells_body(
-        columns = c(away_team, formattedSpread)
+        columns = c(home_team, away_team, formattedSpread)
       )
     )
   ) %>% 
   tab_source_note("@kylebeni012 | @staturdays — Data: @cfb_data")
 
 gtsave(data = win_probabilities_this_week, 
-       filename = paste0(year(today()), "_win_probabilities_this_week_", week_of_upcoming_games, "_", str_replace_all(now(), ":", "."), ".png"),
+       filename = paste0(year(today()), "_win_probabilities_this_week_", week_of_upcoming_games, "_", conf_name, "_", str_replace_all(now(), ":", "."), ".png"),
        path = "R Plots/")
-
+}
 
 # Moneyline vs. Elo Plot --------------------------------------------------
 
