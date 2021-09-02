@@ -129,9 +129,9 @@ elo_ratings <- fread("https://raw.githubusercontent.com/kylebennison/staturdays/
   # Calculate max week in elo to tell plots/tables which week to show
   week_of_elo_last_updated <- elo_ratings %>% filter(season == max(season)) %>% pull(week) %>% max()
   week_of_upcoming_games <- upcoming.games %>% 
-    filter(date >= lubridate::now()) %>% 
-    slice_min(order_by = date, n = 1L) %>% 
-    pull(week)
+    filter(game_date >= lubridate::now()) %>% 
+    slice_min(order_by = game_date, n = 1L) %>% 
+    pull(week) %>% unique()
   
   # Join cfb games with elo ratings for home and away teams by team name and date of rating/game
   upcoming.games <- left_join(upcoming.games, elo_ratings_tmp, by = c("home_team" = "team", "week", "season")) %>% 
@@ -336,23 +336,6 @@ win_probs_w_lines <- win_probs_w_lines %>%
                                    (home_favorite == FALSE) & (home_pred_win_prob >= 0.5) ~ T,
                                    TRUE ~ F))
 
-win_probs_moneyline_1 <- win_probs_w_lines %>% 
-  mutate(home_implied_odds = case_when(str_detect(homeMoneyline, "-") == TRUE ~ abs(as.integer(homeMoneyline))/(abs(as.integer(homeMoneyline)) + 100),
-                                  str_detect(homeMoneyline, "-") == FALSE ~ 100/(abs(as.integer(homeMoneyline))+100),
-                                  TRUE ~ 0),
-         away_implied_odds = case_when(str_detect(awayMoneyline, "-") == TRUE ~ abs(as.integer(awayMoneyline))/(abs(as.integer(awayMoneyline)) + 100),
-                                       str_detect(awayMoneyline, "-") == FALSE ~ 100/(abs(as.integer(awayMoneyline))+100),
-                                       TRUE ~ 0))
-
-win_probs_moneyline_1 %>% 
-  mutate(diff_from_vegas = abs(home_pred_win_prob - home_implied_odds)) %>% 
-  ggplot(aes(x = home_pred_win_prob, y = home_implied_odds)) +
-  geom_point() +
-  geom_abline() +
-  geom_label(aes(x = .75, y = .25), label = "Vegas Underconfident") +
-  geom_label(aes(x = .25, y = .75), label = "Vegas Overconfident") +
-  ggrepel::geom_text_repel(aes(label = if_else(diff_from_vegas > .2, paste0(away_team, " @ ", home_team), "")))
-
 # Table of win probabilities for the week
 win_probabilities_this_week <- win_probs_w_lines %>% 
   mutate(elo_different = if_else(elo_different == T, "Yes", "No")) %>% 
@@ -401,6 +384,26 @@ win_probabilities_this_week <- win_probs_w_lines %>%
 gtsave(data = win_probabilities_this_week, 
        filename = paste0(year(today()), "_win_probabilities_this_week_", week_of_upcoming_games, "_", str_replace_all(now(), ":", "."), ".png"),
        path = "R Plots/")
+
+
+# Moneyline vs. Elo Plot --------------------------------------------------
+
+win_probs_moneyline_1 <- win_probs_w_lines %>% 
+  mutate(home_implied_odds = case_when(str_detect(homeMoneyline, "-") == TRUE ~ abs(as.integer(homeMoneyline))/(abs(as.integer(homeMoneyline)) + 100),
+                                       str_detect(homeMoneyline, "-") == FALSE ~ 100/(abs(as.integer(homeMoneyline))+100),
+                                       TRUE ~ 0),
+         away_implied_odds = case_when(str_detect(awayMoneyline, "-") == TRUE ~ abs(as.integer(awayMoneyline))/(abs(as.integer(awayMoneyline)) + 100),
+                                       str_detect(awayMoneyline, "-") == FALSE ~ 100/(abs(as.integer(awayMoneyline))+100),
+                                       TRUE ~ 0))
+
+win_probs_moneyline_1 %>% 
+  mutate(diff_from_vegas = abs(home_pred_win_prob - home_implied_odds)) %>% 
+  ggplot(aes(x = home_pred_win_prob, y = home_implied_odds)) +
+  geom_point() +
+  geom_abline() +
+  geom_label(aes(x = .75, y = .25), label = "Vegas Underconfident") +
+  geom_label(aes(x = .25, y = .75), label = "Vegas Overconfident") +
+  ggrepel::geom_text_repel(aes(label = if_else(diff_from_vegas > .2, paste0(away_team, " @ ", home_team), "")))
 
 ## Calculate biggest upsets week-over-week by win prob and change in Elo
 
