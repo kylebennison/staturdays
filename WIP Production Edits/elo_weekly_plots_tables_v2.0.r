@@ -340,7 +340,8 @@ win_probs_w_lines <- win_probs_w_lines %>%
 win_probs_w_lines <- win_probs_w_lines %>% 
   filter(game_date >= lubridate::now()) %>% 
   arrange(game_date, home_team) %>% # arrange by date first, then home team
-  mutate(game_date = lubridate::with_tz(game_date, "America/New_York")) # convert to Eastern timezone
+  mutate(game_date = lubridate::with_tz(game_date, "America/New_York")) %>% # convert to Eastern timezone
+  mutate(across(.cols = formattedSpread, .fns = ~ replace_na(.x, ""))) # replace NAs in spread with blanks for the table
 
 list_of_conferences <- win_probs_w_lines %>% pull(home_conference, away_conference) %>% unique()
 for(i in 1:length(list_of_conferences)){
