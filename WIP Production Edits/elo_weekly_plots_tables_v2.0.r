@@ -401,6 +401,61 @@ gtsave(data = win_probabilities_this_week,
        path = "R Plots/")
 }
 
+# Get win probabilities for games played within 16 hours of now
+
+win_probs_today <- win_probs_w_lines %>%
+  filter(game_date <= now() + lubridate::hours(16) & game_date >= now()) %>% 
+  mutate(elo_different = if_else(elo_different == T, "Yes", "No")) %>% 
+  select(game_date, home_team,home_elo, home_pred_win_prob, home_conference, away_team, away_elo, away_pred_win_prob, away_conference, formattedSpread, elo_different) %>%
+  mutate(game_date = as.character(game_date)) %>% 
+  gt() %>% 
+  tab_header(title = paste0(max(upcoming.games$season), " Week ", week_of_upcoming_games, " Win Probabilities"),
+             subtitle = paste0("Based on head-to-head Elo Ratings")) %>% 
+  tab_spanner(label = "Start Time",
+              columns = c(game_date)) %>% 
+  tab_spanner(label = "Home", # Add a column spanning header
+              columns = c(home_team,home_elo, home_pred_win_prob, home_conference)) %>% 
+  tab_spanner(label = "Away", # Add a column spanning header
+              columns = c(away_team, away_elo, away_pred_win_prob, away_conference)) %>% 
+  tab_spanner(label = "Betting",
+              columns = c(formattedSpread, elo_different)) %>% 
+  cols_label(game_date = "Kickoff (Eastern)", home_team = "Team", home_elo = "Elo Rating", home_pred_win_prob = "Win Probability", home_conference = "Conference",
+             away_team = "Team", away_elo = "Elo Rating", away_pred_win_prob = "Win Probability", away_conference = "Conference",
+             formattedSpread = "Spread", elo_different = "Elo Mismatch?") %>% 
+  fmt_percent(columns = c(home_pred_win_prob, away_pred_win_prob), decimals = 1) %>% 
+  fmt_number(columns = c(home_elo, away_elo), decimals = 0, use_seps = FALSE) %>% 
+  fmt_datetime(columns = c(game_date), date_style = 6, time_style = 4) %>% 
+  data_color(columns = c(home_pred_win_prob, away_pred_win_prob), # Use a color scale on win prob
+             colors = scales::col_numeric(
+               palette = staturdays_palette,
+               domain = NULL),
+             alpha = 0.7) %>% 
+  data_color(columns = c(elo_different),
+             colors = scales::col_factor(
+               palette = c(staturdays_colors("white"), staturdays_colors("orange")),
+               domain = NULL),
+             alpha = 0.7) %>% 
+  tab_style( # Add a weighted line down the middle
+    style = list(
+      cell_borders(
+        sides = "left",
+        color = staturdays_colors("dark_blue"),
+        weight = px(3)
+      )
+    ),
+    locations = list(
+      cells_body(
+        columns = c(home_team, away_team, formattedSpread)
+      )
+    )
+  ) %>% 
+  tab_source_note("@kylebeni012 | @staturdays — Data: @cfb_data") # %>% # code to make columns and font sizes different
+# cols_width(c(home_team, away_team, home_conference, away_conference, formattedSpread) ~ px(70), everything() ~ px(50)) %>% tab_options(table.font.size = 12)
+
+gtsave(data = win_probs_today, 
+       filename = paste0(year(today()), "_win_probabilities_this_week_", week_of_upcoming_games, "_today_", str_replace_all(now(), ":", "."), ".png"),
+       path = "R Plots/")
+
 # Moneyline vs. Elo Plot --------------------------------------------------
 
 win_probs_moneyline_1 <- win_probs_w_lines %>% 
