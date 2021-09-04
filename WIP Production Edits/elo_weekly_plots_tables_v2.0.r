@@ -129,8 +129,8 @@ elo_ratings <- fread("https://raw.githubusercontent.com/kylebennison/staturdays/
   # Calculate max week in elo to tell plots/tables which week to show
   week_of_elo_last_updated <- elo_ratings %>% filter(season == max(season)) %>% pull(week) %>% max()
   week_of_upcoming_games <- upcoming.games %>% 
-    filter(game_date >= lubridate::now()) %>% 
-    slice_min(order_by = game_date, n = 1L) %>% 
+    filter(date >= lubridate::now()) %>% 
+    slice_min(order_by = date, n = 1L) %>% 
     pull(week) %>% unique()
   
   # Join cfb games with elo ratings for home and away teams by team name and date of rating/game
