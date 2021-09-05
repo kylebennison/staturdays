@@ -1,6 +1,6 @@
 source("Production/cfbd_api_key_function.r")
 
-get_anything <- function(url, start_year, end_year, start_week, end_week, key){
+get_anything <- function(url, start_year=2021, end_year=2021, start_week, end_week, key){
   
   if(missing(key)){
     
