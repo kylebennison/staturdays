@@ -6,6 +6,10 @@ get_anything <- function(url, start_year=2021, end_year=2021, start_week, end_we
     
     message("You must supply an API key. You can get one for free at collegefootballdata.com")
     
+  } else if(stringr::str_detect(url, "\\?") == TRUE){
+    
+    message("Please remove any parameters and the '?' from your url field")
+    
   } else if(missing(start_week) & missing(end_week)){
   
   response <- tibble()
