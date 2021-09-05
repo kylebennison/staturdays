@@ -1,16 +1,18 @@
 # Single source file which sources all other useful source files at once
 
 # API wrapper
-source("https://raw.githubusercontent.com/kylebennison/staturdays/master/Production/cfbd_api_key_function.R")
+source("Production/cfbd_api_key_function.R")
 # Staturdays themes + colors
-source("https://raw.githubusercontent.com/kylebennison/staturdays/master/Production/Staturdays%20Colors%20and%20Theme.R")
+source("Production/Staturdays Colors and Theme.R")
 # Games
-source("https://raw.githubusercontent.com/kylebennison/staturdays/master/Production/get_games_api.R")
+source("Production/get_games_api.R")
 # Plays
-source("https://raw.githubusercontent.com/kylebennison/staturdays/master/Production/get_plays_and_add_success_features_api.R")
+source("Production/get_plays_api_v2.0.r")
 # Drives
-source("https://raw.githubusercontent.com/kylebennison/staturdays/master/Production/get_drives_api.R")
+source("Production/get_drives_api.R")
+# Add Success and Other Features
+source("Production/add_success_features_v1.0.r")
 # Play Types and Conferences
-source("https://raw.githubusercontent.com/kylebennison/staturdays/master/Production/Play%20Types%20and%20Power%20Conference%20Names.R")
+source("Production/Play Types and Power Conference Names.R")
 # Get anything else
 source("Production/get_anything.r")
