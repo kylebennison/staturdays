@@ -2,7 +2,6 @@
 rm(list=ls())
 options(scipen=999)
 library(data.table)
-library(scales)
 library(tidyverse)
 library(RCurl)
 library(XML)
@@ -11,8 +10,6 @@ library(jsonlite)
 library(stringr)
 library(gt)
 library(lubridate)
-library(caret)
-library(xgboost)
 
 source("Production/source_everything.R")
 
@@ -22,9 +19,12 @@ base_url_drives <- "https://api.collegefootballdata.com/drives?" # Base URL for 
 
 #get plays data and gmes data
 #get plays data and gmes data
-plays.master <- get_plays(start_week = 1, end_week = 15, start_year = 2020, end_year = 2020)
-games.master <- get_games(start_week = 1, end_week = 15, start_year = 2020, end_year = 2020)
-drives.master <- get_drives(start_week = 1, end_week = 15, start_year = 2020, end_year = 2020)
+plays.master <- get_plays(start_week = 1, end_week = 15, start_year = 2020, end_year = 2021)
+drives.master <- get_drives(start_week = 1, end_week = 15, start_year = 2020, end_year = 2021)
+
+#keep only last rolling 15 games maximum
+drives.master <- drives.master[,c(1:28)]
+
 
 #find drives where there was a first down that started between the opponnet's 20 and 30 yard line
 #what was the outcome of those drives
@@ -75,6 +75,8 @@ lookup_table <- master %>% left_join(combined, by=c("list_of_teams"="offense.x",
                                                     "list_of_options"="metric")) %>% 
   replace_na(list(probability=0))
 
+#upload lookup table to github
+
 overtime_sim <- function(home_team, away_team, start_with_ball) {
   
   #track totals
@@ -114,7 +116,7 @@ overtime_sim <- function(home_team, away_team, start_with_ball) {
            list_of_options == "NOSCORE") %>% 
     select(probability) %>% pull()
   
-  for(trial in c(1:5000)) {
+  for(trial in c(1:10000)) {
     #initialize variables for overtime
     team_one_score <- 0
     team_two_score <- 0
@@ -373,10 +375,10 @@ overtime_sim <- function(home_team, away_team, start_with_ball) {
       
   } #end of all overtimes
   
-  print(paste0(team_one_win/5000, "-",
-          team_two_win/5000,"-",
-          tie/5000,"-",
-          more_than_two/5000))
+  print(paste0(team_one_win/10000, "-",
+          team_two_win/10000,"-",
+          tie/10000,"-",
+          more_than_two/10000))
 } #end of function
 
 overtime_sim(home_team = "Alabama", away_team = "Alabama", start_with_ball = "Away Team")
