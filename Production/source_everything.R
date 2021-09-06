@@ -14,5 +14,7 @@ source("Production/get_drives_api.R")
 source("Production/add_success_features_v1.0.r")
 # Play Types and Conferences
 source("Production/Play Types and Power Conference Names.R")
+# Get team colors, names, logos, etc.
+source("Production/get_colors_api.r")
 # Get anything else
 source("Production/get_anything.r")
