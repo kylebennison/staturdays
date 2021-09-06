@@ -547,6 +547,11 @@ if(week_of_elo_last_updated > 0){
 
 # Latest Brier for the season
 brier <- upcoming.games %>% summarise(brier = mean((game_outcome_home - home_pred_win_prob)^2))
+elo_record <- upcoming.games %>% 
+  filter(is.na(home_points) == F) %>% 
+  mutate(correct = if_else(abs(home_pred_win_prob - game_outcome_home) < .5, 1, 0)) %>% 
+  count(correct)
+elo_record <- paste0(elo_record[2,2], "-", elo_record[1,2])
 
 # Evaluate Elo
 elo_brier_plot <- upcoming.games %>% 
