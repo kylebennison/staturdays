@@ -114,7 +114,7 @@ if (now()-max(elo_ratings$date) > 90){
     select(-conference_class)
   elo_ratings <- elo_ratings %>% 
     bind_rows(preseason_elo)
-  fwrite(preseason_elo, file = "Production/elo_ratings_historic.csv", append = TRUE, col.names = FALSE)
+  fwrite(preseason_elo, file = "C:/Users/Kyle/Documents/Kyle/Staturdays/Staturdays Github/Github/staturdays/Production/elo_ratings_historic.csv", append = TRUE, col.names = FALSE)
 }
 
 # Filter only games that haven't been rated yet
@@ -125,7 +125,7 @@ game_weeks <- games_to_rate$date %>% as.Date() %>% unique()
 # Determine whether to run update -----------------------------------------
 
 # Get latest date of games in elo table
-elo_last_update <- data.table::fread("Production/elo_ratings_historic.csv", encoding = "UTF-8") %>% 
+elo_last_update <- data.table::fread("https://raw.githubusercontent.com/kylebennison/staturdays/master/Production/elo_ratings_historic.csv", encoding = "UTF-8") %>% 
   dplyr::slice_max(order_by = date, n = 1) %>% 
   dplyr::select(week, season, date) %>% 
   unique()
@@ -307,7 +307,7 @@ elo_ratings <- elo_ratings %>%
   bind_rows(updated_ratings_away)
 
 # Write new data to github
-fwrite(elo_ratings_updated, file = "Production/elo_ratings_historic.csv", append = TRUE, col.names = FALSE)
+fwrite(elo_ratings_updated, file = "C:/Users/Kyle/Documents/Kyle/Staturdays/Staturdays Github/Github/staturdays/Production/elo_ratings_historic.csv", append = TRUE, col.names = FALSE)
 }
 }
 }
