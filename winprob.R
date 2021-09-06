@@ -145,7 +145,7 @@ x.train.leftover <- plays.master.win_prob4 %>% select(-home_score_lead_deficit, 
                                                       -yards_to_goal, -home_poss_flag, -home_timeouts,-away_timeouts, -home_elo_diff, -game_over)
 
 #pick one game if you want to test
-x.test <- plays.master.win_prob4 %>% filter(year == 2021, home == "Wisconsin", away == "Penn State") %>% 
+x.test <- plays.master.win_prob4 %>% filter(year == 2021, home == "Clemson", away == "Georgia") %>% 
   select(home_score_lead_deficit, clock_in_seconds, down, distance,
          yards_to_goal, home_poss_flag, home_timeouts,away_timeouts, home_elo_diff, game_over) %>% 
   as.matrix()
@@ -184,8 +184,8 @@ res %>% ggplot(aes(x=-clock_in_seconds, y=winprob)) +geom_line() + #rollmean(win
   ylim(0,1) +
   theme_bw() +
   labs(x="",
-       y="Wisconsin win probability",
-       title = "Penn State vs. Wisconsin Win Probability Chart") +
+       y="Clemson win probability",
+       title = "Georgia vs. Clemson Win Probability Chart") +
   theme(axis.title.x=element_blank(),
         axis.text.x=element_blank(),
         axis.ticks.x=element_blank()) +
@@ -196,6 +196,7 @@ res %>% ggplot(aes(x=-clock_in_seconds, y=winprob)) +geom_line() + #rollmean(win
   geom_vline(xintercept=-2700, colour="grey") +
   geom_text(aes(x=-2700, label="\nEnd Q1", y=0.8), colour="blue", angle=90, text=element_text(size=9))
 
+ggsave("C:/Users/drewb/Desktop/winprobchart2.png", height = 5, width = 7)
 
 #test on full data, and add back in features so we can look at specific plays
 x.train.copy <- x.train
@@ -206,9 +207,24 @@ x.train.copy$actualhomeresults <- y.train
 res <- cbind(x.train.copy, x.train.leftover)
 
 #plot any game
-x <- res %>% filter(year==2021,home=="Wisconsin", away=="Penn State") %>% 
+x <- res %>% filter(year==2021,home=="Clemson", away=="Georgia") %>% 
+  mutate(diff = winprob - lag(winprob, default = 0)) %>% 
   ggplot(aes(x=-clock_in_seconds, y=winprob)) +geom_line() + #rollmean(winprob, 5, na.pad = TRUE))
-  ylim(0,1)
+  ylim(0,1) +
+  theme_bw() +
+  labs(x="",
+       y="Clemson win probability",
+       title = "Georgia vs. Clemson Win Probability Chart") +
+  theme(axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank()) +
+  geom_vline(xintercept=-900, colour="grey") +
+  geom_text(aes(x=-900, label="\nEnd Q3", y=0.8), colour="blue", angle=90, text=element_text(size=9)) +
+  geom_vline(xintercept=-1800, colour="grey") +
+  geom_text(aes(x=-1800, label="\nEnd Q2", y=0.8), colour="blue", angle=90, text=element_text(size=9)) +
+  geom_vline(xintercept=-2700, colour="grey") +
+  geom_text(aes(x=-2700, label="\nEnd Q1", y=0.8), colour="blue", angle=90, text=element_text(size=9))
+
 
 # Plot predicted vs. actual
 res %>% 
