@@ -84,10 +84,10 @@ to_be_played <- to_be_played[order(to_be_played$start_date),]
 results <- data.table()
 
 #testing
-for(szn in c(1:1000)){
+for(szn in c(1:5000)){
   season_elo_ratings <- current_elo_ratings
   season_results <- data.table()
-  message("Simulating Season ", szn, "/1000")
+  message("Simulating Season ", szn, "/5000")
   
   for(wk in c(min(to_be_played$week):max(to_be_played$week))){
     to_be_played_week <- to_be_played[to_be_played$week == wk,]
@@ -163,6 +163,11 @@ combined_results_3 <- combined_results %>%
             std_dev_wins = sd(`1`), # std dev of wins (same as losses)
             prob_undefeated = mean(undefeated))
 
+# Raw wins percentile based on the bootstrap results (not using z-score calculation)
+x<-combined_results %>% group_by(team) %>% 
+  summarise(percentile_025 = quantile(`1`, .025),
+            percentile_975 = quantile(`1`, .975))
+
 # Adding a 95th percentile confidence interval for wins and losses, assuming normal distribution
 combined_results_4 <- combined_results_3 %>% 
   mutate(upper_95_wins = if_else(wins + std_dev_wins*1.96 > games, games, wins + std_dev_wins*1.96),
@@ -170,23 +175,26 @@ combined_results_4 <- combined_results_3 %>%
          upper_95_losses = if_else(losses + std_dev_wins*1.96 > games, games, losses + std_dev_wins*1.96),
          lower_95_losses = if_else(losses - std_dev_wins*1.96 < 0, 0, losses - std_dev_wins*1.96))
 
+# Adding 95th percentile using bootstrapped results because we can not assume normal distribution
+# as there is an upper limit on number of games won
+combined_results_4 <- combined_results_3 %>% 
+  left_join(x, by="team") %>% 
+  rename(upper_95_wins = percentile_975 ,
+         lower_95_wins = percentile_025)
+
 # Add table-friendly win and loss range columns
 win_loss_tbl <- combined_results_4 %>% 
   mutate(upper_95_wins = round(upper_95_wins, 1),
          lower_95_wins = round(lower_95_wins, 1),
-         upper_95_losses = round(upper_95_losses, 1), 
-         lower_95_losses = round(lower_95_losses, 1),
+         #upper_95_losses = round(upper_95_losses, 1), 
+         #lower_95_losses = round(lower_95_losses, 1),
          win_range = paste0(lower_95_wins, " - ", upper_95_wins),
-         loss_range = paste0(lower_95_losses, " - ", upper_95_losses))
-
-# Raw wins percentile based on the bootstrap results (not using z-score calculation)
-combined_results %>% group_by(team) %>% 
-  summarise(percentile_025 = quantile(`1`, .025),
-            percentile_975 = quantile(`1`, .975))
+         #loss_range = paste0(lower_95_losses, " - ", upper_95_losses)
+         )
 
 # Plot of wins distribution for a team
 combined_results %>% 
-  filter(team == "Penn State") %>% 
+  filter(team == "Clemson") %>% 
   ggplot(aes(x = `1`)) +
   geom_histogram()
 
