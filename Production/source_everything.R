@@ -10,6 +10,8 @@ source("Production/get_games_api.R")
 source("Production/get_plays_api_v2.0.r")
 # Drives
 source("Production/get_drives_api.R")
+# Elo Ratings
+source("Production/get_elo.r")
 # Add Success and Other Features
 source("Production/add_success_features_v1.0.r")
 # Play Types and Conferences
