@@ -375,11 +375,13 @@ overtime_sim <- function(home_team, away_team, start_with_ball) {
       
   } #end of all overtimes
   
+  return(list(team_one_win/10000, team_two_win/10000, tie/10000, more_than_two/10000))
+  
   print(paste0(team_one_win/10000, "-",
           team_two_win/10000,"-",
           tie/10000,"-",
           more_than_two/10000))
 } #end of function
 
-overtime_sim(home_team = "Alabama", away_team = "Alabama", start_with_ball = "Away Team")
+y <- overtime_sim(home_team = "Alabama", away_team = "Alabama", start_with_ball = "Away Team")
 
