@@ -85,17 +85,21 @@ rb_df <- player_ppa %>%
   left_join(colors, by = c("team" = "school")) %>% 
   filter(position == "RB",
          countablePlays >= 15) %>% 
-  select(name, light, averagePPA.pass, averagePPA.rush, averagePPA.thirdDown, averagePPA.all)
+  select(name, team, light, averagePPA.pass, averagePPA.rush, averagePPA.thirdDown, averagePPA.all)
 
-reactable_tbl <- reactable::reactable(rb_df,
+reactable_tbl <- reactable::reactable(rb_df %>% select(-team),
                                       columns = list(
                                         name = colDef(name = "Player"),
                                         light = colDef(name = "Team",
-                                                       cell = function(value) {
+                                                       cell = function(value, index) {
                                                          image <- htmltools::img(src = value, height = "50px", alt = "")
+                                                         team <- rb_df$team[index]
                                                          htmltools::tagList(
-                                                           htmltools::div(style = list(display = "inline-block", width = "25px"), 
-                                                                          image)
+                                                           htmltools::div(style = list(display = "table", align = "left", width = "100px"),
+                                                           htmltools::div(style = list(display = "table-row"),
+                                                           htmltools::div(style = list(display = "table-cell", width = "50px", align = "left"), 
+                                                                          image),
+                                                           htmltools::div(style = list(display = "table-cell", width = "50px", height = "50px", "text-align" = "left", "vertical-align" = "middle", "padding-left" = "30px", "font-size" = "12px"), team)))
                                                          )
                                                        }),
                                         averagePPA.pass = colDef(name = "Passing",
