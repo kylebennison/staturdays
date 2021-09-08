@@ -1,6 +1,7 @@
 source("Production/source_everything.r")
 
-colors <- get_colors()
+colors <- data.table::fread("Production/colors_logos.csv",
+                            encoding = "UTF-8")
 
 orange_pal <- function(x) grDevices::rgb(grDevices::colorRamp(c("#e6bba5", "#de703b"))(x), maxColorValue = 255)
 
