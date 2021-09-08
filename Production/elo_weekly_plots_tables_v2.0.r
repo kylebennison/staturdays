@@ -245,7 +245,7 @@ conf_most_recent <- elo_conf %>%
 joined_stats <- left_join(joined_stats, conf_most_recent, by = c("home_team" = "team"))
 
 # Rankings - all teams
-preseason_2020_rankings <- joined_stats %>% 
+elo_weekly_rankings <- joined_stats %>% 
   arrange(desc(elo)) %>% 
   mutate(row_num = row_number()) %>% 
   relocate(row_num) %>% 
@@ -264,12 +264,12 @@ preseason_2020_rankings <- joined_stats %>%
              alpha = 0.7) %>% 
   tab_source_note("@kylebeni012 | @staturdays — Data: @cfb_data")
 
-gtsave(data = preseason_2020_rankings, 
-       filename = paste0(year(today()), "_preseason_rankings_", str_replace_all(now(), ":", "."), ".png"),
+gtsave(data = elo_weekly_rankings, 
+       filename = paste0(year(today()), "_elo_weekly_rankings_", str_replace_all(now(), ":", "."), ".png"),
        path = "R Plots/")
 
 # Top 25
-preseason_2020_top_25 <- joined_stats %>% 
+elo_weekly_top_25 <- joined_stats %>% 
   arrange(desc(elo)) %>% 
   mutate(row_num = row_number()) %>% 
   relocate(row_num) %>% 
@@ -289,8 +289,8 @@ preseason_2020_top_25 <- joined_stats %>%
              alpha = 0.7) %>% 
   tab_source_note("@kylebeni012 | @staturdays — Data: @cfb_data")
 
-gtsave(data = preseason_2020_top_25, 
-       filename = paste0(year(today()), "_preseason_top_25_", str_replace_all(now(), ":", "."), ".png"),
+gtsave(data = elo_weekly_top_25, 
+       filename = paste0(year(today()), "_elo_weekly_top_25_", str_replace_all(now(), ":", "."), ".png"),
        path = "R Plots/")
 
 # Weekly Win Probabilities and Bets ------------------------------------------------
