@@ -465,16 +465,33 @@ win_probs_moneyline_1 <- win_probs_w_lines %>%
                                        TRUE ~ 0),
          away_implied_odds = case_when(str_detect(awayMoneyline, "-") == TRUE ~ abs(as.integer(awayMoneyline))/(abs(as.integer(awayMoneyline)) + 100),
                                        str_detect(awayMoneyline, "-") == FALSE ~ 100/(abs(as.integer(awayMoneyline))+100),
-                                       TRUE ~ 0))
+                                       TRUE ~ 0)) %>% 
+  filter(is.na(homeMoneyline) == FALSE)
 
 win_probs_moneyline_1 %>% 
   mutate(diff_from_vegas = abs(home_pred_win_prob - home_implied_odds)) %>% 
   ggplot(aes(x = home_pred_win_prob, y = home_implied_odds)) +
-  geom_point() +
+  geom_point(aes(alpha = if_else(diff_from_vegas > .15, .9, .1))) +
   geom_abline() +
-  geom_label(aes(x = .75, y = .25), label = "Vegas Underconfident") +
-  geom_label(aes(x = .25, y = .75), label = "Vegas Overconfident") +
-  ggrepel::geom_text_repel(aes(label = if_else(diff_from_vegas > .2, paste0(away_team, " @ ", home_team), "")))
+  geom_label(aes(x = .75, y = .25), label = "Vegas Underconfident", fill = staturdays_colors("orange"), color = "white") +
+  geom_label(aes(x = .25, y = .75), label = "Vegas Overconfident", fill = staturdays_colors("orange"), color = "white") +
+  ggrepel::geom_text_repel(aes(label = if_else(diff_from_vegas > .15, paste0(away_team, " @ ", home_team, "\n", round(diff_from_vegas, 2)), "")),
+                           size = 3,
+                           max.overlaps = 70,
+                           min.segment.length = .1) +
+  staturdays_theme +
+  scale_x_continuous(labels = scales::percent) +
+  scale_y_continuous(labels = scales::percent) +
+  labs(x = "Home Team Predicted Win Prob. (Elo)",
+       y = "Home Team Implied Win Prob. (Vegas Odds)",
+       title = paste0("Week ", week_of_upcoming_games, " Elo vs. Vegas"),
+       caption = "@kylebeni012 for @staturdays | Data: @cfb_data") +
+  theme(legend.position = "none")
+
+ggsave(filename = paste0(year(now()), week_of_upcoming_games, "_vegas_vs_elo_", str_replace_all(now(), ":", "."), ".png"), 
+       plot = last_plot(),
+       path = "R Plots/",
+       dpi = 300, width = 200, height = 200, units = "mm")
 
 ## Calculate biggest upsets week-over-week by win prob and change in Elo
 
