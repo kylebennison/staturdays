@@ -37,7 +37,7 @@ overtime_sim <- function(home_team, away_team, start_with_ball) {
            list_of_options == "NOSCORE") %>% 
     select(probability) %>% pull()
   
-  for(trial in c(1:10000)) {
+  for(trial in c(1:20000)) {
     #initialize variables for overtime
     team_one_score <- 0
     team_two_score <- 0
@@ -296,5 +296,5 @@ overtime_sim <- function(home_team, away_team, start_with_ball) {
     
   } #end of all overtimes
   
-  return(list(team_one_win/10000, team_two_win/10000, tie/10000, more_than_two/10000))
+  return(list(team_one_win/20000, team_two_win/20000, tie/20000, more_than_two/20000))
 } #end of function
