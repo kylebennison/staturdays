@@ -1,3 +1,9 @@
+library(reactable)
+library(tidyverse)
+library(ggplot2)
+library(data.table)
+library(devtools)
+
 source("Production/source_everything.r")
 
 colors <- data.table::fread("Production/colors_logos.csv",
@@ -20,11 +26,34 @@ elo_ratings <- elo_ratings %>%
   left_join(logos, by = c("team" = "school")) %>% 
   select(rank, team, light, everything())
 
+#Bring in data for overtime sim and the overtime function
+lookup_table <- fread("https://raw.githubusercontent.com/kylebennison/staturdays/master/Production/overtime_lookup_table.csv")
+source_url("https://raw.githubusercontent.com/kylebennison/staturdays/master/Production/overtime_function_only.R")
 
 # UI ----------------------------------------------------------------------
 
 ui <- shiny::navbarPage(title = "Staturdays",
-                        shiny::tabPanel(title = "Overtime Simulator"),
+                        shiny::tabPanel(title = "Overtime Simulator",
+                                        shiny::selectizeInput(inputId = "overtime_select_home",
+                                                              label = "Home Team",
+                                                              choices = unique(lookup_table$list_of_teams),
+                                                              multiple = FALSE,
+                                                              selected = "Alabama"),
+                                        shiny::selectizeInput(inputId = "overtime_select_away",
+                                                              label = "Away Team",
+                                                              choices = unique(lookup_table$list_of_teams),
+                                                              multiple = FALSE,
+                                                              selected = "Georgia"),
+                                        radioButtons("dist", "Who is on offense first?",
+                                                     c("Home Team" = "Home Team",
+                                                       "Not Sure Yet" = "unsure",
+                                                       "Away Team" = "Away Team"),
+                                                     inline = TRUE),
+                                        shiny::htmlOutput(outputId = "home_overtime_win"),
+                                        shiny::textOutput(outputId = "away_overtime_win"),
+                                        shiny::textOutput(outputId = "overtime_tie"),
+                                        shiny::textOutput(outputId = "overtime_two")),
+                        
                         shiny::navbarMenu(title = "Elo",
                                           shiny::tabPanel(title = "Elo Ratings",
                                                           reactable::reactableOutput(outputId = "elo_ratings")),
@@ -39,6 +68,35 @@ ui <- shiny::navbarPage(title = "Staturdays",
 # Server ------------------------------------------------------------------
 
 server <- function(input, output) {
+  
+  output$home_overtime_win <- renderUI({
+    
+    if(input$dist == "Home Team" | input$dist == "Away Team") {
+    
+    overtime_results <- overtime_sim(home_team=input$overtime_select_home, away_team = input$overtime_select_away,
+                                     start_with_ball = input$dist)
+    }
+    else{
+      message("HA")
+      overtime_results1 <- overtime_sim(home_team=input$overtime_select_home, away_team = input$overtime_select_away,
+                                        start_with_ball = "Home Team")
+      overtime_results2 <- overtime_sim(home_team=input$overtime_select_home, away_team = input$overtime_select_away,
+                                        start_with_ball = "Away Team")
+
+      overtime_results <- list(.5*as.numeric(overtime_results1[1])+.5*as.numeric(overtime_results2[1]),
+                               .5*as.numeric(overtime_results1[2])+.5*as.numeric(overtime_results2[2]),
+                               .5*as.numeric(overtime_results1[3])+.5*as.numeric(overtime_results2[3]),
+                               .5*as.numeric(overtime_results1[4])+.5*as.numeric(overtime_results2[4]))
+    
+      }
+    str1 <- paste0("Home Team Win Probability: ", round(100*as.numeric(overtime_results[1]),2),"%")
+    str2 <- paste0("Away Team Win Probability: ", round(100*as.numeric(overtime_results[2]),2), "%")
+    str3 <- paste0("Probability of more than 1 overtime period: ", round(100*as.numeric(overtime_results[3]),2), "%")
+    str4 <- paste0("Probability of a 2-point attempt shootout: ", round(100*as.numeric(overtime_results[4]),2), "%")
+    HTML(paste(str1, str2, str3, str4, sep = '<br/>'))
+  })
+  
+  
   
   output$elo_ratings <- renderReactable(reactable(elo_ratings %>% select(-season),
                                                   columns = list(
