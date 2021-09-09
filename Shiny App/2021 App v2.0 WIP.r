@@ -4,9 +4,9 @@ library(ggplot2)
 library(data.table)
 library(devtools)
 
-source("Production/source_everything.r")
+source("https://raw.githubusercontent.com/kylebennison/staturdays/master/Production/source_everything.R")
 
-colors <- data.table::fread("Production/colors_logos.csv",
+colors <- data.table::fread("https://raw.githubusercontent.com/kylebennison/staturdays/master/Production/colors_logos.csv",
                             encoding = "UTF-8")
 
 orange_pal <- function(x) grDevices::rgb(grDevices::colorRamp(c("#e6bba5", "#de703b"))(x), maxColorValue = 255)
