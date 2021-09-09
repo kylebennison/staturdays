@@ -194,7 +194,10 @@ if(purrr::is_empty(plays.master) == F){
 plays_temp_fast <- plays.master %>% 
   dplyr::mutate(pass_player = dplyr::if_else(pass_rush == "Pass",
                                stringr::str_extract(play_text, "^[A-Z|a-z|\\.|\\-|\\']+\\s[A-Z|a-z|\\.|\\-|\\']+"), # Upper and lowercase characters and -.' before the second space
-                               NA_character_))
+                               NA_character_),
+                rush_player = dplyr::if_else(pass_rush == "Rush",
+                                             stringr::str_extract(play_text, "^[A-Z|a-z|\\.|\\-|\\']+\\s[A-Z|a-z|\\.|\\-|\\']+"), # Upper and lowercase characters and -.' before the second space
+                                             NA_character_))
 
 # Checks to make sure data looks okay
 # plays_temp_fast %>% dplyr::filter(pass_rush == "Pass") %>% count(is.na(pass_player))
