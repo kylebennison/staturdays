@@ -77,7 +77,6 @@ server <- function(input, output) {
                                      start_with_ball = input$dist)
     }
     else{
-      message("HA")
       overtime_results1 <- overtime_sim(home_team=input$overtime_select_home, away_team = input$overtime_select_away,
                                         start_with_ball = "Home Team")
       overtime_results2 <- overtime_sim(home_team=input$overtime_select_home, away_team = input$overtime_select_away,
