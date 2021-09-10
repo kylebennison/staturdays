@@ -34,25 +34,41 @@ source_url("https://raw.githubusercontent.com/kylebennison/staturdays/master/Pro
 
 ui <- shiny::navbarPage(title = "Staturdays",
                         shiny::tabPanel(title = "Overtime Simulator",
-                                        shiny::selectizeInput(inputId = "overtime_select_home",
+                                        fluidRow(
+                                          column(6, align="center",
+                                          shiny::selectizeInput(inputId = "overtime_select_home",
                                                               label = "Home Team",
                                                               choices = unique(lookup_table$list_of_teams),
                                                               multiple = FALSE,
-                                                              selected = "Alabama"),
+                                                              selected = "Alabama")
+                                          ),
+                                          column(6, align="center",
                                         shiny::selectizeInput(inputId = "overtime_select_away",
                                                               label = "Away Team",
                                                               choices = unique(lookup_table$list_of_teams),
                                                               multiple = FALSE,
-                                                              selected = "Georgia"),
-                                        radioButtons("dist", "Who is on offense first?",
+                                                              selected = "Georgia")
+                                          )
+                                        ),
+                                        fluidRow(
+                                          column(12, align="center",
+                                        tags$b(radioButtons("dist", "Who is on offense first?",
                                                      c("Home Team" = "Home Team",
                                                        "Not Sure Yet" = "unsure",
                                                        "Away Team" = "Away Team"),
-                                                     inline = TRUE),
+                                                     selected = "unsure",
+                                                     inline = TRUE)),
+                                        tags$hr()
+                                          )
+                                        ),
+                                        fluidRow(
+                                          column(12, align="center",
                                         shiny::htmlOutput(outputId = "home_overtime_win"),
-                                        shiny::textOutput(outputId = "away_overtime_win"),
                                         shiny::textOutput(outputId = "overtime_tie"),
-                                        shiny::textOutput(outputId = "overtime_two")),
+                                        shiny::textOutput(outputId = "overtime_two"),
+                                        shiny::textOutput(outputId = "away_overtime_win"))
+                                        )
+                                        ),
                         
                         shiny::navbarMenu(title = "Elo",
                                           shiny::tabPanel(title = "Elo Ratings",
@@ -88,11 +104,11 @@ server <- function(input, output) {
                                .5*as.numeric(overtime_results1[4])+.5*as.numeric(overtime_results2[4]))
     
       }
-    str1 <- paste0("Home Team Win Probability: ", round(100*as.numeric(overtime_results[1]),2),"%")
-    str2 <- paste0("Away Team Win Probability: ", round(100*as.numeric(overtime_results[2]),2), "%")
+    str1 <- paste0(input$overtime_select_home ," Win Probability: ", round(100*as.numeric(overtime_results[1]),2),"%")
+    str2 <- paste0(input$overtime_select_away," Win Probability: ", round(100*as.numeric(overtime_results[2]),2), "%")
     str3 <- paste0("Probability of more than 1 overtime period: ", round(100*as.numeric(overtime_results[3]),2), "%")
     str4 <- paste0("Probability of a 2-point attempt shootout: ", round(100*as.numeric(overtime_results[4]),2), "%")
-    HTML(paste(str1, str2, str3, str4, sep = '<br/>'))
+    HTML(paste(tags$b(str1), str3, str4, tags$b(str2), sep = '<br/>'))
   })
   
   
