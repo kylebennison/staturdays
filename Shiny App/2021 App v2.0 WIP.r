@@ -63,10 +63,7 @@ ui <- shiny::navbarPage(title = "Staturdays",
                                         ),
                                         fluidRow(
                                           column(12, align="center",
-                                        shiny::htmlOutput(outputId = "home_overtime_win"),
-                                        shiny::textOutput(outputId = "overtime_tie"),
-                                        shiny::textOutput(outputId = "overtime_two"),
-                                        shiny::textOutput(outputId = "away_overtime_win"))
+                                        shiny::htmlOutput(outputId = "home_overtime_win"))
                                         )
                                         ),
                         
@@ -109,6 +106,7 @@ server <- function(input, output) {
     str3 <- paste0("Probability of more than 1 overtime period: ", round(100*as.numeric(overtime_results[3]),2), "%")
     str4 <- paste0("Probability of a 2-point attempt shootout: ", round(100*as.numeric(overtime_results[4]),2), "%")
     HTML(paste(tags$b(str1), str3, str4, tags$b(str2), sep = '<br/>'))
+    
   })
   
   
