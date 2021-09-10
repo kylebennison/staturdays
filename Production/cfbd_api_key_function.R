@@ -15,7 +15,6 @@ data <- httr::GET(url = url,
 
 data <- content(data, as="text", encoding = "UTF-8") %>% 
   jsonlite::fromJSON(flatten = TRUE) %>% 
-  tibble() %>% 
-  readr::type_convert()
+  tibble()
 
 }
