@@ -52,38 +52,50 @@ if(purrr::is_empty(plays.master) == F){
   # Calculate avg. starting field pos on turnovers vs. normal
   #drives.master %>% dplyr::summarise(mean(start_yards_to_goal)) # 70 avg.
   
-  plays.master %>% dplyr::mutate(lead_start_yards_to_goal = 
-                            dplyr::case_when(play_type %in% scrimmage_plays_turnover ~ dplyr::lead(yards_to_goal, order_by = id),
-                                      TRUE ~ 0L)) %>% 
-    dplyr::filter(play_type %in% scrimmage_plays_turnover) %>% 
-    dplyr::group_by(play_type) %>% 
-    dplyr::filter(!stringr::str_detect(play_type,"Touchdown")) %>% 
-    dplyr::summarise(avg_yds_to_goal = mean(lead_start_yards_to_goal), count = n()) # 54.5 avg, so a turnover is worth -15.5 yds. vs. avg.
-  
+  # plays.master %>% dplyr::mutate(lead_start_yards_to_goal = 
+  #                           dplyr::case_when(play_type %in% scrimmage_plays_turnover ~ dplyr::lead(yards_to_goal, order_by = id),
+  #                                     TRUE ~ 0L)) %>% 
+  #   dplyr::filter(play_type %in% scrimmage_plays_turnover) %>% 
+  #   dplyr::group_by(play_type) %>% 
+  #   dplyr::filter(!stringr::str_detect(play_type,"Touchdown")) %>% 
+  #   dplyr::summarise(avg_yds_to_goal = mean(lead_start_yards_to_goal), count = n()) # 54.5 avg, so a turnover is worth -15.5 yds. vs. avg.
+
   plays.master <- plays.master %>% 
     dplyr::mutate(pass_rush = NA_character_) # initialize new column to avoid warning
   
   # Classify the multiple play types into a simpler just rush or pass
   plays.master$pass_rush[plays.master$play_type %in% scrimmage_plays_pass] <- "Pass"
   plays.master$pass_rush[plays.master$play_type %in% scrimmage_plays_rush] <- "Rush"
-  # Rush Fumble Rows
-  rush_rows <- plays.master %>% 
-    dplyr::filter(play_specifics %in% c("Fumble Recovery (Own)", 
-                                 "Fumble Recovery (Opponent)", 
-                                 "Fumble Return Touchdown", 
-                                 "Safety"), 
-           stringr::str_detect(play_text, "run") 
-           & !stringr::str_detect(play_text, "kick") 
-           & !stringr::str_detect(play_text, "punt")) %>% 
-    dplyr::mutate(pass_rush = "Rush")
-  # Pass Fumble Rows
-  pass_rows <- plays.master %>% 
-    dplyr::filter(play_specifics %in% c("Fumble Recovery (Own)", "Fumble Recovery (Opponent)"), stringr::str_detect(play_text, "pass") | stringr::str_detect(play_text, "sack")) %>% 
-    dplyr::mutate(pass_rush = "Pass")
-  # Change fumbles to a pass or rush
-  plays.master[which(plays.master$id %in% rush_rows$id), "pass_rush"] <- "Rush"
-  plays.master[which(plays.master$id %in% pass_rows$id), "pass_rush"] <- "Pass"
+
+# Directly mutate fumble and safety rows into pass or rush plays -----------------------------------
+
+plays.master <- plays.master %>%
+    dplyr::mutate(
+      pass_rush = case_when(
+        play_specifics %in% c(
+          "Fumble Recovery (Own)",
+          "Fumble Recovery (Opponent)",
+          "Fumble Return Touchdown",
+          "Safety"
+        ) &
+          stringr::str_detect(play_text, "\\srun\\s") ~ "Rush",
+        play_specifics %in% c(
+          "Fumble Recovery (Own)",
+          "Fumble Recovery (Opponent)",
+          "Fumble Return Touchdown",
+          "Safety"
+        ) &
+          (
+            stringr::str_detect(play_text, "\\spass\\s") |
+              stringr::str_detect(play_text, "\\ssacked\\s")
+          ) ~ "Pass",
+        TRUE ~ pass_rush
+      )
+    )
   
+  # Handle Penalties - TBD decide what to do if you detect "Penalty" in play_text
+  # And what to do if you detect "Penalty" and "declined" in the play_text
+
   #Add Success Column
   plays.master_temp <- plays.master %>% 
     dplyr::mutate(success = 
