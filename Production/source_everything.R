@@ -1,22 +1,22 @@
 # Single source file which sources all other useful source files at once
 
 # API wrapper
-source("Production/cfbd_api_key_function.R")
+source("https://raw.githubusercontent.com/kylebennison/staturdays/master/Production/cfbd_api_key_function.R")
 # Staturdays themes + colors
-source("Production/Staturdays Colors and Theme.R")
+source("https://raw.githubusercontent.com/kylebennison/staturdays/master/Production/Staturdays%20Colors%20and%20Theme.R")
 # Games
-source("Production/get_games_api.R")
+source("https://raw.githubusercontent.com/kylebennison/staturdays/master/Production/get_games_api.R")
 # Plays
-source("Production/get_plays_api_v2.0.r")
+source("https://raw.githubusercontent.com/kylebennison/staturdays/master/Production/get_plays_api_v2.0.r")
 # Drives
-source("Production/get_drives_api.R")
+source("https://raw.githubusercontent.com/kylebennison/staturdays/master/Production/get_drives_api.R")
 # Elo Ratings
-source("Production/get_elo.r")
+source("https://raw.githubusercontent.com/kylebennison/staturdays/master/Production/get_elo.r")
 # Add Success and Other Features
-source("Production/add_success_features_v1.0.r")
+source("https://raw.githubusercontent.com/kylebennison/staturdays/master/Production/add_success_features_v1.0.r")
 # Play Types and Conferences
-source("Production/Play Types and Power Conference Names.R")
+source("https://raw.githubusercontent.com/kylebennison/staturdays/master/Production/Play%20Types%20and%20Power%20Conference%20Names.R")
 # Get team colors, names, logos, etc.
-source("Production/get_colors_api.r")
+source("https://raw.githubusercontent.com/kylebennison/staturdays/master/Production/get_colors_api.r")
 # Get anything else
-source("Production/get_anything.r")
+source("https://raw.githubusercontent.com/kylebennison/staturdays/master/Production/get_anything.R")
