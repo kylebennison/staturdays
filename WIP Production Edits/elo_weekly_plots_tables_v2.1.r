@@ -317,7 +317,9 @@ last_game_result <- bottom %>%
 
 # Join to elo table
 joined_stats_final <- elo_w_last_week %>% 
-  left_join(last_game_result, by = c("team"))
+  left_join(last_game_result, by = c("team")) %>% 
+  mutate(image = if_else(elo_change >= 0, "Assets/green_up_arrow.png",
+                         "Assets/red_down_arrow.png"))
 
 
 # New version of table ----------------------------------------------------
@@ -335,10 +337,18 @@ elo_weekly_top_25 <- joined_stats_final %>%
   tab_header(title = paste0(max(upcoming.games$season), " Week ", week_of_upcoming_games, " Elo Ratings and Expected Wins"),
              subtitle = "Expected Wins Based on head-to-head Elo Ratings") %>% 
   cols_label(row_num = "Rank", team = "Team", elo = "Elo Rating", expected_wins = "Expected Wins", win_rate = "Win Percentage", conference = "Conference",
-             elo_change = "Change", result = "Last Result") %>% 
+             elo_change = "Change", result = "Last Result",
+             image = "") %>% 
   fmt_number(columns = c(elo, elo_change), decimals = 0, use_seps = FALSE) %>% 
   fmt_number(columns = c(expected_wins), decimals = 1, use_seps = FALSE) %>% 
   fmt_percent(columns = c(win_rate), decimals = 1) %>% 
+  text_transform(locations = cells_body(columns = image),
+                 fn = function(x) {
+                   purrr::map_chr(x, ~ local_image(
+                     filename = .x,
+                     height = 30
+                   ))
+                 }) %>% 
   data_color(columns = c(elo, expected_wins), # Use a color scale on win prob
              colors = scales::col_numeric(
                palette = staturdays_palette,
