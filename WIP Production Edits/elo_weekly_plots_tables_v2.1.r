@@ -14,7 +14,6 @@ library(data.table)
 source("https://raw.githubusercontent.com/kylebennison/staturdays/master/Production/Staturdays%20Colors%20and%20Theme.R")
 source("https://raw.githubusercontent.com/kylebennison/staturdays/master/Production/cfbd_api_key_function.R")
 source("https://raw.githubusercontent.com/kylebennison/staturdays/master/Production/Play%20Types%20and%20Power%20Conference%20Names.R")
-source("https://raw.githubusercontent.com/kylebennison/staturdays/master/WIP/dk_moneylines.R")
 source("Production/source_everything.r")
 
 # New Season Regression Factor
