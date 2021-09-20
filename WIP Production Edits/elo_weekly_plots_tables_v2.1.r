@@ -331,10 +331,6 @@ joined_stats_final <- elo_w_last_week %>%
 
 # Stable
 
-# Add in change from previous week elo rating
-
-
-
 # New version of table ----------------------------------------------------
 
 green_red_pal <- c("red", "white", "#3fb565")
