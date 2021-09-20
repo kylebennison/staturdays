@@ -331,13 +331,14 @@ elo_weekly_top_25 <- joined_stats_final %>%
   arrange(desc(elo)) %>% 
   mutate(row_num = row_number()) %>% 
   relocate(row_num) %>% 
+  relocate(image, .before = elo_change) %>% 
   select(-c(n_games, last_week_elo)) %>% 
   filter(row_num <= 25) %>% 
   gt() %>% 
   tab_header(title = paste0(max(upcoming.games$season), " Week ", week_of_upcoming_games, " Elo Ratings and Expected Wins"),
              subtitle = "Expected Wins Based on head-to-head Elo Ratings") %>% 
   cols_label(row_num = "Rank", team = "Team", elo = "Elo Rating", expected_wins = "Expected Wins", win_rate = "Win Percentage", conference = "Conference",
-             elo_change = "Change", result = "Last Result",
+             elo_change = "Δ Elo Points", result = "Last Result",
              image = "") %>% 
   fmt_number(columns = c(elo, elo_change), decimals = 0, use_seps = FALSE) %>% 
   fmt_number(columns = c(expected_wins), decimals = 1, use_seps = FALSE) %>% 
