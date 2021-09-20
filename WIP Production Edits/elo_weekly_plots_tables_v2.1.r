@@ -251,14 +251,21 @@ joined_stats <- left_join(joined_stats, conf_most_recent, by = c("home_team" = "
 
 elo_ratings_last_week <- elo_ratings %>% 
   group_by(team) %>% 
-  slice_max(order_by = date, n = 2L) %>% 
-  slice_min(order_by = date, n = 1L) %>% 
-  select(team, elo_rating) %>% 
-  rename(last_week_elo = elo_rating)
+  slice_max(order_by = date, n = 2L) %>% # Get two most recent rankings
+  slice_min(order_by = date, n = 1L) %>% # choose the older of the two (last week's)
+  ungroup() %>% 
+  mutate(rank = rank(desc(elo_rating), ties.method = "min")) %>% 
+  select(team, elo_rating, rank) %>% 
+  rename(last_week_elo = elo_rating,
+         last_week_rank = rank)
 
 elo_w_last_week <- joined_stats %>% 
+  ungroup() %>% 
+  mutate(rank = rank(desc(elo), ties.method = "min")) %>% 
   left_join(elo_ratings_last_week, by = c("home_team" = "team")) %>% 
-  mutate(elo_change = elo - last_week_elo)
+  mutate(elo_change = elo - last_week_elo,
+         rank_change = -(rank - last_week_rank)) %>% # Take negative of rank change since going up in rank is bad
+  rename(team = home_team)
 
 # Stable
 
@@ -318,8 +325,14 @@ last_game_result <- bottom %>%
 # Join to elo table
 joined_stats_final <- elo_w_last_week %>% 
   left_join(last_game_result, by = c("team")) %>% 
-  mutate(image = if_else(elo_change >= 0, "Assets/green_up_arrow.png",
-                         "Assets/red_down_arrow.png"))
+  mutate(image = case_when(rank_change > 0 ~ "Assets/green_up_arrow.png",
+                           rank_change < 0 ~ "Assets/red_down_arrow.png",
+                           rank_change == 0 ~ "Assets/no_change.png"))
+
+# Stable
+
+# Add in change from previous week elo rating
+
 
 
 # New version of table ----------------------------------------------------
@@ -331,15 +344,16 @@ elo_weekly_top_25 <- joined_stats_final %>%
   arrange(desc(elo)) %>% 
   mutate(row_num = row_number()) %>% 
   relocate(row_num) %>% 
-  relocate(image, .before = elo_change) %>% 
-  select(-c(n_games, last_week_elo)) %>% 
+  relocate(elo_change, .before = expected_wins) %>% 
+  relocate(image, .before = rank_change) %>% 
+  select(-c(n_games, last_week_elo, rank, last_week_rank)) %>% 
   filter(row_num <= 25) %>% 
   gt() %>% 
   tab_header(title = paste0(max(upcoming.games$season), " Week ", week_of_upcoming_games, " Elo Ratings and Expected Wins"),
              subtitle = "Expected Wins Based on head-to-head Elo Ratings") %>% 
   cols_label(row_num = "Rank", team = "Team", elo = "Elo Rating", expected_wins = "Expected Wins", win_rate = "Win Percentage", conference = "Conference",
              elo_change = "Δ Elo Points", result = "Last Result",
-             image = "") %>% 
+             image = "", rank_change = "Δ Ranking") %>% 
   fmt_number(columns = c(elo, elo_change), decimals = 0, use_seps = FALSE) %>% 
   fmt_number(columns = c(expected_wins), decimals = 1, use_seps = FALSE) %>% 
   fmt_percent(columns = c(win_rate), decimals = 1) %>% 
@@ -355,7 +369,7 @@ elo_weekly_top_25 <- joined_stats_final %>%
                palette = staturdays_palette,
                domain = NULL),
              alpha = 0.7) %>% 
-  data_color(columns = c(elo_change),
+  data_color(columns = c(elo_change, rank_change),
              colors = scales::col_numeric(
                palette = green_red_pal,
                domain = NULL),
