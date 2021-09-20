@@ -244,6 +244,83 @@ conf_most_recent <- elo_conf %>%
 # Add conference to joined_stats
 joined_stats <- left_join(joined_stats, conf_most_recent, by = c("home_team" = "team"))
 
+
+# Issue #63 work ----------------------------------------------------------
+
+# Add previous week elo for each team
+
+elo_ratings_last_week <- elo_ratings %>% 
+  group_by(team) %>% 
+  slice_max(order_by = date, n = 2L) %>% 
+  slice_min(order_by = date, n = 1L) %>% 
+  select(team, elo_rating) %>% 
+  rename(last_week_elo = elo_rating)
+
+elo_w_last_week <- joined_stats %>% 
+  left_join(elo_ratings_last_week, by = c("home_team" = "team")) %>% 
+  mutate(elo_change = elo - last_week_elo)
+
+# Stable
+
+# Add in the result of the previous game "L Penn State 28-20", "W Auburn 28-20"
+
+# Most recent home result for each team
+home_top <- upcoming.games %>% 
+  mutate(team = home_team) %>% 
+  group_by(team) %>% 
+  filter(week <= week_of_elo_last_updated) %>% 
+  slice_max(order_by = game_date, n = 1L)
+
+# Most recent away result for each team
+away_top <- upcoming.games %>% 
+  mutate(team = away_team) %>% 
+  group_by(team) %>% 
+  filter(week <= week_of_elo_last_updated) %>% 
+  slice_max(order_by = game_date, n = 1L)
+
+# Row-bind latest home and away games
+bottom <- home_top %>% rbind(away_top) %>% 
+  slice_max(order_by = game_date, n = 1L)
+
+# Get last game result for each team
+last_game_result <- bottom %>% 
+  mutate(result = case_when(team == home_team & 
+                              home_points > away_points ~ paste0("W ",
+                                                               away_team,
+                                                               " ",
+                                                               home_points,
+                                                               "-",
+                                                               away_points),
+                            team == home_team & 
+                              home_points < away_points ~ paste0("L ",
+                                                               away_team,
+                                                               " ",
+                                                               away_points,
+                                                               "-",
+                                                               home_points),
+                            team == away_team & 
+                              home_points < away_points ~ paste0("W ",
+                                                               home_team,
+                                                               " ",
+                                                               away_points,
+                                                               "-",
+                                                               home_points),
+                            team == away_team & 
+                              home_points > away_points ~ paste0("L ",
+                                                               home_team,
+                                                               " ",
+                                                               home_points,
+                                                               "-",
+                                                               away_points),
+                            TRUE ~ "failed")) %>% 
+  select(team, result)
+
+# Join to elo table
+joined_stats_final <- elo_w_last_week %>% 
+  left_join(last_game_result, by = c("team"))
+
+# -------------------------------------------------------------------------
+
 # Rankings - all teams
 elo_weekly_rankings <- joined_stats %>% 
   arrange(desc(elo)) %>% 
