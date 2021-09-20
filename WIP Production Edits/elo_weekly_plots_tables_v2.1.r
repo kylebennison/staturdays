@@ -380,55 +380,44 @@ gtsave(data = elo_weekly_top_25,
        filename = paste0(year(today()), "_elo_weekly_top_25_", str_replace_all(now(), ":", "."), ".png"),
        path = "R Plots/")
 
-# -------------------------------------------------------------------------
-
-# Rankings - all teams
-elo_weekly_rankings <- joined_stats %>% 
+# Full Rankings
+elo_weekly_rankings <- joined_stats_final %>% 
   arrange(desc(elo)) %>% 
   mutate(row_num = row_number()) %>% 
   relocate(row_num) %>% 
-  select(-n_games) %>% 
+  relocate(elo_change, .before = expected_wins) %>% 
+  relocate(image, .before = rank_change) %>% 
+  select(-c(n_games, last_week_elo, rank, last_week_rank)) %>% 
   gt() %>% 
   tab_header(title = paste0(max(upcoming.games$season), " Week ", week_of_upcoming_games, " Elo Ratings and Expected Wins"),
              subtitle = "Expected Wins Based on head-to-head Elo Ratings") %>% 
-  cols_label(row_num = "Rank", home_team = "Team", elo = "Elo Rating", expected_wins = "Expected Wins", win_rate = "Win Percentage", conference = "Conference") %>% 
-  fmt_number(columns = c(elo), decimals = 0, use_seps = FALSE) %>% 
+  cols_label(row_num = "Rank", team = "Team", elo = "Elo Rating", expected_wins = "Expected Wins", win_rate = "Win Percentage", conference = "Conference",
+             elo_change = "Δ Elo Points", result = "Last Result",
+             image = "", rank_change = "Δ Ranking") %>% 
+  fmt_number(columns = c(elo, elo_change), decimals = 0, use_seps = FALSE) %>% 
   fmt_number(columns = c(expected_wins), decimals = 1, use_seps = FALSE) %>% 
   fmt_percent(columns = c(win_rate), decimals = 1) %>% 
+  text_transform(locations = cells_body(columns = image),
+                 fn = function(x) {
+                   purrr::map_chr(x, ~ local_image(
+                     filename = .x,
+                     height = 30
+                   ))
+                 }) %>% 
   data_color(columns = c(elo, expected_wins), # Use a color scale on win prob
              colors = scales::col_numeric(
                palette = staturdays_palette,
                domain = NULL),
              alpha = 0.7) %>% 
+  data_color(columns = c(elo_change, rank_change),
+             colors = scales::col_numeric(
+               palette = green_red_pal,
+               domain = NULL),
+             alpha = .7) %>% 
   tab_source_note("@kylebeni012 | @staturdays — Data: @cfb_data")
 
 gtsave(data = elo_weekly_rankings, 
        filename = paste0(year(today()), "_elo_weekly_rankings_", str_replace_all(now(), ":", "."), ".png"),
-       path = "R Plots/")
-
-# Top 25
-elo_weekly_top_25 <- joined_stats %>% 
-  arrange(desc(elo)) %>% 
-  mutate(row_num = row_number()) %>% 
-  relocate(row_num) %>% 
-  select(-n_games) %>% 
-  filter(row_num <= 25) %>% 
-  gt() %>% 
-  tab_header(title = paste0(max(upcoming.games$season), " Week ", week_of_upcoming_games, " Elo Ratings and Expected Wins"),
-             subtitle = "Expected Wins Based on head-to-head Elo Ratings") %>% 
-  cols_label(row_num = "Rank", home_team = "Team", elo = "Elo Rating", expected_wins = "Expected Wins", win_rate = "Win Percentage", conference = "Conference") %>% 
-  fmt_number(columns = c(elo), decimals = 0, use_seps = FALSE) %>% 
-  fmt_number(columns = c(expected_wins), decimals = 1, use_seps = FALSE) %>% 
-  fmt_percent(columns = c(win_rate), decimals = 1) %>% 
-  data_color(columns = c(elo, expected_wins), # Use a color scale on win prob
-             colors = scales::col_numeric(
-               palette = staturdays_palette,
-               domain = NULL),
-             alpha = 0.7) %>% 
-  tab_source_note("@kylebeni012 | @staturdays — Data: @cfb_data")
-
-gtsave(data = elo_weekly_top_25, 
-       filename = paste0(year(today()), "_elo_weekly_top_25_", str_replace_all(now(), ":", "."), ".png"),
        path = "R Plots/")
 
 # Weekly Win Probabilities and Bets ------------------------------------------------
