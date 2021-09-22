@@ -181,7 +181,7 @@ plays.master <- plays.master %>%
   rm(plays.master.temp)
   
   # Read in expected success rates
-  success_expected <- data.table::fread("expected_success_rate.csv")
+  success_expected <- data.table::fread("https://raw.githubusercontent.com/kylebennison/staturdays/master/expected_success_rate.csv")
   
   # Join to plays
   plays.master_temp <- plays.master %>% 
