@@ -19,7 +19,7 @@ source("Production/source_everything.r")
 # New Season Regression Factor
 regress <- (.95)
 # k-factor
-k <- 70
+k <- 80
 # home-field advantage (in elo points)
 home_field_advantage <- 55
 # Conference adjustors
@@ -686,6 +686,16 @@ if(week_of_elo_last_updated > 0){
 
 # Latest Brier for the season
 brier <- upcoming.games %>% summarise(brier = mean((game_outcome_home - home_pred_win_prob)^2))
+
+brier_2 <- upcoming.games %>% 
+  filter(is.na(home_points) == FALSE) %>% 
+  mutate(error = (game_outcome_home - home_pred_win_prob)^2) %>% 
+  summarise(mean_pred = mean(home_pred_win_prob), 
+            mean_actual = mean(game_outcome_home), 
+            brier = mean(error), 
+            sumWin = sum(game_outcome_home), 
+            count = n())
+
 elo_record <- upcoming.games %>% 
   filter(is.na(home_points) == F) %>% 
   mutate(correct = if_else(abs(home_pred_win_prob - game_outcome_home) < .5, 1, 0)) %>% 
