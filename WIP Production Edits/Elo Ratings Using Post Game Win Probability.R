@@ -20,12 +20,12 @@ group_of_5 <- c("American Athletic", "Conference USA", "Mid-American", "Mountain
 
 base_url_games <- "https://api.collegefootballdata.com/games?" # Base URL for games data
 
-games.master = get_games(start_year = 2000, end_year = 2020, start_week = 1, end_week = 20)
+games.master = get_games(start_year = 2000, end_year = 2021, start_week = 1, end_week = 20)
 
 # Pull in conference data for each year for all teams (FBS only)
 conference_url <- "https://api.collegefootballdata.com/teams/fbs?year="
 conference.master = data.frame()
-for (j in 2000:2020) {
+for (j in 2000:2021) {
   cat('Loading Conferences ', j, '\n')
   full_url_conf <- paste0(conference_url, as.character(j))
   conf <- cfbd_api(full_url_conf, my_key)
@@ -153,7 +153,7 @@ cfb_games <- cfb_games %>% mutate(conference_game =
 #### updated for loop to speed up process ####
 elo_ratings <- teams_elo_initial
 
-for(yr in c(2000:2020)){
+for(yr in c(2000:2021)){
   message(paste0("Calculating elo ratings for year: "),yr, " D3: ", d3, " G5: ", g5)
   #regress Elo ratings before the first season of the year
   if(yr != min(cfb_games$season)){
@@ -252,7 +252,7 @@ for(yr in c(2000:2020)){
 
 # Calc mean predicted vs. mean actual, and Brier
 k_optimization %>% 
-  filter(Year >= 2010, Year<2020) %>%  
+  filter(Year>2020) %>%  
   mutate(error = (HomeWin - HomeExpectedWin)^2) %>% 
   summarise(mean_pred = mean(HomeExpectedWin), mean_actual = mean(HomeWin), Brier = mean(error), sum_win = sum(HomeWin), count = n())
 
