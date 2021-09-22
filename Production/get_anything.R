@@ -1,4 +1,4 @@
-source("Production/cfbd_api_key_function.r")
+source("https://raw.githubusercontent.com/kylebennison/staturdays/master/Production/cfbd_api_key_function.R")
 
 get_anything <- function(url, start_year=2021, end_year=2021, start_week, end_week, key){
   
