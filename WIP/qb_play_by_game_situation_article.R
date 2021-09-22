@@ -683,3 +683,40 @@ ggsave(filename = paste0("C:/Users/Kyle/Documents/Kyle/Staturdays/R Plots/",
        height = 800,
        dpi = 300,
        units = "mm")
+
+
+# before/After Interception -----------------------------------------------
+
+# This works
+
+ints_only <- qb_plays %>% 
+  group_by(game_id, offense, pass_player) %>% 
+  filter(pass_intercepted == 1) %>% 
+  arrange(id) %>% 
+  slice_head(n = 1) %>% 
+  rename(int_id = id) %>% 
+  select(game_id, offense, pass_player, int_id)
+
+qb_plays %>% 
+  left_join(ints_only, by = c("game_id", "offense", "pass_player")) %>% 
+  ungroup() %>% 
+  arrange(game_id, offense, pass_player, id) %>% 
+  mutate(int_thrown = if_else(id < int_id, 0, 1)) %>% 
+  select(id, game_id, offense, defense, pass_player, play_text, pass_intercepted, int_thrown, int_id) %>% 
+  View()
+
+##### This also works
+
+qb_plays %>% 
+  ungroup() %>% 
+  arrange(game_id, offense, pass_player, id) %>% 
+  mutate(int_thrown = ifelse(pass_intercepted == 1 |
+                                lag(pass_intercepted, 1L) == 1,
+                             1,
+                             NA)) %>% 
+  group_by(game_id, offense, pass_player) %>% 
+  fill(int_thrown) %>% 
+  select(id, game_id, offense, defense, pass_player, play_text, pass_intercepted, int_thrown) %>% 
+  View()
+    
+####

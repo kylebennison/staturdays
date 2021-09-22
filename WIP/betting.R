@@ -240,7 +240,8 @@ model_1_data <- joined_elo %>%
          elo_diff, elo_pred_win_prob, favorite_won, favorite_covered)
 
 # Build a model
-model_1 <- glm(favorite_covered ~ ., data = model_1_data)
+model_1 <- glm(favorite_covered ~ ., data = model_1_data,
+               family = "binomial")
 
 ## Model 2
 # Select initial variables
@@ -251,7 +252,8 @@ model_2_data <- joined_elo %>%
          elo_diff, elo_pred_win_prob, favorite_won, favorite_covered)
 
 # Build a model
-model_2 <- glm(favorite_covered ~ ., data = model_2_data)
+model_2 <- glm(favorite_covered ~ ., data = model_2_data,
+               family = "binomial")
 
 ## Model 3 (built with only things we know before the game)
 # Select initial variables
@@ -265,7 +267,8 @@ model_3_data <- joined_elo %>%
          elo_diff, elo_pred_win_prob, favorite_covered)
 
 # Build a model
-model_3 <- glm(favorite_covered ~ ., data = model_3_data) # Not a good model
+model_3 <- glm(favorite_covered ~ ., data = model_3_data,
+               family = "binomial") # Not a good model
 
 ## Model 4 (predict Over_hit)
 # Select initial variables
@@ -279,10 +282,16 @@ model_4_data <- joined_elo %>%
          elo_diff, elo_pred_win_prob)
 
 # Build a model
-model_4 <- glm(over_hit ~ ., data = model_4_data) # Elo significant here
+model_4 <- glm(over_hit ~ ., data = model_4_data,
+               family = "binomial") # Elo significant here
 
 # Plot residuals
-model_4$residuals %>% tibble() %>% rename(resid = ".") %>% mutate(index = row_number()) %>% ggplot(aes(x = index, y = resid)) + geom_point(position = "identity")
+model_4$residuals %>% 
+  tibble() %>% 
+  rename(resid = ".") %>% 
+  mutate(index = row_number()) %>% 
+  ggplot(aes(x = index, y = resid)) + 
+  geom_point(position = "identity")
 
 ### Advanced metrics for previous games including success rate
 
