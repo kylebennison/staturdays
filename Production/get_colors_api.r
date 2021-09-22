@@ -1,4 +1,4 @@
-source("Production/get_anything.r")
+source("https://raw.githubusercontent.com/kylebennison/staturdays/master/Production/get_anything.R")
 
 get_colors <- function(){
 
