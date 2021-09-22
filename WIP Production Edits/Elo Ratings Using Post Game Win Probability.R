@@ -318,6 +318,6 @@ actual_vs_predict <- k_optimization %>% mutate(win_prob_bucket = round(HomeExpec
 # Write to Github ---------------------------------------------------------
 
 # Write historic calculations to github for the first time
-#fwrite(elo_ratings, file = "C:/Users/Kyle/Documents/Kyle/Staturdays/Staturdays Github/Github/staturdays/elo_ratings_historic.csv", append = FALSE, col.names = TRUE)
+#fwrite(elo_ratings, file = "Production/elo_ratings_historic.csv", append = FALSE, col.names = TRUE)
 
 # write_csv(brier, path = "C:/Users/Kyle/Documents/Kyle/Staturdays/Data/elo g5 d3 initial 8.13.20.csv")
