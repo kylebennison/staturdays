@@ -17,7 +17,7 @@ source("https://raw.githubusercontent.com/kylebennison/staturdays/master/Product
 # New Season Regression Factor
 regress <- (.95)
 # k-factor
-k <- 70
+k <- 80
 # home-field advantage (in elo points)
 home_field_advantage <- 55
 # Conference adjustors
@@ -53,7 +53,7 @@ for (j in 2021) {
 }
 
 #Select variables we want
-cfb_games <- games.master %>% select(id, season, week, season_type, home_team, home_conference, away_team, away_conference, home_points, away_points, start_date, neutral_site) %>% 
+cfb_games <- games.master %>% select(id, season, week, season_type, home_team, home_conference, away_team, away_conference, home_points, away_points, start_date, neutral_site, conference_game, home_post_win_prob) %>% 
   mutate(date=ymd_hms(start_date)) %>%
   select(-start_date)
 
@@ -61,12 +61,18 @@ cfb_games <- games.master %>% select(id, season, week, season_type, home_team, h
 week_1_epiweek <- cfb_games %>% filter(week == min(week)) %>% slice_min(date) %>% pull(date) %>% unique() %>% epiweek() %>% as.integer()
 
 # Add game outcome for home team
-cfb_games <- cfb_games %>% mutate(game_outcome_home = 
-                case_when(
-                  home_points > away_points ~ 1,
-                  home_points < away_points ~ 0,
-                  TRUE ~ 0.5
-)
+cfb_games <- cfb_games %>% mutate(
+  game_outcome_home =
+    case_when(
+      home_points > away_points ~ 1,
+      home_points < away_points ~ 0,
+      TRUE ~ 0.5
+    ),
+  home_post_win_prob = as.numeric(ifelse(
+    is.na(home_post_win_prob),
+    game_outcome_home,
+    home_post_win_prob
+  ))
 )
 
 # Figure out what week the first week of postseason play should be
@@ -242,8 +248,8 @@ current_week <- upcoming.games %>% filter(as.Date(game_date) == game_weeks[i_dat
 if(week_of_games_just_played > 0){# & !any(current_week %>% filter(!(is.na(home_points) & is.na(away_points))) %>% pull(week) == elo_ratings %>% filter(season == max(season)) %>% filter(week == max(week)) %>% pull(week) %>% unique())){ #& (length(current_week$home_points) != length(is.na(current_week$home_points)))){
 
 #calculate new ratings after game
-current_week <- current_week %>% mutate(new_home_rating = calc_new_elo_rating(home_elo, game_outcome_home, calc_expected_score((home_elo+if_else(neutral_site == F, home_field_advantage, neutral_adjust)), away_elo),k),
-                                        new_away_rating = calc_new_elo_rating(away_elo, 1-game_outcome_home, calc_expected_score(away_elo, (home_elo+if_else(neutral_site == F, home_field_advantage, neutral_adjust))),k))
+current_week <- current_week %>% mutate(new_home_rating = calc_new_elo_rating(home_elo, home_post_win_prob, calc_expected_score((home_elo+if_else(neutral_site == F, home_field_advantage, neutral_adjust)), away_elo),k),
+                                        new_away_rating = calc_new_elo_rating(away_elo, 1-home_post_win_prob, calc_expected_score(away_elo, (home_elo+if_else(neutral_site == F, home_field_advantage, neutral_adjust))),k))
 
 #keep track of predictions and actual results
 k_optimization_temp <- current_week %>% mutate(HomeExpectedWin=calc_expected_score((home_elo+if_else(neutral_site == F, home_field_advantage, neutral_adjust)), away_elo)) %>% 
