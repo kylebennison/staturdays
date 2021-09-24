@@ -33,6 +33,11 @@ plays <- plays %>% add_success()
 
 games_done <- c() # Store games that have already been run
 
+games_done <- data.table::fread("games_done.csv") # Read in games that have already been tweeted
+
+# Remove "id_" from start of string
+games_done <- stringr::str_sub(games_done, start = 4L)
+
 game_ids <- plays$game_id %>% unique() # Get all game ids from today
 
 qbs <- plays$pass_player %>% unique()
@@ -143,17 +148,22 @@ text <- plays %>%
   pull(tweet_text)
 
 
-# post_tweet(status = text,
-#            media = file,
-#            token = tok)
+ post_tweet(status = text,
+            media = file,
+            token = tok)
 
 games_done <- c(games_done, game_ids[i])
 
-message("tweet posted: ", text, "\n",
-        "plot:")
-
-plot
+# message("tweet posted: ", text, "\n",
+#         "plot:")
+# 
+# plot
 
 Sys.sleep(10)
 
 }
+
+# Write games_done to csv for reference the next time the job runs in 30 mins
+games_done <- paste0("id_", games_done)
+
+data.table::fwrite(games_done, file = "games_done.csv")
