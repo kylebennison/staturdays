@@ -153,7 +153,7 @@ cfb_games <- cfb_games %>% mutate(conference_game =
 #### updated for loop to speed up process ####
 elo_ratings <- teams_elo_initial
 
-for(yr in c(2000:2021)){
+for(yr in c(2000:2020)){
   message(paste0("Calculating elo ratings for year: "),yr, " D3: ", d3, " G5: ", g5)
   #regress Elo ratings before the first season of the year
   if(yr != min(cfb_games$season)){
