@@ -463,7 +463,13 @@ win_probs_w_lines <- win_probs_w_lines %>%
   filter(game_date >= lubridate::now()) %>% 
   arrange(game_date, home_team) %>% # arrange by date first, then home team
   mutate(game_date = lubridate::with_tz(game_date, "America/New_York")) %>% # convert to Eastern timezone
-  mutate(across(.cols = formattedSpread, .fns = ~ replace_na(.x, ""))) # replace NAs in spread with blanks for the table
+  mutate(across(.cols = formattedSpread, .fns = ~ replace_na(.x, ""))) %>%  # replace NAs in spread with blanks for the table
+  mutate(homeMoneyline = if_else(homeMoneyline < 0, 
+                                 as.character(homeMoneyline),
+                                 paste0("+", homeMoneyline)),
+         awayMoneyline = if_else(awayMoneyline < 0, 
+                                 as.character(awayMoneyline),
+                                 paste0("+", awayMoneyline)))
 
 list_of_conferences <- win_probs_w_lines %>% pull(home_conference, away_conference) %>% unique()
 for(i in 1:length(list_of_conferences)){
@@ -474,21 +480,23 @@ for(i in 1:length(list_of_conferences)){
 win_probabilities_this_week <- win_probs_w_lines %>%
   filter(home_conference == conf_name | away_conference == conf_name) %>% 
   mutate(elo_different = if_else(elo_different == T, "Yes", "No")) %>% 
-  select(game_date, home_team,home_elo, home_pred_win_prob, home_conference, away_team, away_elo, away_pred_win_prob, away_conference, formattedSpread, elo_different) %>%
+  select(game_date, home_team,home_elo, home_pred_win_prob, homeMoneyline, away_team, away_elo, away_pred_win_prob, awayMoneyline, formattedSpread, elo_different) %>%
   mutate(game_date = as.character(game_date)) %>% 
   gt() %>% 
   tab_header(title = paste0(max(upcoming.games$season), " Week ", week_of_upcoming_games, " Win Probabilities"),
-             subtitle = paste0(conf_name, " — Based on head-to-head Elo Ratings")) %>% 
+             subtitle = md(paste0(paste0("**",conf_name,"**"), " — Based on head-to-head Elo Ratings"))) %>% 
   tab_spanner(label = "Start Time",
               columns = c(game_date)) %>% 
   tab_spanner(label = "Home", # Add a column spanning header
-              columns = c(home_team,home_elo, home_pred_win_prob, home_conference)) %>% 
+              columns = c(home_team,home_elo, home_pred_win_prob, homeMoneyline)) %>% 
   tab_spanner(label = "Away", # Add a column spanning header
-              columns = c(away_team, away_elo, away_pred_win_prob, away_conference)) %>% 
+              columns = c(away_team, away_elo, away_pred_win_prob, awayMoneyline)) %>% 
   tab_spanner(label = "Betting",
               columns = c(formattedSpread, elo_different)) %>% 
-  cols_label(game_date = "Kickoff (Eastern)", home_team = "Team", home_elo = "Elo Rating", home_pred_win_prob = "Win Probability", home_conference = "Conference",
-             away_team = "Team", away_elo = "Elo Rating", away_pred_win_prob = "Win Probability", away_conference = "Conference",
+  cols_label(game_date = "Kickoff (Eastern)", home_team = "Team", home_elo = "Elo Rating", home_pred_win_prob = "Win Probability", 
+             homeMoneyline = "ML",
+             away_team = "Team", away_elo = "Elo Rating", away_pred_win_prob = "Win Probability", 
+             awayMoneyline = "ML",
              formattedSpread = "Spread", elo_different = "Elo Mismatch?") %>% 
   fmt_percent(columns = c(home_pred_win_prob, away_pred_win_prob), decimals = 1) %>% 
   fmt_number(columns = c(home_elo, away_elo), decimals = 0, use_seps = FALSE) %>% 
