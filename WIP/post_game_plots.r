@@ -35,7 +35,7 @@ plays <- plays %>% add_success()
 
 games_done <- tibble(games_done = c(0, 1)) # Store games that have already been run
 
-games_done <- data.table::fread("games_done.csv") # Read in games that have already been tweeted
+games_done <- data.table::fread("Data/games_done.csv") # Read in games that have already been tweeted
 
 # Remove "id_" from start of string
 games_done <- stringr::str_sub(games_done, start = 4L)
@@ -175,4 +175,4 @@ Sys.sleep(10)
 # Write games_done to csv for reference the next time the job runs in 30 mins
 games_done <- games_done %>% mutate(games_done = paste0("id_", games_done))
 
-data.table::fwrite(games_done, file = "games_done.csv", append = TRUE)
+data.table::fwrite(games_done, file = "Data/games_done.csv", append = TRUE)
