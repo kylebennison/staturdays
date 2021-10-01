@@ -38,7 +38,7 @@ games_done <- tibble(games_done = c(0, 1)) # Store games that have already been 
 games_done <- data.table::fread("Data/games_done.csv") # Read in games that have already been tweeted
 
 # Remove "id_" from start of string
-games_done <- stringr::str_sub(games_done, start = 4L)
+games_done <- games_done %>% mutate(games_done = stringr::str_sub(games_done, start = 4L))
 
 game_ids <- plays$game_id %>% unique() # Get all game ids from today
 
@@ -74,7 +74,9 @@ cum_sum_qb_plot_data <- cum_sum_qb %>%
   mutate(n = n()) %>% 
   filter(n > 4, !str_detect(player, "^TEAM\\s")) # QBs involved in at least 5 plays, not "Team" plays
 
-game_ids <- game_ids[which(!game_ids %in% games_done)] # Filter out any games that have already been run
+game_ids <- game_ids[which(!game_ids %in% games_done$games_done)] # Filter out any games that have already been run
+
+if(length(game_ids) > 0) {
 
 for (i in 1:length(game_ids)) {
   
@@ -172,7 +174,10 @@ Sys.sleep(10)
 
 }
 
+}
+  
 # Write games_done to csv for reference the next time the job runs in 30 mins
 games_done <- games_done %>% mutate(games_done = paste0("id_", games_done))
 
-data.table::fwrite(games_done, file = "Data/games_done.csv", append = TRUE)
+# No need to append since we're reading and appending inside the script
+data.table::fwrite(games_done, file = "Data/games_done.csv")
