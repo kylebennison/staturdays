@@ -12,8 +12,9 @@ orange_pal <- function(x) rgb(colorRamp(c("#e6bba5", "#de703b"))(x), maxColorVal
 qb_df <- player_ppa %>% 
   left_join(colors, by = c("team" = "school")) %>% 
   filter(position == "QB",
-         countablePlays >= 20) %>% 
-  select(name, light, averagePPA.pass, averagePPA.rush, averagePPA.thirdDown, averagePPA.all)
+         countablePlays >= 50) %>% 
+  select(name, light, averagePPA.pass, averagePPA.rush, averagePPA.thirdDown, averagePPA.all) %>% 
+  slice_max(order_by = averagePPA.all, n = 50L)
 
 library(reactable)
 
@@ -63,7 +64,7 @@ reactable_tbl <- reactable::reactable(qb_df,
 
 t2 <- htmlwidgets::prependContent(reactable_tbl,
                             htmltools::h1(class = "title",
-                               "Top QBs in PPA Through Week 1",
+                               "Top QBs in PPA Through Week 4",
                                style = "text-align:center; font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif;"))
 
 t3 <- htmlwidgets::appendContent(t2,
@@ -84,8 +85,9 @@ webshot2::webshot(html, file = paste0("R Plots/qb_ppa_",
 rb_df <- player_ppa %>% 
   left_join(colors, by = c("team" = "school")) %>% 
   filter(position == "RB",
-         countablePlays >= 15) %>% 
-  select(name, team, light, averagePPA.pass, averagePPA.rush, averagePPA.thirdDown, averagePPA.all)
+         countablePlays >= 50) %>% 
+  select(name, team, light, averagePPA.pass, averagePPA.rush, averagePPA.thirdDown, averagePPA.all) %>% 
+  slice_max(order_by = averagePPA.all, n = 50L)
 
 reactable_tbl <- reactable::reactable(rb_df %>% select(-team),
                                       columns = list(
@@ -137,7 +139,7 @@ reactable_tbl <- reactable::reactable(rb_df %>% select(-team),
 
 t2 <- htmlwidgets::prependContent(reactable_tbl,
                                   htmltools::h1(class = "title",
-                                                "Top RBs in PPA Through Week 1",
+                                                "Top RBs in PPA Through Week 4",
                                                 style = "text-align:center; font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif;"))
 
 t3 <- htmlwidgets::appendContent(t2,
@@ -151,3 +153,4 @@ webshot2::webshot(html, file = paste0("R Plots/rb_ppa_",
                                       lubridate::today(),
                                       ".png"),
                   delay = 1)
+
