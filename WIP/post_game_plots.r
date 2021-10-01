@@ -132,6 +132,12 @@ ggsave(filename = file,
 
 # Tweet plot --------------------------------------------------------------
 
+s_rates <- plays %>% 
+  filter(game_id == game_ids[i]) %>% 
+  group_by(offense) %>% 
+  summarise(success_rate = mean(success)) %>% 
+  mutate(success_rate = scales::percent(success_rate))
+
 text <- plays %>% 
   left_join(team_colors, by = c("home" = "school")) %>% 
   left_join(team_colors, by = c("away" = "school"), suffix = c(".home", ".away")) %>% 
@@ -150,6 +156,9 @@ text <- plays %>%
                             " ",
                             home,
                             "\n\n",
+                            "Success Rates:\n",
+                            s_rates[1,1], ": ", s_rates[1,2], "\n",
+                            s_rates[2,1], ": ", s_rates[2,2], "\n",
                             "#CFBData #",
                             abbreviation.away,
                             " vs. #",
