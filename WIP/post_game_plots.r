@@ -5,7 +5,7 @@
 #' the game.
 #'
 
-source("Production/source_everything.r")
+source("https://raw.githubusercontent.com/kylebennison/staturdays/master/Production/source_everything.R")
 
 library(rtweet)
 
@@ -22,6 +22,8 @@ tok <- create_token(app=app_name,
                     access_token = access_token,
                     access_secret = access_secret)
 
+setwd("C:/Users/Kyle/Documents/Kyle/Staturdays/Staturdays Github/Github/staturdays")
+
 elo <- get_elo()
 max_week <- max(elo$week)
 current_week <- max_week + 1L
@@ -31,7 +33,7 @@ plays <- plays %>% add_success()
 
 # Cumulative QB PPA
 
-games_done <- c() # Store games that have already been run
+games_done <- tibble(games_done = c(0, 1)) # Store games that have already been run
 
 games_done <- data.table::fread("games_done.csv") # Read in games that have already been tweeted
 
@@ -121,6 +123,11 @@ ggsave(filename = file,
               units = "mm",
               dpi = 300)
 
+
+# In-Game WP Chart --------------------------------------------------------
+
+# Bring in and apply Drew's model to plays data
+
 # Tweet plot --------------------------------------------------------------
 
 text <- plays %>% 
@@ -152,7 +159,9 @@ text <- plays %>%
             media = file,
             token = tok)
 
-games_done <- c(games_done, game_ids[i])
+game_ids_df <- tibble(games_done = game_ids[i])
+
+games_done <- rbind(games_done, game_ids_df)
 
 # message("tweet posted: ", text, "\n",
 #         "plot:")
@@ -164,6 +173,6 @@ Sys.sleep(10)
 }
 
 # Write games_done to csv for reference the next time the job runs in 30 mins
-games_done <- paste0("id_", games_done)
+games_done <- games_done %>% mutate(games_done = paste0("id_", games_done))
 
-data.table::fwrite(games_done, file = "games_done.csv")
+data.table::fwrite(games_done, file = "games_done.csv", append = TRUE)
