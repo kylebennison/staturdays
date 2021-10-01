@@ -138,6 +138,13 @@ s_rates <- plays %>%
   summarise(success_rate = mean(success)) %>% 
   mutate(success_rate = scales::percent(success_rate))
 
+ppas <- cum_sum_qb_plot_data %>% 
+  filter(game_id == game_ids[i]) %>% 
+  group_by(player) %>% 
+  slice_max(order_by = id.x, n = 1L) %>% 
+  select(player, cum_ppa) %>% 
+  mutate(cum_ppa = round(cum_ppa, digits = 2))
+
 text <- plays %>% 
   left_join(team_colors, by = c("home" = "school")) %>% 
   left_join(team_colors, by = c("away" = "school"), suffix = c(".home", ".away")) %>% 
@@ -158,7 +165,10 @@ text <- plays %>%
                             "\n\n",
                             "Success Rates:\n",
                             s_rates[1,1], ": ", s_rates[1,2], "\n",
-                            s_rates[2,1], ": ", s_rates[2,2], "\n",
+                            s_rates[2,1], ": ", s_rates[2,2], "\n\n",
+                            "Net Predicted Points Added:\n",
+                            ppas[1,1], ": ", ppas[1,2], "\n",
+                            ppas[2,1], ": ", ppas[2,2], "\n",
                             "#CFBData #",
                             abbreviation.away,
                             " vs. #",
