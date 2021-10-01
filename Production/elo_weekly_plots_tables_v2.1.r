@@ -537,21 +537,23 @@ gtsave(data = win_probabilities_this_week,
 win_probs_today <- win_probs_w_lines %>%
   filter(game_date <= now() + lubridate::hours(16) & game_date >= now()) %>% 
   mutate(elo_different = if_else(elo_different == T, "Yes", "No")) %>% 
-  select(game_date, home_team,home_elo, home_pred_win_prob, home_conference, away_team, away_elo, away_pred_win_prob, away_conference, formattedSpread, elo_different) %>%
+  select(game_date, home_team,home_elo, home_pred_win_prob, homeMoneyline, away_team, away_elo, away_pred_win_prob, awayMoneyline, formattedSpread, elo_different) %>%
   mutate(game_date = as.character(game_date)) %>% 
   gt() %>% 
   tab_header(title = paste0(max(upcoming.games$season), " Week ", week_of_upcoming_games, " Win Probabilities"),
-             subtitle = paste0("Based on head-to-head Elo Ratings")) %>% 
+             subtitle = "Based on head-to-head Elo Ratings") %>% 
   tab_spanner(label = "Start Time",
               columns = c(game_date)) %>% 
   tab_spanner(label = "Home", # Add a column spanning header
-              columns = c(home_team,home_elo, home_pred_win_prob, home_conference)) %>% 
+              columns = c(home_team,home_elo, home_pred_win_prob, homeMoneyline)) %>% 
   tab_spanner(label = "Away", # Add a column spanning header
-              columns = c(away_team, away_elo, away_pred_win_prob, away_conference)) %>% 
+              columns = c(away_team, away_elo, away_pred_win_prob, awayMoneyline)) %>% 
   tab_spanner(label = "Betting",
               columns = c(formattedSpread, elo_different)) %>% 
-  cols_label(game_date = "Kickoff (Eastern)", home_team = "Team", home_elo = "Elo Rating", home_pred_win_prob = "Win Probability", home_conference = "Conference",
-             away_team = "Team", away_elo = "Elo Rating", away_pred_win_prob = "Win Probability", away_conference = "Conference",
+  cols_label(game_date = "Kickoff (Eastern)", home_team = "Team", home_elo = "Elo Rating", home_pred_win_prob = "Win Probability", 
+             homeMoneyline = "ML",
+             away_team = "Team", away_elo = "Elo Rating", away_pred_win_prob = "Win Probability", 
+             awayMoneyline = "ML",
              formattedSpread = "Spread", elo_different = "Elo Mismatch?") %>% 
   fmt_percent(columns = c(home_pred_win_prob, away_pred_win_prob), decimals = 1) %>% 
   fmt_number(columns = c(home_elo, away_elo), decimals = 0, use_seps = FALSE) %>% 
