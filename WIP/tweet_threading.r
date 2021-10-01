@@ -132,3 +132,51 @@ while(today() < today()+1){
   Sys.sleep(60*5)
   
 }
+
+
+# WIP staturdays threading ------------------------------------------------
+
+# Thread if necessary
+thread_char <- nchar(text)
+n_tweets <- ceiling(thread_char/280)
+avail_char <- 280-15 # Just playing it safe, and accounting for 11 characters for "@staturdays" threads
+starting_point <- 1L
+last_comma <- 279L
+
+i <- 1
+remaining_thread <- character()
+# Post Thread
+for (j in 1:n_tweets){
+  
+  message(current_time, ": posting tweet ", j, "/", n_tweets)
+  
+  tweet <- text
+  
+  # If there's more than one tweet in the thread, we need to subset the string using str_sub
+  if(n_tweets > 1){
+    
+    tweet <- case_when(j > 1 ~ paste0("@staturdays ", # If it's on tweet #2 or more, thread it
+                                      str_sub(remaining_thread, 
+                                              start = 1L, 
+                                              end = if_else(nchar(remaining_thread) < avail_char, 10000L, # If the characters in the remaining thread fit into the space available, take the entire remaining thread. Else, take the last comma within available characters
+                                                            str_locate(str_sub(remaining_thread, start = 1L, end = avail_char), pattern = "\\s$")[1]))), # last space before end of text
+                       # If it's on tweet  #1, just tweet the first tweet
+                       TRUE ~ str_sub(text, 
+                                      start = 1L, 
+                                      end = if_else(is.na(str_locate(str_sub(text, start = starting_point, end = starting_point + last_comma), pattern = "\\s")[1]) == T, 10000L, # If it can't find the last comma (end of tweet thread), set value to 10000 to avoid getting an NA
+                                                    str_locate(str_sub(text, start = starting_point, end = starting_point + last_comma), pattern = "\\s$")[1])))
+  }
+  
+  new_start <- nchar(tweet) + 1L
+  
+  # The remainder of the thread that's yet to be tweeted
+  remaining_thread <- str_sub(text, start = new_start, end = 10000L)
+  
+  # Tweet initial post to reply to with thread
+  post_tweet(status = tweet, token = tok)
+  
+  Sys.sleep(10)
+  
+  id <- rtweet::search_tweets("from:staturdays", n = 1, token = tok) %>% pull(status_id)
+  
+}
