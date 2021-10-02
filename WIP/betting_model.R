@@ -31,7 +31,7 @@ for(yr in 2014:2019){
   message("Done year ", yr)
   
 }
-plays <- get_plays(1, 15, 2014, 2019)
+plays <- fread("Data/plays_2014_2020.csv")
 lines <- tibble()
 for(yr in 2014:2019){
   
@@ -138,6 +138,7 @@ stats_prep <- stats_advanced %>%
 # Need to confirm that the rankings come out after that week is played.
 # i.e. Week 1 rankings should be used to predict Week 2 games.
 # If they come out before the week, they should be used to predict the same week
+# upon review this data doesn't look reliable so omitting
 rankings_prep <- rankings %>% 
   filter(poll %in% c("AP Top 25", 
                      "Playoff Committee Rankings")) %>% 
@@ -155,11 +156,45 @@ big_table1 <- games %>%
                  "away_points" = "awayScore"))
 
 big_table2 <- big_table1 %>% 
-  left_join(stats_advanced, by = c("home_team" = "team",
-                                   "season" = "season"-1))
+  left_join(stats_prep, by = c("home_team" = "team",
+                                   "season.x" = "join_year")) %>% 
+  left_join(stats_prep, by = c("away_team" = "team",
+                               "season.x" = "join_year"),
+            suffix = c("_home", ""))
+
+big_table3 <- big_table2 %>% 
+  left_join(ppa_prep, by = c("home_team" = "team",
+                             "season.x" = "join_year")) %>% 
+  left_join(ppa_prep, by = c("away_team" = "team",
+                             "season.x" = "join_year"),
+            suffix = c("_home", "_away")) %>% 
+  left_join(records_prep, by = c("home_team" = "team",
+                                 "season.x" = "join_year")) %>% 
+  left_join(records_prep, by = c("away_team" = "team",
+                                 "season.x" = "join_year"),
+            suffix = c("_home", "_away"))
 
 # These three can join with the same season as games
-recruiting, returning, talent
+big_table4 <- big_table3 %>% 
+  left_join(recruiting, by = c("home_team" = "team",
+                               "season.x" = "year")) %>% 
+  left_join(recruiting, by = c("away_team" = "team",
+                               "season.x" = "year"),
+            suffix = c("_home", "_away")) %>% 
+  left_join(returning, by = c("home_team" = "team",
+                               "season.x" = "season")) %>% 
+  left_join(returning, by = c("away_team" = "team",
+                               "season.x" = "season"),
+            suffix = c("_home", "_away")) %>% 
+  left_join(talent, by = c("home_team" = "school",
+                           "season.x" = "year")) %>% 
+  left_join(talent, by = c("away_team" = "school",
+                           "season.x" = "year"),
+            suffix = c("_home", "_away"))
+
+# Summarise plays into success rate, ppa/game over rolling past 8 games and join
+plays %>% 
+  add_success()
 
 # Cross-validate xgboost model --------------------------------------------
 
