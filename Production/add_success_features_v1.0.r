@@ -222,6 +222,54 @@ plays.master <- plays_temp_fast
 
 rm(plays_temp_fast)
 
+# Add 1/0 play results
+
+plays_tmp <- plays.master %>%
+  mutate(
+    pass_attempt = if_else(pass_rush == "Pass" &
+                             play_type != "Sack", 1, 0),
+    pass_completion = if_else(
+      play_type %in% c("Pass Reception", "Pass Completion", "Passing Touchdown"),
+      1,
+      0
+    ),
+    pass_touchdown = if_else(play_type == "Passing Touchdown", 1, 0),
+    pass_intercepted = if_else(
+      play_type %in% c(
+        "Pass Interception",
+        "Pass Interception Return",
+        "Interception Return Touchdown"
+      ),
+      1,
+      0
+    ),
+    passer_sacked = if_else(play_type == "Sack", 1, 0),
+    rush_touchdown = if_else(play_type == "Rushing Touchdown", 1, 0),
+    rush_attempt = if_else(pass_rush == "Rush", 1, 0),
+    pass_fumbled = if_else(
+      pass_rush == "Pass" &
+        play_type %in% c(
+          "Fumble Recovery (Opponent)",
+          "Fumble Recovery (Own)",
+          "Fumble Return Touchdown"
+        ),
+      1,
+      0
+    ),
+    rush_fumbled = if_else(
+      pass_rush == "Rush" &
+        play_type %in% c(
+          "Fumble Recovery (Opponent)",
+          "Fumble Recovery (Own)",
+          "Fumble Return Touchdown"
+        ),
+      1,
+      0
+    )
+  )
+
+plays.master <- plays_tmp
+rm(plays_tmp)
 
 
 message("Done")
