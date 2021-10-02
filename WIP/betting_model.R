@@ -80,16 +80,16 @@ for(yr in 2014:2019){
   message("Done year ", yr)
   
 }
-ppa <- tibble()
-for(yr in 2014:2019){
-  
-  ppa_url <- paste0("https://api.collegefootballdata.com/ppa/players/season?year=", as.character(yr))
-  p1 <- cfbd_api(ppa_url, key = my_key)
-  p1 <- p1
-  ppa <- rbind(ppa, p1)
-  message("Done year ", yr)
-  
-}
+# ppa <- tibble()
+# for(yr in 2014:2019){
+#   
+#   ppa_url <- paste0("https://api.collegefootballdata.com/ppa/players/season?year=", as.character(yr))
+#   p1 <- cfbd_api(ppa_url, key = my_key)
+#   p1 <- p1
+#   ppa <- rbind(ppa, p1)
+#   message("Done year ", yr)
+#   
+# }
 stats_advanced <- tibble()
 for(yr in 2014:2019){
   
@@ -126,8 +126,8 @@ rm(lines_tmp)
 # Prep for joining ---------
 
 # Join last years stats to this year's games for predictions
-ppa_prep <- ppa %>% 
-  mutate(join_year = season + 1L)
+# ppa_prep <- ppa %>% 
+#   mutate(join_year = season + 1L)
 
 records_prep <- records %>% 
   mutate(join_year = year + 1L)
@@ -162,12 +162,9 @@ big_table2 <- big_table1 %>%
                                "season.x" = "join_year"),
             suffix = c("_home", ""))
 
+#### Duplication starts here below. Something with joins is off. 
+#### PPA is by player, not team. Omit.
 big_table3 <- big_table2 %>% 
-  left_join(ppa_prep, by = c("home_team" = "team",
-                             "season.x" = "join_year")) %>% 
-  left_join(ppa_prep, by = c("away_team" = "team",
-                             "season.x" = "join_year"),
-            suffix = c("_home", "_away")) %>% 
   left_join(records_prep, by = c("home_team" = "team",
                                  "season.x" = "join_year")) %>% 
   left_join(records_prep, by = c("away_team" = "team",
@@ -192,9 +189,77 @@ big_table4 <- big_table3 %>%
                            "season.x" = "year"),
             suffix = c("_home", "_away"))
 
-# Summarise plays into success rate, ppa/game over rolling past 8 games and join
-plays %>% 
+# Summarise plays into success rate, ppa/game over rolling past 4 games and join
+# Note, currently grouping by offense but should group by home_team since the
+# rest of the table is grouped by home and away
+p2 <- plays %>% 
+  filter(year != 2020) %>% 
   add_success()
+
+p3 <- p2 %>%
+  group_by(game_id, offense) %>%
+  summarise(
+    completion_rate = sum(pass_completion, na.rm = TRUE) / sum(pass_attempt, na.rm = TRUE),
+    pass_touchdown_rate = sum(pass_touchdown, na.rm = TRUE) /
+      sum(pass_attempt, na.rm = TRUE),
+    interception_rate = sum(pass_intercepted, na.rm = TRUE) /
+      sum(pass_attempt, na.rm = TRUE),
+    sack_rate = sum(passer_sacked, na.rm = TRUE) / n(),
+    success_rate = sum(success, na.rm = TRUE) / n(),
+    pass_rate = sum(pass_attempt, na.rm = TRUE) / sum(
+      sum(pass_attempt, na.rm = TRUE),
+      sum(rush_attempt, na.rm = TRUE),
+      na.rm = TRUE
+    ),
+    rush_touchdown_rate = sum(rush_touchdown, na.rm = TRUE) /
+      sum(rush_attempt, na.rm = TRUE),
+    rush_rate = sum(rush_attempt, na.rm = TRUE) / sum(
+      sum(pass_attempt, na.rm = TRUE),
+      sum(rush_attempt, na.rm = TRUE),
+      na.rm = TRUE
+    ),
+    pass_fumble_rate = sum(pass_fumbled, na.rm = TRUE) /
+      sum(
+        sum(pass_attempt, na.rm = TRUE),
+        sum(passer_sacked, na.rm = TRUE),
+        na.rm = TRUE
+      ),
+    rush_fumble_rate = sum(rush_fumbled, na.rm = TRUE) /
+      sum(rush_attempt, na.rm = TRUE),
+    total_touchdown_rate = sum(
+      sum(pass_touchdown, na.rm = TRUE),
+      sum(rush_touchdown, na.rm = TRUE)
+    ) / sum(pass_attempt, rush_attempt, na.rm = TRUE),
+    avg_ppa = mean(ppa, na.rm = TRUE),
+    n = n(),
+    points_for = max(offense_score),
+    points_against = max(defense_score)
+  )
+
+# Get moving average of 4 previous games (note, this currently takes averages of averages on completion rate and other stats)
+p4 <- p3 %>% 
+  arrange(game_id) %>% 
+  group_by(offense) %>% 
+  mutate(across(.cols = -game_id, 
+                .fns = ~ zoo::rollapply(.x,
+                                        width = list(c(-4, -3, -2, -1)),
+                                        FUN = mean,
+                                        na.rm = TRUE,
+                                        fill = NA),
+                .names = "{.col}_ma_4")) %>% 
+  select(offense, game_id, contains("_ma_4")) %>% # Filter out stats from the current game since that should be hidden from the model
+  mutate(game_id = as.integer(str_sub(game_id, start = 4L))) # Remove "id_" for joining
+  
+rm(list = c("p2", "p3"))
+
+big_table5 <- big_table4 %>% 
+  left_join(p4, by = c("home_team" = "offense",
+                       "id" = "game_id")) %>% 
+  left_join(p4, by = c("away_team" = "offense",
+                       "id" = "game_id"),
+            suffix = c("_home", "_away"))
+
+# May want to add elo to give some idea of the quality of their opponents in wins/losses
 
 # Cross-validate xgboost model --------------------------------------------
 
