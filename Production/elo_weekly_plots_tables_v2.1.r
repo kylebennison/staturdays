@@ -600,6 +600,8 @@ win_probs_moneyline_1 <- win_probs_w_lines %>%
                                        TRUE ~ 0)) %>% 
   filter(is.na(homeMoneyline) == FALSE)
 
+# Calc expected value on Elo bets
+
 expected_value_tbl <- win_probs_moneyline_1 %>% 
   mutate(home_diff = home_pred_win_prob - home_implied_odds,
          away_diff = away_pred_win_prob - away_implied_odds,
@@ -611,6 +613,57 @@ expected_value_tbl <- win_probs_moneyline_1 %>%
                                     (as.double(awayMoneyline) + 100) / 10),
          home_exp_value = ((home_win_10d_bet - 10) * home_pred_win_prob) - (10 * 1-home_pred_win_prob),
          away_exp_value = ((away_win_10d_bet - 10) * away_pred_win_prob) - (10 * 1-away_pred_win_prob))
+
+# GT table
+library(gtExtras)
+
+exp_value_gt <- expected_value_tbl %>% 
+  filter(home_exp_value > 0 | away_exp_value > 0) %>% 
+  select(home_team, home_pred_win_prob, home_implied_odds, home_exp_value,
+         away_team, away_pred_win_prob, away_implied_odds, away_exp_value) %>% 
+  gt() %>% 
+  gt_theme_538() %>% 
+  fmt_currency(columns = c(home_exp_value, away_exp_value)) %>% 
+  fmt_percent(columns = c(home_pred_win_prob, home_implied_odds,
+                         away_pred_win_prob, away_implied_odds)) %>% 
+  data_color(columns = c(home_exp_value, away_exp_value), 
+             colors = scales::col_numeric(palette = colorRamp(colors = c("#d60d0d", "#FFFFFF", "#0dd686")), 
+                                          domain = NULL),
+             alpha = .7) %>% 
+  cols_label(home_team = "Home", home_pred_win_prob = "Elo WP",
+             home_implied_odds = "Implied WP", home_exp_value = "Expected Value",
+             away_team = "Away", away_pred_win_prob = "Elo WP",
+             away_implied_odds = "Implied WP", away_exp_value = "Expected Value") %>% 
+  tab_style( # Add a weighted line down the middle
+    style = list(
+      cell_borders(
+        sides = "left",
+        color = staturdays_colors("dark_blue"),
+        weight = px(3)
+      )
+    ),
+    locations = list(
+      cells_body(
+        columns = c(away_team)
+      )
+    )
+  ) %>% 
+  tab_header(title = "Positive Expected Value Bets",
+             subtitle = html("Expected <span style='color: #0dd686; font-weight: bold'>Profit</span>/<span style='color: #d60d0d; font-weight: bold'>Loss</span> Based on $10 Bet<br>",
+                             max(upcoming.games$season), "Week", week_of_upcoming_games)) %>% 
+  tab_source_note(source_note = "@kylebeni012 for @staturdays | Data: @cfb_data") %>% 
+  tab_footnote(footnote = "Expected value based on profit or loss from a $10 bet",
+               locations = cells_column_labels(
+                 columns = c(home_exp_value, away_exp_value)
+               )) %>% 
+  tab_footnote(footnote = "WP = Win Probability",
+               locations = cells_column_labels(
+                 columns = c(home_pred_win_prob, home_implied_odds)
+               ))
+
+gtsave(data = exp_value_gt, 
+       filename = paste0(year(today()), "_exp_value_bet_", week_of_upcoming_games, "_today_", str_replace_all(now(), ":", "."), ".png"),
+       path = "R Plots/")
 
 win_probs_moneyline_1 %>% 
   mutate(diff_from_vegas = abs(home_pred_win_prob - home_implied_odds)) %>% 
