@@ -134,6 +134,7 @@ ggsave(filename = file,
 
 s_rates <- plays %>% 
   filter(game_id == game_ids[i]) %>% 
+  filter(play_type %in% scrimmage_plays_all) %>% 
   group_by(offense) %>% 
   summarise(success_rate = mean(success)) %>% 
   mutate(success_rate = scales::percent(success_rate))
@@ -141,9 +142,15 @@ s_rates <- plays %>%
 ppas <- cum_sum_qb_plot_data %>% 
   filter(game_id == game_ids[i]) %>% 
   group_by(player) %>% 
+  mutate(n = n()) %>% 
+  group_by(player, offense) %>% 
   slice_max(order_by = id.x, n = 1L) %>% 
-  select(player, cum_ppa) %>% 
-  mutate(cum_ppa = round(cum_ppa, digits = 2))
+  select(player, cum_ppa, n) %>% 
+  group_by(offense) %>% 
+  slice_max(order_by = n, n = 1L) %>% 
+  mutate(cum_ppa = round(cum_ppa, digits = 2)) %>% 
+  ungroup() %>% 
+  select(player, cum_ppa)
 
 text <- plays %>% 
   left_join(team_colors, by = c("home" = "school")) %>% 
