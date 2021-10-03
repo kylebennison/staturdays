@@ -101,13 +101,13 @@ for(yr in 2014:2019){
   
 }
 
-rm(list = c("p1", "r1", "s1", "t1", "b1"))
+rm(list = c("r1", "s1", "t1", "b1"))
 
 
 # Clean any data ----------------------------------------------------------
 
 # Unnest columns
-rankings <- rankings %>% unnest(cols = polls) %>% unnest(cols = ranks)
+# rankings <- rankings %>% unnest(cols = polls) %>% unnest(cols = ranks)
 
 # Summarise a single line per game
 lines_tmp <- lines %>% 
@@ -139,11 +139,11 @@ stats_prep <- stats_advanced %>%
 # i.e. Week 1 rankings should be used to predict Week 2 games.
 # If they come out before the week, they should be used to predict the same week
 # upon review this data doesn't look reliable so omitting
-rankings_prep <- rankings %>% 
-  filter(poll %in% c("AP Top 25", 
-                     "Playoff Committee Rankings")) %>% 
-  mutate(consensus_rank == mean(rank, na.rm = TRUE),
-         join_week = week + 1L)
+# rankings_prep <- rankings %>% 
+#   filter(poll %in% c("AP Top 25", 
+#                      "Playoff Committee Rankings")) %>% 
+#   mutate(consensus_rank == mean(rank, na.rm = TRUE),
+#          join_week = week + 1L)
 
 # Build a giant table -----------------------------------------------------
 
@@ -160,9 +160,8 @@ big_table2 <- big_table1 %>%
                                    "season.x" = "join_year")) %>% 
   left_join(stats_prep, by = c("away_team" = "team",
                                "season.x" = "join_year"),
-            suffix = c("_home", ""))
+            suffix = c("_home", "_away"))
 
-#### Duplication starts here below. Something with joins is off. 
 #### PPA is by player, not team. Omit.
 big_table3 <- big_table2 %>% 
   left_join(records_prep, by = c("home_team" = "team",
@@ -190,11 +189,12 @@ big_table4 <- big_table3 %>%
             suffix = c("_home", "_away"))
 
 # Summarise plays into success rate, ppa/game over rolling past 4 games and join
-# Note, currently grouping by offense but should group by home_team since the
-# rest of the table is grouped by home and away
+# Note, currently grouping by offense
 p2 <- plays %>% 
   filter(year != 2020) %>% 
   add_success()
+
+### across(everything(), .fns = sum)
 
 p3 <- p2 %>%
   group_by(game_id, offense) %>%
@@ -260,9 +260,183 @@ big_table5 <- big_table4 %>%
             suffix = c("_home", "_away"))
 
 # May want to add elo to give some idea of the quality of their opponents in wins/losses
+elo <- get_elo(2014,2019)
 
+# Mutate week for joining so it's pre-game elo
+elo <- elo %>% 
+  group_by(team) %>% 
+  mutate(join_date = lead(date, n = 1L, order_by = date)) # get next week's game date.
+
+big_table6 <- big_table5 %>% 
+  mutate(start_date = lubridate::as_datetime(start_date)) %>% 
+  left_join(elo, by = c("home_team" = "team",
+                        "start_date" = "join_date",
+                        "season.x" = "season")) %>% 
+  left_join(elo, by = c("away_team" = "team",
+                        "start_date" = "join_date",
+                        "season.x" = "season"),
+            suffix = c("_home", "_away"))
+
+rm(list = c(paste0("big_table", 1:5)))
 # Cross-validate xgboost model --------------------------------------------
+# Prep data
+prepped_table <- big_table6 %>% 
+  filter(season.x != 2014) %>% # remove 2014 since it doesn't have 2013 data
+  ungroup() %>% 
+  mutate(response_home_win = if_else(home_points > away_points, 1, 0),
+         response_total_points = home_points + away_points,
+         response_home_spread = away_points - home_points)
 
+# NOTE: right now including pre-game line and spread as predictors, but in the
+# future may want to omit
+# Predict Winner
+x.train <- prepped_table %>% 
+  filter(season.x != 2019) %>% 
+  select(-c(id, home_points, away_points, home_line_scores, away_line_scores,
+            attendance, home_post_win_prob, away_post_win_prob,
+            excitement_index,
+            avg_spread, avg_over_under,
+            response_home_win,
+            response_total_points,
+            response_home_spread)) %>% 
+  select(where(is.numeric)) %>% 
+  as.matrix()
+
+x.train.response <- prepped_table %>% 
+  filter(season.x != 2019) %>% 
+  select(response_home_win) %>% 
+  as.matrix()
+
+x.train.leftover <- prepped_table %>% 
+  filter(season.x != 2019) %>% 
+  select(c(id, home_points, away_points, home_line_scores, away_line_scores,
+            attendance, home_post_win_prob, away_post_win_prob,
+            excitement_index,
+            avg_spread, avg_over_under,
+           response_home_win,
+           response_total_points,
+           response_home_spread),
+         !where(is.numeric))
+
+x.test <- prepped_table %>% 
+  filter(season.x == 2019) %>% 
+  select(-c(id, home_points, away_points, home_line_scores, away_line_scores,
+            attendance, home_post_win_prob, away_post_win_prob,
+            excitement_index,
+            avg_spread, avg_over_under,
+            response_home_win,
+            response_total_points,
+            response_home_spread)) %>% 
+  select(where(is.numeric)) %>% 
+  as.matrix()
+
+x.test.leftover <- prepped_table %>% 
+  filter(season.x == 2019) %>% 
+  select(c(id, home_points, away_points, home_line_scores, away_line_scores,
+           attendance, home_post_win_prob, away_post_win_prob,
+           excitement_index,
+           avg_spread, avg_over_under,
+           response_home_win,
+           response_total_points,
+           response_home_spread),
+         !where(is.numeric))
+
+library(xgboost)
+
+dtrain <- xgb.DMatrix(x.train,label=x.train.response,missing=NA)
+dtest <- xgb.DMatrix(x.test,missing=NA)
+
+# Use cross validation 
+param <- list(  objective           = "binary:logistic",
+                gamma               = 0.04, #.02
+                booster             = "gbtree",
+                eval_metric         = "auc",
+                eta                 = 0.06,
+                max_depth           = 15,
+                min_child_weight    = 2,
+                subsample           = 1,
+                colsample_bytree    = 1,
+                tree_method = 'hist'
+)
+
+#run this for training, otherwise skip
+XGBm <- xgb.cv(params=param,nfold=5,nrounds=100,missing=NA,data=dtrain,print_every_n=10, early_stopping_rounds = 25)
+
+# Tune paramaters
+
+results <- tibble()
+
+best_param = list()
+best_rmse = Inf
+best_rmse_index = 0
+for(i in 1:25){
+  message("Starting round ", i)
+  param <- list(  objective           = "binary:logistic",
+                  gamma               = runif(1, 0, .2), #.02
+                  booster             = "gbtree",
+                  eval_metric         = "auc",
+                  eta                 = runif(1, 0.01, .3),
+                  max_depth           = sample(5:25, 1),
+                  min_child_weight    = 2,
+                  subsample           = runif(1, .6, 1),
+                  colsample_bytree    = runif(1, .5, 1),
+                  tree_method = 'hist'
+  )
+  
+  mdcv <- xgb.cv(params=param,nfold=5,nrounds=100,missing=NA,data=dtrain,print_every_n=10, early_stopping_rounds = 25)
+  
+  min_rmse_index  <-  mdcv$best_iteration
+  min_rmse <-  mdcv$evaluation_log[min_rmse_index]$test_auc_mean
+  
+  if (min_rmse < best_rmse) {
+    best_rmse <- min_rmse
+    best_rmse_index <- min_rmse_index
+    best_param <- param
+  }
+}
+
+# The best index (min_rmse_index) is the best "nround" in the model
+nround = best_rmse_index
+
+#train the full model
+watchlist <- list( train = dtrain)
+XGBm <- xgb.train( params=best_param,nrounds=nround,missing=NA,data=dtrain,watchlist=watchlist,print_every_n=100)
+
+# Predict winners
+res <- x.test %>% as_tibble() %>% cbind(x.test.leftover)
+
+res$pred_home_wp <- predict(XGBm, newdata = dtest)
+
+res %>% 
+  mutate(bucket_pred = round(pred_home_wp, digits = 2)) %>% 
+  group_by(bucket_pred) %>% 
+  summarise(actual_home_res = mean(response_home_win, na.rm = TRUE),
+            n = n()) %>% 
+  ggplot(aes(x = bucket_pred, y = actual_home_res)) +
+  geom_point(alpha = .1) +
+  geom_abline(linetype = 2, color = "red")
+
+library(pROC)
+
+roc <- pROC::roc(res$response_home_win, res$pred_home_wp)
+auc <- auc(roc)
+
+ggroc(roc) +
+  geom_text(label = paste0("AUC of ", round(auc, 2)),
+            aes(x = .5, y = .5))
+
+brier <- mean((res$pred_home_wp - res$response_home_win)^2)
+mean(brier)
+
+xgb.importance(model = XGBm)
+
+### So first pass is bad. Brier of .175. Small sample size but still not great.
+# Need to look at what's useful and what's not, and reeval how much moving avg.
+# data to include. Right now it's 4. maybe try 8.
+
+# Predict total points
+
+# Predict spread
 
 # Apply model to get predicted WP vs. implied odds ------------------------
 
