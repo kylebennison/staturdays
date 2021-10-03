@@ -434,7 +434,137 @@ xgb.importance(model = XGBm)
 # Need to look at what's useful and what's not, and reeval how much moving avg.
 # data to include. Right now it's 4. maybe try 8.
 
-# Predict total points
+
+# Predict total points ----------------------------------------------------
+
+x.train <- prepped_table %>% 
+  filter(season.x != 2019) %>% 
+  select(-c(id, home_points, away_points, home_line_scores, away_line_scores,
+            attendance, home_post_win_prob, away_post_win_prob,
+            excitement_index,
+            avg_spread, avg_over_under,
+            response_home_win,
+            response_total_points,
+            response_home_spread)) %>% 
+  select(where(is.numeric)) %>% 
+  as.matrix()
+
+x.train.response <- prepped_table %>% 
+  filter(season.x != 2019) %>% 
+  select(response_total_points) %>% 
+  as.matrix()
+
+x.train.leftover <- prepped_table %>% 
+  filter(season.x != 2019) %>% 
+  select(c(id, home_points, away_points, home_line_scores, away_line_scores,
+           attendance, home_post_win_prob, away_post_win_prob,
+           excitement_index,
+           avg_spread, avg_over_under,
+           response_home_win,
+           response_total_points,
+           response_home_spread),
+         !where(is.numeric))
+
+x.test <- prepped_table %>% 
+  filter(season.x == 2019) %>% 
+  select(-c(id, home_points, away_points, home_line_scores, away_line_scores,
+            attendance, home_post_win_prob, away_post_win_prob,
+            excitement_index,
+            avg_spread, avg_over_under,
+            response_home_win,
+            response_total_points,
+            response_home_spread)) %>% 
+  select(where(is.numeric)) %>% 
+  as.matrix()
+
+x.test.leftover <- prepped_table %>% 
+  filter(season.x == 2019) %>% 
+  select(c(id, home_points, away_points, home_line_scores, away_line_scores,
+           attendance, home_post_win_prob, away_post_win_prob,
+           excitement_index,
+           avg_spread, avg_over_under,
+           response_home_win,
+           response_total_points,
+           response_home_spread),
+         !where(is.numeric))
+
+dtrain <- xgb.DMatrix(x.train,label=x.train.response,missing=NA)
+dtest <- xgb.DMatrix(x.test,missing=NA)
+
+# Use cross validation 
+param <- list(  objective           = "reg:squarederror",
+                gamma               = 0.04, #.02
+                booster             = "gbtree",
+                eval_metric         = "rmse",
+                eta                 = 0.06,
+                max_depth           = 15,
+                min_child_weight    = 2,
+                subsample           = 1,
+                colsample_bytree    = 1,
+                tree_method = 'hist'
+)
+
+#run this for training, otherwise skip
+XGBm <- xgb.cv(params=param,nfold=5,nrounds=100,missing=NA,data=dtrain,print_every_n=10, early_stopping_rounds = 25)
+
+# Tune paramaters
+
+results <- tibble()
+
+best_param = list()
+best_rmse = Inf
+best_rmse_index = 0
+for(i in 1:25){
+  message("Starting round ", i)
+  param <- list(  objective           = "binary:logistic",
+                  gamma               = runif(1, 0, .2), #.02
+                  booster             = "gbtree",
+                  eval_metric         = "auc",
+                  eta                 = runif(1, 0.01, .3),
+                  max_depth           = sample(5:25, 1),
+                  min_child_weight    = 2,
+                  subsample           = runif(1, .6, 1),
+                  colsample_bytree    = runif(1, .5, 1),
+                  tree_method = 'hist'
+  )
+  
+  mdcv <- xgb.cv(params=param,nfold=5,nrounds=100,missing=NA,data=dtrain,print_every_n=10, early_stopping_rounds = 25)
+  
+  min_rmse_index  <-  mdcv$best_iteration
+  min_rmse <-  mdcv$evaluation_log[min_rmse_index]$test_auc_mean
+  
+  if (min_rmse < best_rmse) {
+    best_rmse <- min_rmse
+    best_rmse_index <- min_rmse_index
+    best_param <- param
+  }
+}
+
+# The best index (min_rmse_index) is the best "nround" in the model
+nround = best_rmse_index
+
+#train the full model
+watchlist <- list( train = dtrain)
+XGBm <- xgb.train( params=best_param,nrounds=nround,missing=NA,data=dtrain,watchlist=watchlist,print_every_n=100)
+
+# Predict winners
+res <- x.test %>% as_tibble() %>% cbind(x.test.leftover)
+
+res$pred_total_points <- predict(XGBm, newdata = dtest)
+
+res %>% 
+  ggplot(aes(x = response_total_points, y = pred_total_points)) +
+  geom_point(alpha = .1) +
+  geom_abline(linetype = 2, color = "red") +
+  xlim(0,100) +
+  ylim(0, 100)
+
+rmse <- sqrt(mean((res$pred_total_points - res$response_total_points)^2))
+
+xgb.importance(model = XGBm)
+
+#' Off by an average of 14 points (i think), or 17.5. not sure.
+#' mean(abs(residual diff)) == 14 while the rmse above is 17.5
 
 # Predict spread
 
