@@ -606,10 +606,10 @@ expected_value_tbl <- win_probs_moneyline_1 %>%
   mutate(home_diff = home_pred_win_prob - home_implied_odds,
          away_diff = away_pred_win_prob - away_implied_odds,
          home_win_10d_bet = if_else(str_detect(homeMoneyline, "-") == TRUE,
-                                    (as.double(homeMoneyline) - 100) / (abs(as.double(homeMoneyline)) / 10),
+                                    (abs(as.double(homeMoneyline) - 100)) / (abs(as.double(homeMoneyline)) / 10),
                                     (as.double(homeMoneyline) + 100) / 10),
          away_win_10d_bet = if_else(str_detect(awayMoneyline, "-") == TRUE,
-                                    (as.double(awayMoneyline) - 100) / (abs(as.double(awayMoneyline)) / 10),
+                                    (abs(as.double(awayMoneyline) - 100)) / (abs(as.double(awayMoneyline)) / 10),
                                     (as.double(awayMoneyline) + 100) / 10),
          home_exp_value = ((home_win_10d_bet - 10) * home_pred_win_prob) - (10 * (1-home_pred_win_prob)),
          away_exp_value = ((away_win_10d_bet - 10) * away_pred_win_prob) - (10 * (1-away_pred_win_prob)))
