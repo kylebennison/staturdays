@@ -17,45 +17,7 @@ library(data.table)
 
 # Required Themes and Data ------------------------------------------------
 
-#Staturdays Colors
-
-staturdays_col_list <- c(
-  lightest_blue = "#5c6272",
-  lighter_blue = "#4c5872",
-  light_blue = "#394871",
-  medium_blue = "#22345a",
-  dark_blue = "#041e42",
-  orange = "#de703b",
-  sign = "#1e1e1e",
-  white = "#FFFFFF"
-)
-
-staturdays_palette <- c("#5c6272", "#ffffff", "#de703b")
-
-staturdays_ramp <- function(x) rgb(colorRamp(c(staturdays_palette))(x), maxColorValue = 255)
-
-staturdays_colors <- function(...) {
-  cols <- c(...)
-  
-  if (is.null(cols))
-    return (staturdays_col_list)
-  
-  staturdays_col_list[cols]
-}
-
-staturdays_theme <- theme(plot.caption = element_text(size = 12, hjust = 1, color = staturdays_colors("orange")), 
-                          plot.title = element_text(color = staturdays_colors("dark_blue"), size = 30, face = "bold"),
-                          plot.subtitle = element_text(color = staturdays_colors("light_blue"), size = 20),
-                          axis.text = element_text(color = staturdays_colors("lightest_blue"), size = 14),
-                          axis.title = element_text(color = staturdays_colors("lighter_blue"), size = 16, face = "bold"),
-                          legend.title = element_text(color = staturdays_colors("lighter_blue"), size = 16, face = "bold"),
-                          legend.text = element_text(color = staturdays_colors("lightest_blue"), size = 14),
-                          panel.background = element_blank(),
-                          panel.grid = element_line(color = "#d6d6d6"),
-                          panel.grid.minor = element_blank(),
-                          axis.ticks = element_line(color = "#d6d6d6")
-)
-
+source("Production/source_everything.r")
 
 # Read in all data --------------------------------------------------------
 
@@ -66,16 +28,16 @@ receiving_url <- "https://api.collegefootballdata.com/stats/player/season?season
 passing.master <- tibble()
 rushing.master <- tibble()
 receiving.master <- tibble()
-for (yr in 2004:2020){
+for (yr in 2004:2021){
   message("Running Year ", yr)
   full_pass_url <- paste0(passing_url, as.character(yr))
   full_rush_url <- paste0(rushing_url, as.character(yr))
   full_receiving_url <- paste0(receiving_url, as.character(yr))
-  passing <- fromJSON(full_pass_url) %>% tibble()
+  passing <- cfbd_api(full_pass_url, my_key) %>% tibble()
   passing <- passing %>% mutate(year = yr)
-  rushing <- fromJSON(full_rush_url) %>% tibble()
+  rushing <- cfbd_api(full_rush_url, my_key) %>% tibble()
   rushing <- rushing %>% mutate(year = yr)
-  receiving <- fromJSON(full_receiving_url) %>% tibble()
+  receiving <- cfbd_api(full_receiving_url, my_key) %>% tibble()
   receiving <- receiving %>% mutate(year = yr)
   passing.master <- rbind(passing.master, passing)
   rushing.master <- rbind(rushing.master, rushing)
@@ -84,11 +46,11 @@ for (yr in 2004:2020){
 
 teams_url <- "https://api.collegefootballdata.com/records?year="
 teams.master <- tibble()
-for (yr in 2004:2020){
+for (yr in 2004:2021){
   message("Running Year ", yr)
   full_team_url <- paste0(teams_url, as.character(yr))
-  teams <- fromJSON(full_team_url) %>% tibble()
-  teams <- data.table(teams)
+  teams <- cfbd_api(full_team_url, my_key) %>% tibble()
+  # teams <- data.table::data.table(teams)
   teams <- teams %>% mutate(year = yr) %>% 
     select(year, team, total.games, total.wins) %>% 
     mutate(winPerc = total.wins/total.games)
@@ -178,6 +140,7 @@ heisman_stats <- joined_stats %>%
                                     year == 2017 & playerId == "550373" ~ 1,
                                     year == 2018 & playerId == "3917315" ~ 1,
                                     year == 2019 & playerId == "3915511" ~ 1,
+                                    year == 2020 & playerId == "4241478" ~ 1,
                                     TRUE ~ 0
   ))
 
@@ -223,8 +186,8 @@ ind <- sample(2, nrow(heisman_stats), replace = TRUE, prob = c(0.6, 0.4))
 #ep_train <- heisman_stats[ind == 1,] %>% ungroup()
 #ep_test <- heisman_stats[ind == 2,] %>% ungroup()
 
-ep_train <- heisman_stats %>% filter(year!=2020) %>% ungroup()
-ep_test <- heisman_stats %>% filter(year==2020)%>% ungroup()
+ep_train <- heisman_stats %>% filter(year!=2021) %>% ungroup()
+ep_test <- heisman_stats %>% filter(year==2021)%>% ungroup()
 
 
 # Build Model
@@ -246,9 +209,30 @@ ep_test %>%
   ggplot(aes(x = as.factor(heisman_winner), y = heisman_prob)) +
   geom_point(alpha = 0.1)
 
-ep_test %>% 
-  ggplot(aes(x = YDS_pass)) +
-  geom_point(aes(y = heisman_prob, size = as.factor(heisman_winner)), colour = "blue", alpha = 0.1)
+# Plot this year's projected winners
+ep_test %>%
+  ggplot(aes(x = total_TDsperGame, y = heisman_prob)) +
+  geom_point(colour = staturdays_colors("orange"), alpha = 0.1,
+             size = 2) +
+  ggrepel::geom_text_repel(aes(label = if_else(
+    heisman_prob > .25, paste0(player, " - ", position), ""
+  ), size = heisman_prob),
+  color = staturdays_colors("dark_blue")) +
+  staturdays_theme +
+  labs(x = "TDs per Game",
+       y = "Heisman Odds",
+       title = "Way too early Heisman watch",
+       subtitle = "Independent Heisman probabilities through five weeks") +
+  scale_y_continuous(labels = scales::percent) +
+  theme(legend.position = "none")
+
+ggsave(filename = paste0("heisman_", lubridate::today(), ".jpg"),
+       plot = last_plot(),
+       path = "R Plots/",
+       width = 400,
+       height = 200,
+       dpi = 300,
+       units = "mm")
 
 library(pROC)
 heis_roc <- roc(ep_test$heisman_winner, predict(heisman_model, newdata = ep_test))
