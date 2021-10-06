@@ -233,7 +233,8 @@ p3 <- p2 %>%
     avg_ppa = mean(ppa, na.rm = TRUE),
     n = n(),
     points_for = max(offense_score),
-    points_against = max(defense_score)
+    points_against = max(defense_score),
+    won_game = if_else(max(offense_score) > max(defense_score), 1, 0)
   )
 
 # Get moving average of 4 previous games (note, this currently takes averages of averages on completion rate and other stats)
@@ -288,6 +289,10 @@ big_table7 <- big_table6 %>%
          home_elo_wp = calc_expected_score(elo_rating_home + if_else(neutral_site == TRUE, 0, 55),
                                            elo_rating_away))
 
+# Get avg elo of last 4 opponents, and average win rate in last 4 games
+big_table8 <- big_table7 %>% 
+  
+
 rm(list = c(paste0("big_table", 1:6)))
 # Cross-validate xgboost model --------------------------------------------
 # Prep data
@@ -301,6 +306,23 @@ prepped_table <- big_table7 %>%
 # NOTE: right now including pre-game line and spread as predictors, but in the
 # future may want to omit
 # Predict Winner
+
+# pass 2 ------------------------------------------------------------------
+prepped_table %>% 
+  filter(season.x != 2019) %>% 
+  ### Do one-hot encoding here
+  mutate(value = 1) %>% 
+  spread(c(neutral_site, conference_game), value, fill = 0) %>% 
+  ### finish one-hot encoding
+  select(avg_ppa_ma_4_home, avg_ppa_ma_4_away,
+         home_elo_adv, home_elo_wp,
+         if_else(neutral_site == TRUE, 1, 0),
+         if_else(conference_game == TRUE, 1, 0))
+
+# pass 1 ------------------------------------------------------------------
+
+
+
 x.train <- prepped_table %>% 
   filter(season.x != 2019) %>% 
   select(-c(id, home_points, away_points, home_line_scores, away_line_scores,
