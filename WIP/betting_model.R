@@ -277,10 +277,21 @@ big_table6 <- big_table5 %>%
                         "season.x" = "season"),
             suffix = c("_home", "_away"))
 
-rm(list = c(paste0("big_table", 1:5)))
+calc_expected_score <- function(team_rating, opp_team_rating){
+  quotient_home <- 10^((team_rating)/400)
+  quotient_away <- 10^((opp_team_rating)/400)
+  return(expected_score_home <- quotient_home / (quotient_home + quotient_away))
+}
+
+big_table7 <- big_table6 %>% 
+  mutate(home_elo_adv = elo_rating_home + if_else(neutral_site == TRUE, 0, 55) - elo_rating_away,
+         home_elo_wp = calc_expected_score(elo_rating_home + if_else(neutral_site == TRUE, 0, 55),
+                                           elo_rating_away))
+
+rm(list = c(paste0("big_table", 1:6)))
 # Cross-validate xgboost model --------------------------------------------
 # Prep data
-prepped_table <- big_table6 %>% 
+prepped_table <- big_table7 %>% 
   filter(season.x != 2014) %>% # remove 2014 since it doesn't have 2013 data
   ungroup() %>% 
   mutate(response_home_win = if_else(home_points > away_points, 1, 0),
