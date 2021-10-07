@@ -244,7 +244,7 @@ win_loss_gt <- win_loss_tbl %>%
 
 gtsave(data = win_loss_gt, 
        filename = paste0("sim_win_loss_tbl_", str_replace_all(now(), ":", "."), conf_name, ".png"),
-       path = "C:/Users/drewb/Desktop/")
+       path = "R Plots/")
 
 
 
@@ -274,6 +274,26 @@ ggsave(plot = last_plot(),
        width = 400,
        units = "mm",
        dpi = 300,
-       path = "C:/Users/drewb/Desktop/")
+       path = "R Plots/")
 
 }
+
+win_loss_tbl %>% 
+  filter(games == 12, prob_undefeated > 0) %>% 
+  ggplot(aes(x = prob_undefeated, y = reorder(team, prob_undefeated))) +
+  geom_col(fill = staturdays_colors("dark_blue")) +
+  staturdays_theme +
+  theme(axis.title = element_blank()) + 
+  labs(title = "Probability of Going Undefeated",
+       subtitle = paste0("Through ", max(already_played$week), " Weeks")) +
+  scale_x_continuous(labels = scales::percent)
+
+ggsave(plot = last_plot(),
+       filename = paste0(today(), "_",
+                         "undefeated_prob",
+                         ".jpg"),
+       height = 200,
+       width = 400,
+       units = "mm",
+       dpi = 300,
+       path = "R Plots/")
