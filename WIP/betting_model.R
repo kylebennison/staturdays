@@ -194,6 +194,25 @@ p2 <- plays %>%
   filter(year != 2020) %>% 
   add_success()
 
+# Add elo so we can get moving average elo of opponent
+elo <- get_elo(2014, 2019)
+
+# Mutate week for joining so it's pre-game elo
+elo <- elo %>% 
+  group_by(team) %>% 
+  mutate(join_date = lead(date, n = 1L, order_by = date)) # get next week's game date.
+
+p2_5 <- p2 %>% 
+  left_join(games, by = c("game_id" = "id")) # Get game start_time info for joining to elo
+  mutate(start_date = lubridate::as_datetime(start_date)) %>% 
+  left_join(elo, by = c("home_team" = "team",
+                        "start_date" = "join_date",
+                        "season.x" = "season")) %>% 
+  left_join(elo, by = c("away_team" = "team",
+                        "start_date" = "join_date",
+                        "season.x" = "season"),
+            suffix = c("_home", "_away"))
+
 ### across(everything(), .fns = sum)
 
 p3 <- p2 %>%
