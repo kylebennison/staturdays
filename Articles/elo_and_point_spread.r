@@ -18,7 +18,7 @@ games_elo <- games %>%
 
 ge2 <- games_elo %>%
   mutate(home_elo_adv = elo_rating_home + 55 - elo_rating_away,
-         final_home_spread = home_points - away_points)
+         final_home_spread = away_points - home_points)
 
 # Plot relationship between elo and point spread
 ge2 %>% 
@@ -41,3 +41,14 @@ summary(model)
 #' Note, if i exclude the 55 elo point margin, it adds it into the
 #' intercept anyway as a 3.59 point intercept. So our home-field adv.
 #' may actually be too low.
+#' 
+
+ge3 <- ge2 %>% mutate(alt_elo_adv = home_pregame_elo - away_pregame_elo)
+
+model_me <- lm(final_home_spread ~ home_elo_adv, data = ge2) # 17.33, 106 sig
+
+model_cfb <- lm(final_home_spread ~ alt_elo_adv, data = ge3) # 16.53, 100 sig
+
+model_combo <- lm(final_home_spread ~ home_elo_adv + alt_elo_adv, ge3) # 16.43, 37 sig to his, 14 to ours, 18 to a 2.8 hfa int.
+
+saveRDS(model_combo, file = "WIP/elo_combo_spread_model.rds")
