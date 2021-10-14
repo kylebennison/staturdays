@@ -51,4 +51,20 @@ model_cfb <- lm(final_home_spread ~ alt_elo_adv, data = ge3) # 16.53, 100 sig
 
 model_combo <- lm(final_home_spread ~ home_elo_adv + alt_elo_adv, ge3) # 16.43, 37 sig to his, 14 to ours, 18 to a 2.8 hfa int.
 
-saveRDS(model_combo, file = "WIP/elo_combo_spread_model.rds")
+saveRDS(model_combo, file = "Production Models/elo_combo_spread_model.rds")
+
+# Calculate Confidence Interval
+
+# Calc t score
+qt(p = .025, df = model_combo$df.residual, lower.tail = FALSE)
+margin_error <- 16.42 * 1.96
+
+# Calc range of outcomes
+ge4 <- ge3 %>% 
+  mutate(pred_spread = predict(model_combo, newdata = ge3),
+         alt_upper_95 = pred_spread + margin_error,
+         alt_lower_95 = pred_spread - margin_error)
+
+# Filter only spreads where outcomes of upper and lower confidence are the same
+ge4 %>% 
+  filter(sign(alt_upper_95) == sign(alt_lower_95))
