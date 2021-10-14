@@ -253,6 +253,7 @@ p3 <- p2 %>%
     n = n(),
     points_for = max(offense_score),
     points_against = max(defense_score),
+    home_spread = points_for - points_against,
     won_game = if_else(max(offense_score) > max(defense_score), 1, 0)
   )
 
