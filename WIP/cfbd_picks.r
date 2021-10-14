@@ -1,7 +1,7 @@
 # Predict upcoming game spreads
 source("Production/source_everything.r")
 
-model <- readRDS(file = "WIP/elo_combo_spread_model.rds")
+model <- readRDS(file = "Production Models/elo_combo_spread_model.rds")
 
 elo <- get_elo(2021, 2021)
 
@@ -11,9 +11,8 @@ e2 <- elo %>%
   group_by(team) %>% 
   slice_max(order_by = date, n = 1L)
 
-week_of_games_just_played <- games %>% 
-  filter(is.na(home_points) == FALSE) %>% 
-  slice_max(order_by = week, n = 1L) %>% 
+week_of_games_just_played <- elo %>% 
+  slice_max(order_by = date, n = 1L) %>% 
   pull(week) %>% 
   unique()
 
@@ -34,4 +33,4 @@ predictions <- games_elo %>%
   rename(home = home_team,
          away = away_team)
 
-data.table::fwrite(predictions, file = "predictions.csv")
+data.table::fwrite(predictions, file = "Data/predictions.csv")
