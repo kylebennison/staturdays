@@ -30,6 +30,7 @@ current_week <- max_week + 1L
 current_year <- max(elo$season)
 plays <- get_plays(current_week, current_week, current_year, current_year)
 plays <- plays %>% add_success()
+games <- get_games(current_year, current_year, current_week, current_week)
 
 # Cumulative QB PPA
 
@@ -152,6 +153,14 @@ ppas <- cum_sum_qb_plot_data %>%
   ungroup() %>% 
   select(player, cum_ppa)
 
+home_score <- games %>% 
+  filter(id == game_ids[i]) %>% 
+  pull(home_points)
+
+away_score <- games %>% 
+  filter(id == game_ids[i]) %>% 
+  pull(away_points)
+
 text <- plays %>% 
   left_join(team_colors, by = c("home" = "school")) %>% 
   left_join(team_colors, by = c("away" = "school"), suffix = c(".home", ".away")) %>% 
@@ -160,13 +169,9 @@ text <- plays %>%
   slice_max(id.x, n = 1L) %>% 
   mutate(tweet_text = paste0(away,
                              " ",
-                            if_else(away == offense, 
-                                          offense_score,
-                                          defense_score), 
+                            away_score, 
                             "-", 
-                            if_else(home == offense, 
-                                    offense_score,
-                                    defense_score),
+                            home_score,
                             " ",
                             home,
                             "\n\n",
