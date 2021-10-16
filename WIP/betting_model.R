@@ -202,20 +202,36 @@ elo <- elo %>%
   group_by(team) %>% 
   mutate(join_date = lead(date, n = 1L, order_by = date)) # get next week's game date.
 
-p2_5 <- p2 %>% 
-  left_join(games, by = c("game_id" = "id")) # Get game start_time info for joining to elo
-  mutate(start_date = lubridate::as_datetime(start_date)) %>% 
-  left_join(elo, by = c("home_team" = "team",
-                        "start_date" = "join_date",
-                        "season.x" = "season")) %>% 
-  left_join(elo, by = c("away_team" = "team",
-                        "start_date" = "join_date",
-                        "season.x" = "season"),
-            suffix = c("_home", "_away"))
+games2 <- games %>% 
+  mutate(id = as.character(id), start = 4L)
+
+p2_5 <- p2 %>%
+  mutate(game_id = str_sub(game_id, start = 4L)) %>% 
+  left_join(games2, by = c("game_id" = "id")) %>%  # Get game start_time info for joining to elo
+  mutate(start_date = lubridate::as_datetime(start_date)) %>%
+  left_join(elo,
+            by = c(
+              "home_team" = "team",
+              "start_date" = "join_date",
+              "season" = "season"
+            )) %>%
+  left_join(
+    elo,
+    by = c(
+      "away_team" = "team",
+      "start_date" = "join_date",
+      "season" = "season"
+    ),
+    suffix = c("_home", "_away")
+  ) %>%
+  mutate(
+    offense_elo = if_else(offense == home_team, elo_rating_home, elo_rating_away),
+    defense_elo = if_else(defense == home_team, elo_rating_home, elo_rating_away)
+  )
 
 ### across(everything(), .fns = sum)
 
-p3 <- p2 %>%
+p3 <- p2_5 %>%
   group_by(game_id, offense) %>%
   summarise(
     completion_rate = sum(pass_completion, na.rm = TRUE) / sum(pass_attempt, na.rm = TRUE),
@@ -254,8 +270,11 @@ p3 <- p2 %>%
     points_for = max(offense_score),
     points_against = max(defense_score),
     home_spread = points_for - points_against,
-    won_game = if_else(max(offense_score) > max(defense_score), 1, 0)
+    won_game = if_else(max(offense_score) > max(defense_score), 1, 0),
+    opponent_elo = max(defense_elo)
   )
+
+rm("p2", "p2_5")
 
 # Get moving average of 4 previous games (note, this currently takes averages of averages on completion rate and other stats)
 p4 <- p3 %>% 
