@@ -433,13 +433,26 @@ betting <- as_tibble(betting)
 betting <- unnest(betting, cols = c(lines))
 betting.master = rbind(betting.master, betting)
 
+###
+# Fix the below - can't take consensus line, need to average them
+###
+
 # Need to summarise lines for teams with multiple lines
-betting_consensus <- betting.master %>% mutate(spread = as.double(spread)) %>%
-  group_by(id) %>% 
-  mutate(count_id = n()) %>% # Count number of lines per game
-  filter(case_when(count_id > 1 ~ provider == "consensus", # If a team has multiple lines, get the consensus line
-                   TRUE ~ provider == provider)) %>% 
-  select(id, provider, c(spread:last_col(1)))
+betting_consensus <- betting.master %>% 
+  group_by(id, homeTeam, awayTeam) %>% 
+  summarise(spread = mean(as.double(spread), na.rm = TRUE),
+            spreadOpen = mean(as.double(spreadOpen), na.rm = TRUE),
+            overUnder = mean(as.double(overUnder), na.rm = TRUE),
+            overUnderOpen = mean(as.double(overUnderOpen), na.rm = TRUE),
+            homeMoneyline = mean(homeMoneyline, na.rm = TRUE),
+            awayMoneyline = mean(awayMoneyline, na.rm = TRUE)
+            ) %>% 
+  mutate(formattedSpread = paste0(if_else(spread > 0, awayTeam, homeTeam),
+                                  " ",
+                                  "-",
+                                  abs(spread))) %>% 
+  ungroup() %>% 
+  select(-c(homeTeam, awayTeam))
 
 win_probs <- upcoming.games %>% 
   filter(week == week_of_upcoming_games) %>% 
@@ -471,7 +484,7 @@ win_probs_w_lines <- win_probs_w_lines %>%
                                  as.character(awayMoneyline),
                                  paste0("+", awayMoneyline)))
 
-list_of_conferences <- win_probs_w_lines %>% pull(home_conference, away_conference) %>% unique()
+list_of_conferences <- c(win_probs_w_lines$home_conference, win_probs_w_lines$away_conference) %>% unique()
 for(i in 1:length(list_of_conferences)){
   
   conf_name <- list_of_conferences[i]
@@ -760,7 +773,9 @@ if(week_of_elo_last_updated > 0){
 }
 
 # Latest Brier for the season
-brier <- upcoming.games %>% summarise(brier = mean((game_outcome_home - home_pred_win_prob)^2))
+brier <- upcoming.games %>%
+  filter(is.na(home_points) == FALSE) %>% 
+  summarise(brier = mean((game_outcome_home - home_pred_win_prob)^2))
 
 brier_2 <- upcoming.games %>% 
   filter(is.na(home_points) == FALSE) %>% 
@@ -807,42 +822,3 @@ if(week_of_elo_last_updated > 0){
          path = "R Plots/",
          dpi = 300, width = 200, height = 200, units = "mm")
 }
-# 
-# # WIP ---------------------------------------------------------------------
-# 
-# # Do the below but use the cfbd moneyline instead
-# 
-# # Join in moneyline data from DraftKings ----------------------------------
-# 
-# games_df <- win_probs_w_lines %>% 
-#   mutate(join_key_1 = paste0(home_team, away_team),
-#          join_key_2 = paste0(away_team, home_team))
-# 
-# ml_top <- games_df %>% 
-#   inner_join(ml_df, by = c("join_key_1" = "join_key")) %>% 
-#   select(-c(join_key_2, join_key_1))
-# 
-# ml_bottom <- games_df %>% 
-#   inner_join(ml_df, by = c("join_key_2" = "join_key")) %>% 
-#   select(-c(join_key_2, join_key_1))
-# 
-# ml_joined <- rbind(ml_top, ml_bottom)
-# 
-# ml_clean <- ml_joined %>% 
-#   mutate(implied_odds_home = if_else(label_favorite == home_team,
-#                                    implied_odds_favorite,
-#                                    implied_odds_underdog),
-#          implied_odds_away = if_else(label_favorite == home_team,
-#                                    implied_odds_underdog,
-#                                    implied_odds_favorite))
-# 
-# ml_clean %>% 
-#   ggplot(aes(x = home_pred_win_prob, y = implied_odds_home)) +
-#   geom_point() +
-#   geom_abline(linetype = 2) +
-#   geom_text(aes(label = if_else(abs(home_pred_win_prob - implied_odds_home) > .1,
-#                                 paste0(away_team, " @ \n", home_team),
-#                                 ""))) +
-#   labs(title = "Elo vs. Vegas Win Probabilities") +
-#   annotate(geom = "label", x = .25, y = .75, label = "Vegas Overconfident") +
-#   annotate(geom = "label", x = .75, y = .15, label = "Vegas Underconfident")
