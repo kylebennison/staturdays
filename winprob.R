@@ -234,3 +234,6 @@ res %>%
   ggplot(aes(x = win_prob_bucket, y = mean_actual)) +
   geom_point() +
   geom_abline()
+
+# Save model
+# saveRDS(XGBm, file = "Production Models/in_game_wp.rds")
