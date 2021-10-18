@@ -228,9 +228,10 @@ max_ids <- cum_sum_qb_plot_data %>%
 plot <- cum_sum_qb_plot_data %>% 
   filter(game_id == game_ids[i]) %>% 
   ggplot(aes(x = clock_in_seconds, y = cum_ppa, color = color, group = player)) +
-  geom_line() +
+  geom_line(size = 2) +
   ggrepel::geom_text_repel(aes(label = if_else(id.x %in% max_ids, player, ""),
-                               color = color)) +
+                               color = color),
+                           size = 8) +
   annotate(geom = "rect",
            xmin = -Inf, xmax = Inf,
             ymin = -Inf, ymax = 0,
@@ -245,13 +246,15 @@ plot <- cum_sum_qb_plot_data %>%
            label = c("Q1", "Q2", "Q3", "Q4"),
            alpha = 0.5,
            fill = staturdays_colors("light_blue"),
-           color = "white") +
+           color = "white",
+           size = 10) +
   labs(y = "Cumulative PPA",
        caption = "@kylebeni012 for @staturdays | Data: @cfb_data",
        title = "QB Cumulative Predicted Points Added (PPA)") +
   theme(axis.title.x = element_blank(),
         axis.text.x = element_blank(),
-        plot.title = element_text(size = 20))
+        plot.title = element_text(size = 20),
+        axis.title.y = element_blank())
 
 file <- "R Plots/tmp_file.jpg"
 
