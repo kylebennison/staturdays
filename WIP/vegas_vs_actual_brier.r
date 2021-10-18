@@ -47,6 +47,7 @@ brier <- implied_odds %>%
 
 # Graph
 
+# 10%'s brier
 implied_odds %>% 
   filter(is.na(homeScore) == FALSE) %>% 
   mutate(home_result = if_else(homeScore > awayScore, 1L, 0L)) %>% 
@@ -81,3 +82,26 @@ ggsave(filename = paste0(lubridate::today(),
        height = 200, width = 400,
        units = "mm",
        dpi = 300)
+
+# Spread vs. actual resid
+implied_odds %>% 
+  mutate(actual_spread = awayScore - homeScore) %>% 
+  mutate(resid = abs(actual_spread - spread)) %>% 
+  ggplot(aes(x = actual_spread, y = spread)) +
+  geom_point(color = staturdays_colors("light_blue"),
+             alpha = .5,
+             aes(size = resid)) +
+  geom_abline(linetype = 2,
+              color = staturdays_colors("orange")) +
+  staturdays_theme +
+  labs(x = "Actual Spread",
+       y = "Vegas Spread",
+       size = "Error",
+       title = "2021 Vegas Spread vs. Actual")
+
+ggsave(filename = "2021_vegas_spread_vs_actual.jpg",
+       plot = last_plot(),
+       path = "R Plots/",
+       height = 200,
+       width = 400,
+       units = "mm")
