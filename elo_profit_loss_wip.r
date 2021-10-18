@@ -421,34 +421,15 @@ expected_value_tbl <- win_probs_moneyline_1 %>%
 # Calc profit/loss for the year
 
 expected_value_tbl %>% 
-  filter(home_exp_value > 10 | away_exp_value > 10) %>% 
-  mutate(profit = case_when(game_outcome_home == 1 & home_exp_value > 0 ~ home_win_10d_bet - 10,
+  filter(home_exp_value > 0 | away_exp_value > 0) %>% 
+  mutate(profit = case_when(game_outcome_home == 1 & home_exp_value > 0 ~ home_win_10d_bet - 10, # Betting rules. Bet on home when home exp. value > 0
                             game_outcome_home == 0 & home_exp_value > 0 ~ -10,
                             game_outcome_home == 1 & away_exp_value > 0 ~ -10,
                             game_outcome_home == 0 & away_exp_value > 0 ~ away_win_10d_bet - 10,
-                            TRUE ~ -Inf)) %>% 
+                            TRUE ~ -Inf),
+         wins = if_else(profit > 0, 1, 0),
+         losses = 1 - wins) %>% 
   ungroup() %>% 
-  summarise(p_and_l = sum(profit), n = n())
-
-# Spread vs. actual
-expected_value_tbl %>% 
-  mutate(actual_spread = awayScore - homeScore) %>% 
-  mutate(resid = abs(actual_spread - spread)) %>% 
-  ggplot(aes(x = actual_spread, y = spread)) +
-  geom_point(color = staturdays_colors("light_blue"),
-             alpha = .5,
-             aes(size = resid)) +
-  geom_abline(linetype = 2,
-              color = staturdays_colors("orange")) +
-  staturdays_theme +
-  labs(x = "Actual Spread",
-       y = "Vegas Spread",
-       size = "Error",
-       title = "2021 Vegas Spread vs. Actual")
-
-ggsave(filename = "2021_vegas_spread_vs_actual.jpg",
-       plot = last_plot(),
-       path = "R Plots/",
-       height = 200,
-       width = 400,
-       units = "mm")
+  summarise(p_and_l = sum(profit), n = n(),
+            winning_bets = sum(wins),
+            losing_bets = sum(losses))
