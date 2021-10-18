@@ -190,10 +190,34 @@ plays_wp$home_wp <- predict(XGBm, newdata = dtest)
 # Loop through each game --------------------------------------------------
 
 if(length(game_ids) > 0) {
+  
+  last_run <- data.table::fread("Data/tweet_id.csv")
+  
+  if (last_run$date_ran < today()-1){
+    
+    status_text <- paste0(current_year, " Week ", current_week, "\n\n",
+                          "🧵 Thread for today's Win Prob/PPA/QB Charts 📊")
+    
+    post_tweet(status = status_text,
+               token = tok)
+    
+    Sys.sleep(10)
+    
+    first_id <- get_timeline(user = "staturdays", n = 1L, token = tok)$status_id
+    
+    last_run$date_ran <- lubridate::today()
+    last_run$reply_to_id <- as.character(first_id)
+    last_run$n_tweets_sent <- 0L
+    
+    data.table::fwrite(last_run, "Data/tweet_id.csv", append = FALSE)
+  }
 
 for (i in 1:length(game_ids)) {
   
   message("Building Plot for Game ", i, "/", length(game_ids))
+  
+  last_run <- data.table::fread("Data/tweet_id.csv")
+  thread_id <- last_run$reply_to_id
   
 max_ids <- cum_sum_qb_plot_data %>% 
   filter(game_id == game_ids[i]) %>% #game_ids[i]
@@ -377,12 +401,13 @@ text <- plays %>%
 
  post_tweet(status = text,
             media = file,
-            token = tok)
+            token = tok,
+            in_reply_to_status_id = thread_id)
  
  (Sys.sleep(10))
  
  # Get tweet id to reply to
- reply_to_status_id <- get_timeline(user = "staturdays", n = 1L)$status_id
+ reply_to_status_id <- get_timeline(user = "staturdays", n = 1L, token = tok)$status_id
  
  text2 <- paste0("In-Game Win Probability Chart\n\n",
                  this_post_game_data$winner, " Post Game Win Probability: ",
@@ -406,6 +431,10 @@ games_done <- rbind(games_done, game_ids_df)
 #         "plot:")
 # 
 # plot
+
+last_run$n_tweets_sent <- last_run$n_tweets_sent + 1L
+
+data.table::fwrite(last_run, "Data/tweet_id.csv", append = FALSE)
 
 Sys.sleep(10)
 
