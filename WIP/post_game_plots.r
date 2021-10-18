@@ -77,6 +77,118 @@ cum_sum_qb_plot_data <- cum_sum_qb %>%
 
 game_ids <- game_ids[which(!game_ids %in% games_done$games_done)] # Filter out any games that have already been run
 
+# In-Game WP
+
+# Read in model
+XGBm <- readRDS("Production Models/in_game_wp.rds")
+
+# Prep plays data
+
+games.temp <- games %>% 
+  select(id, home_team, home_points, away_team, away_points) %>% 
+  mutate(id = as.character(id))
+
+plays.master.win_prob <- plays %>%
+  mutate(
+    home_score = case_when(home == offense ~ offense_score, # Get home lead/deficit
+                           TRUE ~ defense_score),
+    away_score = case_when(away == offense ~ offense_score,
+                           TRUE ~ defense_score),
+    home_score_lead_deficit = home_score - away_score
+  ) %>%
+  left_join(games.temp,
+            by = c(
+              "home" = "home_team",
+              "away" = "away_team",
+              "game_id" = "id"
+            )) # Join games to get final result for each play
+
+# Add win/loss boolean
+plays.master.win_prob2 <-
+  plays.master.win_prob %>% mutate(home_outcome = case_when(
+    home_points > away_points ~ 1,
+    home_points < away_points ~ 0,
+    TRUE ~ 0.5
+  ))
+
+# Add home possession flag if they have the ball or not
+plays.master.win_prob2 <- plays.master.win_prob2 %>% 
+  mutate(home_poss_flag = if_else(home == offense, 1, 0),
+         home_timeouts = if_else(home == offense, offense_timeouts, defense_timeouts),
+         away_timeouts = if_else(away == offense, offense_timeouts, defense_timeouts))
+
+
+rm(plays.master.win_prob)
+
+elo_ratings <- elo %>% 
+  select(team, elo_rating, week, season)
+
+elo_ratings_adj <- elo_ratings %>% mutate(week = week + 1)
+
+# Having an issue here where I end up with more rows than before. Join keys may not be unique i.e. multiple matches on rhs for certain plays on lhs
+plays.master.win_prob3 <- plays.master.win_prob2 %>% left_join(elo_ratings_adj, by = c("home" = "team", "week", "year" = "season")) %>% 
+  rename(home_elo = elo_rating) %>% 
+  left_join(elo_ratings_adj, by = c("away" = "team", "week", "year" = "season")) %>% 
+  rename(away_elo = elo_rating) %>% 
+  distinct() %>% 
+  mutate(clock_in_seconds = 2700-(900*(period-1)) + minutes*60 + seconds) %>% 
+  replace_na(list(home_timeouts = 0, away_timeouts = 0, home_elo = 1300, away_elo=1300,
+                  offense_timeouts = 0, defense_timeouts=0))
+
+
+# Add home_elo_diff
+plays.master.win_prob3 <- plays.master.win_prob3 %>% 
+  mutate(home_elo_diff = home_elo - away_elo)
+
+
+### keep only the first play when there are duplicate times ####
+#filter out timeout rows?
+plays.master.win_prob3 <- plays.master.win_prob3 %>% group_by(game_id, clock_in_seconds) %>% 
+  filter(row_number()==1) %>%  #n()) %>% 
+  ungroup()
+
+
+#MAKE END ROW FOR EACH GAME THAT SHOWS WHO WON - only for games that are finished
+plays.make.end.rows <- plays.master.win_prob3 %>% 
+  group_by(game_id) %>% 
+  filter(row_number()==n()) %>% 
+  ungroup()
+
+
+x<-plays.make.end.rows %>% 
+  mutate(period=-10,
+         home_timeouts=-10,
+         away_timeouts=-10,
+         clock_in_seconds=-.5,
+         down=-10,
+         distance=-10,
+         home_score_lead_deficit=home_points-away_points,
+         yards_to_goal=-10,
+         home_poss_flag=-10,
+  )
+
+#add on user created row
+plays.master.win_prob4 <- rbind(plays.master.win_prob3, x)
+
+plays.master.win_prob4 <- plays.master.win_prob4 %>% 
+  mutate(game_over = ifelse(period==-10,1,0))
+
+# Predict In-Game WP
+
+plays_wp <- plays.master.win_prob4
+
+x.test <- plays_wp %>% 
+  select(home_score_lead_deficit, clock_in_seconds, down, distance,
+         yards_to_goal, home_poss_flag, home_timeouts,away_timeouts, 
+         home_elo_diff, game_over) %>% 
+  as.matrix()
+
+dtest <- xgb.DMatrix(x.test,missing=NA)
+
+plays_wp$home_wp <- predict(XGBm, newdata = dtest)
+
+# Loop through each game --------------------------------------------------
+
 if(length(game_ids) > 0) {
 
 for (i in 1:length(game_ids)) {
@@ -128,8 +240,83 @@ ggsave(filename = file,
 
 
 # In-Game WP Chart --------------------------------------------------------
+this_game_data <- plays_wp %>% 
+  left_join(team_colors, by = c("home" = "school")) %>% 
+  left_join(team_colors, by = c("away" = "school"),
+            suffix = c("_home", "_away")) %>% 
+  filter(game_id == game_ids[i])
 
-# Bring in and apply Drew's model to plays data
+this_post_game_data <- games %>%
+  filter(id == game_ids[i]) %>%
+  mutate(
+    winner = if_else(home_points > away_points, home_team, away_team),
+    winner_post_game_wp = if_else(
+      home_points > away_points,
+      as.numeric(home_post_win_prob),
+      as.numeric(away_post_win_prob)
+    )
+  )
+
+library(ggtext)
+
+# Plot In-Game WP
+plot2 <- this_game_data %>% 
+  ggplot(aes(x = -clock_in_seconds, y = home_wp)) +
+  geom_line(aes(color = home_wp),
+            size = 2) +
+  scale_color_gradient(low = (unique(this_game_data$color_away)), 
+                           high = (unique(this_game_data$color_home)),
+                       guide = "none") +
+  ylim(0, 1) +
+  ggimage::geom_image(aes(image = light_home),
+                      size = .2,
+                      by = "width",
+                      asp = 1,
+                      x = -3300, y = .9) +
+  ggimage::geom_image(aes(image = light_away),
+                      size = .2,
+                      by = "width",
+                      asp = 1,
+                      x = -3300, y = .1) +
+  staturdays_theme +
+  geom_vline(xintercept = c(-2700, -1800, -900), linetype = c(2, 1, 2)) +
+  annotate(geom = "label", x = c(-3150, -2250, -1350, -450), 
+           y = c(0, 0, 0, 0), 
+           label = c("Q1", "Q2", "Q3", "Q4"),
+           alpha = 0.5,
+           fill = staturdays_colors("light_blue"),
+           color = "white") +
+  scale_y_continuous(labels = scales::percent) +
+  labs(title = paste0("<span style='color: ",
+                      unique(this_game_data$color_away),
+                      ";'>",
+                      unique(this_game_data$away),
+                      "</span> vs. <span style='color: ",
+                      unique(this_game_data$color_home),
+                      ";'>",
+                      unique(this_game_data$home),
+                      "</span> Win Probability"),
+       subtitle = paste0(this_post_game_data$winner,
+                         " Postgame Win Probability of <b>",
+                         scales::percent(round(this_post_game_data$winner_post_game_wp, 2)),
+                         "</b>"),
+       caption = "@kylebeni012 for @staturdays | Data: @cfb_data") +
+  theme(plot.title = element_markdown(),
+        plot.subtitle = element_markdown(),
+        axis.title = element_blank(),
+        axis.text.x = element_blank(),
+        aspect.ratio = 1
+        ) +
+  coord_cartesian(clip = "off")
+
+file2 <- "R Plots/tmp_file2.jpg"
+
+ggsave(filename = file2,
+       plot = plot2,
+       width = 200,
+       height = 200,
+       units = "mm",
+       dpi = 300)
 
 # Tweet plot --------------------------------------------------------------
 
@@ -191,6 +378,25 @@ text <- plays %>%
  post_tweet(status = text,
             media = file,
             token = tok)
+ 
+ (Sys.sleep(10))
+ 
+ # Get tweet id to reply to
+ reply_to_status_id <- get_timeline(user = "staturdays", n = 1L)$status_id
+ 
+ text2 <- paste0("In-Game Win Probability Chart\n\n",
+                 this_post_game_data$winner, " Post Game Win Probability: ",
+                 scales::percent(round(this_post_game_data$winner_post_game_wp, 2)),
+                 "\n\n",
+                 "#", unique(this_game_data$abbreviation_away),
+                 " vs. ",
+                 "#", unique(this_game_data$abbreviation_home),
+                 " #CFBData")
+ 
+ post_tweet(status = text2,
+            media = file2,
+            token = tok,
+            in_reply_to_status_id = reply_to_status_id)
 
 game_ids_df <- tibble(games_done = game_ids[i])
 
