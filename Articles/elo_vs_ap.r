@@ -72,3 +72,11 @@ games_predict <- games_ready %>%
 games_predict %>% 
   ggplot(aes(x = home_result, y = ap_home_wp)) +
   geom_point(alpha = .3)
+
+games_predict %>% 
+  mutate(ap_wp_bucket = round(ap_home_wp, 1)) %>% 
+  group_by(ap_wp_bucket) %>% 
+  summarise(avg_result = mean(home_result)) %>% 
+  ggplot(aes(x = avg_result, y = ap_wp_bucket)) +
+  geom_point(alpha = .3) +
+  geom_abline()
