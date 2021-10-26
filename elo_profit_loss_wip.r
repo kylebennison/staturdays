@@ -1,9 +1,5 @@
 # Evaluate elo vs. moneyline for 2021
 
-
-# Run elo_weekly_plots_tables_v2.1.r first, then this.
-
-
 # Libraries and Themes ----------------------------------------------------
 rm(list = ls())
 library(scales)
