@@ -6,16 +6,24 @@ plot_save <- function(plot = last_plot(), filename, filetype = "jpg", size = "ho
   #' filetype: either "jpg" or "png"
   #' size: either "horizontal" or "square"
   
-  ggsave(filename = paste0(lubridate::today(),
-                           "_",
-                           filename,
-                           ".",
-                           filetype),
-         plot = plot,
-         path = "R Plots/",
-         width = if(size == "square") 200 else 400,
-         height = 200,
-         units = "mm",
-         dpi = 300)
+  if(missing(filename)){
+    
+    warning("Must provide a filename")
+    
+  } else {
+    
+    ggsave(filename = paste0(lubridate::today(),
+                             "_",
+                             filename,
+                             ".",
+                             filetype),
+           plot = plot,
+           path = "R Plots/",
+           width = if(size == "square") 200 else 400,
+           height = 200,
+           units = "mm",
+           dpi = 300)
+    
+  }
   
 }
