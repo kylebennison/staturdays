@@ -8,6 +8,7 @@
 source("https://raw.githubusercontent.com/kylebennison/staturdays/master/Production/source_everything.R")
 
 library(rtweet)
+library(xgboost)
 
 # Twitter Auth
 app_name <- "Staturdays CFB Tweets"
@@ -193,10 +194,10 @@ if(length(game_ids) > 0) {
   
   last_run <- data.table::fread("Data/tweet_id.csv")
   
-  if (last_run$date_ran < today()-1){
+  if (last_run$date_ran < lubridate::today()-5){
     
     status_text <- paste0(current_year, " Week ", current_week, "\n\n",
-                          "🧵 Thread for today's Win Prob/PPA/QB Charts 📊")
+                          "Thread for today's Win Prob/PPA/QB Charts")
     
     post_tweet(status = status_text,
                token = tok)
@@ -296,14 +297,14 @@ plot2 <- this_game_data %>%
                        guide = "none") +
   ylim(0, 1) +
   ggimage::geom_image(aes(image = light_home),
-                      size = .2,
+                      size = .1,
                       by = "width",
-                      asp = 1,
+                      asp = 2,
                       x = -3300, y = .9) +
   ggimage::geom_image(aes(image = light_away),
-                      size = .2,
+                      size = .1,
                       by = "width",
-                      asp = 1,
+                      asp = 2,
                       x = -3300, y = .1) +
   staturdays_theme +
   geom_vline(xintercept = c(-2700, -1800, -900), linetype = c(2, 1, 2)) +
@@ -313,7 +314,8 @@ plot2 <- this_game_data %>%
            alpha = 0.5,
            fill = staturdays_colors("light_blue"),
            color = "white") +
-  scale_y_continuous(labels = scales::percent) +
+  scale_y_continuous(labels = scales::percent,
+                     limits = c(0,1)) +
   labs(title = paste0("<span style='color: ",
                       unique(this_game_data$color_away),
                       ";'>",
@@ -332,7 +334,7 @@ plot2 <- this_game_data %>%
         plot.subtitle = element_markdown(),
         axis.title = element_blank(),
         axis.text.x = element_blank(),
-        aspect.ratio = 1
+        aspect.ratio = 1/2
         ) +
   coord_cartesian(clip = "off")
 
@@ -340,7 +342,7 @@ file2 <- "R Plots/tmp_file2.jpg"
 
 ggsave(filename = file2,
        plot = plot2,
-       width = 200,
+       width = 400,
        height = 200,
        units = "mm",
        dpi = 300)
