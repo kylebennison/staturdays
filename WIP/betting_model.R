@@ -203,10 +203,10 @@ elo <- elo %>%
   mutate(join_date = lead(date, n = 1L, order_by = date)) # get next week's game date.
 
 games2 <- games %>% 
-  mutate(id = as.character(id), start = 4L)
+  mutate(id = as.character(id))
 
 p2_5 <- p2 %>%
-  mutate(game_id = str_sub(game_id, start = 4L)) %>% 
+  mutate(game_id = as.character(str_sub(game_id, start = 4L))) %>% 
   left_join(games2, by = c("game_id" = "id")) %>%  # Get game start_time info for joining to elo
   mutate(start_date = lubridate::as_datetime(start_date)) %>%
   left_join(elo,
@@ -287,12 +287,12 @@ p4 <- p3 %>%
                                         na.rm = TRUE,
                                         fill = NA),
                 .names = "{.col}_ma_4")) %>% 
-  select(offense, game_id, contains("_ma_4")) %>% # Filter out stats from the current game since that should be hidden from the model
-  mutate(game_id = as.integer(str_sub(game_id, start = 4L))) # Remove "id_" for joining
-  
+  select(offense, game_id, contains("_ma_4")) # Filter out stats from the current game since that should be hidden from the model
+
 rm(list = c("p2", "p3"))
 
 big_table5 <- big_table4 %>% 
+  mutate(id = as.character(id)) %>% 
   left_join(p4, by = c("home_team" = "offense",
                        "id" = "game_id")) %>% 
   left_join(p4, by = c("away_team" = "offense",
@@ -327,11 +327,7 @@ big_table7 <- big_table6 %>%
   mutate(home_elo_adv = elo_rating_home + if_else(neutral_site == TRUE, 0, 55) - elo_rating_away,
          home_elo_wp = calc_expected_score(elo_rating_home + if_else(neutral_site == TRUE, 0, 55),
                                            elo_rating_away))
-
-# Get avg elo of last 4 opponents, and average win rate in last 4 games
-big_table8 <- big_table7 %>% 
   
-
 rm(list = c(paste0("big_table", 1:6)))
 # Cross-validate xgboost model --------------------------------------------
 # Prep data
@@ -344,7 +340,110 @@ prepped_table <- big_table7 %>%
 
 # NOTE: right now including pre-game line and spread as predictors, but in the
 # future may want to omit
-# Predict Winner
+
+
+# Predict Winner Straight Up ----------------------------------------------
+
+# Split data
+set.seed(123)
+ind <- sample(seq_len(nrow(prepped_table)), size = .75 * nrow(prepped_table))
+
+train <- prepped_table[ind,]
+test <- prepped_table[-ind,]
+
+# Baseline Elo Only
+
+model_win_logreg_elo <- glm(
+  response_home_win ~ home_elo_wp,
+  data = train,
+  family = "binomial"
+)
+
+summary(model_win_logreg_elo)
+
+test$odds <- predict(model_win_logreg_elo, newdata = test)
+test$home_pred_wp <- exp(test$odds) / (1 + exp(test$odds))
+test$sqerror <- (test$response_home_win - test$home_pred_wp)^2
+
+brier <- test %>% 
+  summarise(mean(sqerror, na.rm = TRUE))
+
+brier # .165
+
+test %>% 
+  mutate(bucket = round(home_pred_wp, 2)) %>% 
+  group_by(bucket) %>% 
+  summarise(avg_win = mean(response_home_win), n = n()) %>% 
+  ggplot(aes(x = avg_win, y = bucket)) +
+  geom_point() +
+  geom_abline(linetype = 2)
+
+roc <- pROC::roc(response = test$response_home_win, predictor = test$home_pred_wp)
+auc <- pROC::auc(roc) # .8218
+
+pROC::ggroc(roc)
+
+# GLM Log Regression
+# Leads to minimal improvement from elo_wp alone
+
+model_win_logreg_big <- glm(
+  response_home_win ~ home_elo_wp + avg_ppa_ma_4_home + avg_ppa_ma_4_away +
+    won_game_ma_4_home + won_game_ma_4_away + opponent_elo_ma_4_home +
+    opponent_elo_ma_4_away + neutral_site + conference_game +
+    points_home + points_away + totalPPA_home + totalPPA_away +
+    percentPPA_home + percentPPA_away + usage_home + usage_away +
+    talent_home + talent_away + 
+    points_for_ma_4_home + points_against_ma_4_home +
+    points_for_ma_4_away + points_against_ma_4_away,
+  data = train,
+  family = "binomial"
+)
+
+summary(model_win_logreg_big)
+
+test$odds <- predict(model_win_logreg_big, newdata = test)
+test$home_pred_wp <- exp(test$odds) / (1 + exp(test$odds))
+test$sqerror <- (test$response_home_win - test$home_pred_wp)^2
+
+brier <- test %>% 
+  summarise(mean(sqerror, na.rm = TRUE))
+
+brier # .166
+
+test %>% 
+  mutate(bucket = round(home_pred_wp, 2)) %>% 
+  group_by(bucket) %>% 
+  summarise(avg_win = mean(response_home_win), n = n()) %>% 
+  ggplot(aes(x = avg_win, y = bucket)) +
+  geom_point() +
+  geom_abline(linetype = 2)
+
+roc <- pROC::roc(response = test$response_home_win, predictor = test$home_pred_wp)
+auc <- pROC::auc(roc) # .8239
+
+pROC::ggroc(roc)
+
+# Lasso Regression
+
+library(data.table)
+library(caret)
+library(Metrics)
+library(glmnet)
+library(plotmo)
+library(lubridate)
+library(zoo)
+library(mltools)
+
+glmnet_data <- prepped_table %>% 
+  mutate(across(.cols = c(season_type, neutral_site, conference_game),
+                .fns = as.factor),
+         across(.cols = c(talent_home, talent_away, points_home, points_away),
+                .fns = as.double)) %>% 
+  as.data.table() %>% 
+  one_hot()
+
+# Filter out data that has future info in it
+
 
 # pass 2 ------------------------------------------------------------------
 prepped_table %>% 
