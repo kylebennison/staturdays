@@ -42,8 +42,11 @@ staturdays_theme <- theme(plot.caption = element_text(size = 24, hjust = 1, colo
                                                     family = "Roboto Mono"),
                           legend.title = element_text(color = staturdays_colors("lighter_blue"), size = 32, face = "bold"),
                           legend.text = element_text(color = staturdays_colors("lightest_blue"), size = 28),
-                          panel.background = element_blank(),
-                          panel.grid = element_blank(), # no gridlines. If you want them, use element_line()
                           panel.grid.minor = element_blank(),
-                          axis.ticks = element_line(color = "#d6d6d6")
+                          axis.ticks = element_line(color = "#d6d6d6"),
+                          plot.background = element_rect(fill = "#cfcfcf"),
+                          panel.background = element_rect(fill = "#cfcfcf"),
+                          legend.background = element_rect(fill = "#cfcfcf"),
+                          panel.grid = element_line(color = "#b3b3b3"),
+                          legend.key = element_blank()
                           )
