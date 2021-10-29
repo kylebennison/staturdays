@@ -1,8 +1,31 @@
 source("Production/source_everything.r")
 
-elo <- get_elo(2000, 2021)
+elo <- get_elo(2013, 2021)
 
-games <- get_games(2000, 2021)
+games <- get_games(2013, 2021)
+
+betting.master = data.frame()
+for(j in 2013:2021){
+  message("Doing year ", j)
+betting_url <- paste0("https://api.collegefootballdata.com/lines?year=", j)
+full_url_betting <- paste0(betting_url)
+full_url_betting_encoded <- URLencode(full_url_betting)
+betting <- cfbd_api(full_url_betting_encoded, my_key)
+betting <- as_tibble(betting)
+betting <- unnest(betting, cols = c(lines))
+betting.master = rbind(betting.master, betting)
+}
+
+# Need to summarise lines for teams with multiple lines
+betting_consensus <- betting.master %>% 
+  mutate(spread = as.double(spread),
+         overUnder = as.double(overUnder)) %>%
+  group_by(id, season, week, homeTeam, awayTeam,
+           homeConference, awayConference, homeScore, awayScore) %>% 
+  summarise(consensus_spread = mean(spread, na.rm = TRUE),
+            consensus_over_under = mean(overUnder, na.rm = TRUE),
+            consensus_home_ml = mean(homeMoneyline, na.rm = TRUE),
+            consensus_away_ml = mean(awayMoneyline, na.rm = TRUE))
 
 e2 <- elo %>% 
   group_by(team) %>% 
@@ -16,7 +39,10 @@ games_elo <- games %>%
                        "away_team" = "team"),
             suffix = c("_home", "_away"))
 
-ge2 <- games_elo %>%
+games_elo_lines <- games_elo %>% 
+  inner_join(betting_consensus, by = "id")
+
+ge2 <- games_elo_lines %>%
   mutate(home_elo_adv = elo_rating_home + 55 - elo_rating_away,
          final_home_spread = away_points - home_points)
 
@@ -51,7 +77,9 @@ model_cfb <- lm(final_home_spread ~ alt_elo_adv, data = ge3) # 16.53, 100 sig
 
 model_combo <- lm(final_home_spread ~ home_elo_adv + alt_elo_adv, ge3) # 16.43, 37 sig to his, 14 to ours, 18 to a 2.8 hfa int.
 
-saveRDS(model_combo, file = "Production Models/elo_combo_spread_model.rds")
+model_spread <- lm(final_home_spread ~ home_elo_adv + alt_elo_adv + consensus_spread, ge3)
+
+saveRDS(model_spread, file = "Production Models/elo_combo_spread_model_v2.rds")
 
 # Calculate Confidence Interval
 
