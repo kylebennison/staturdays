@@ -368,7 +368,7 @@ test$sqerror <- (test$response_home_win - test$home_pred_wp)^2
 brier <- test %>% 
   summarise(mean(sqerror, na.rm = TRUE))
 
-brier # .165
+brier # .175
 
 test %>% 
   mutate(bucket = round(home_pred_wp, 2)) %>% 
@@ -379,13 +379,24 @@ test %>%
   geom_abline(linetype = 2)
 
 roc <- pROC::roc(response = test$response_home_win, predictor = test$home_pred_wp)
-auc <- pROC::auc(roc) # .8218
-
+auc <- pROC::auc(roc) # .8006
+auc
 pROC::ggroc(roc)
 
 # GLM Log Regression
 # Leads to minimal improvement from elo_wp alone
+train <- prepped_table[ind,] %>% 
+  mutate(across(.cols = c(season_type, neutral_site, conference_game),
+                .fns = as.factor),
+         across(.cols = c(talent_home, talent_away, points_home, points_away),
+                .fns = as.double))
+test <- prepped_table[-ind,] %>% 
+  mutate(across(.cols = c(season_type, neutral_site, conference_game),
+                .fns = as.factor),
+         across(.cols = c(talent_home, talent_away, points_home, points_away),
+                .fns = as.double))
 
+# This is having issues with all this data
 model_win_logreg_big <- glm(
   response_home_win ~ home_elo_wp + avg_ppa_ma_4_home + avg_ppa_ma_4_away +
     won_game_ma_4_home + won_game_ma_4_away + opponent_elo_ma_4_home +
@@ -408,7 +419,7 @@ test$sqerror <- (test$response_home_win - test$home_pred_wp)^2
 brier <- test %>% 
   summarise(mean(sqerror, na.rm = TRUE))
 
-brier # .166
+brier # .175
 
 test %>% 
   mutate(bucket = round(home_pred_wp, 2)) %>% 
@@ -419,17 +430,17 @@ test %>%
   geom_abline(linetype = 2)
 
 roc <- pROC::roc(response = test$response_home_win, predictor = test$home_pred_wp)
-auc <- pROC::auc(roc) # .8239
-
+auc <- pROC::auc(roc) # .8088
+auc
 pROC::ggroc(roc)
 
 # Lasso Regression
 
 library(data.table)
 library(caret)
-library(Metrics)
+# library(Metrics)
 library(glmnet)
-library(plotmo)
+# library(plotmo)
 library(lubridate)
 library(zoo)
 library(mltools)
@@ -443,7 +454,6 @@ glmnet_data <- prepped_table %>%
   one_hot()
 
 # Filter out data that has future info in it
-
 
 # pass 2 ------------------------------------------------------------------
 prepped_table %>% 
