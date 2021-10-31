@@ -22,27 +22,32 @@ base_url_drives <- "https://api.collegefootballdata.com/drives?" # Base URL for 
 
 #get plays data and gmes data
 #get plays data and gmes data
-plays.master <- get_plays(start_week = 1, end_week = 15, start_year = 2014, end_year = 2020)
-games.master <- get_games(start_week = 1, end_week = 15, start_year = 2014, end_year = 2020)
+#plays.master <- get_plays(start_week = 1, end_week = 15, start_year = 2014, end_year = 2020)
+games.master <- get_games(start_week = 1, end_week = 16, start_year = 2014, end_year = 2020)
 
 #save plays data so as not to call the API each time
 #fwrite(plays.master, "C:/Users/drewb/Desktop/cfb_plays_2014_2020.csv")
 
 plays.master <- fread("C:/Users/drewb/Desktop/cfb_plays_2014_2020.csv")
+# plays.master <- fread("Data/plays_2014_2020.csv", encoding = "UTF-8") %>% # Read kyle's data
+#   mutate(game_id = str_remove(game_id, "id_")) %>% 
+#   mutate(game_id = as.integer(game_id))
 
 #bring in new games
-plays.master2 <- get_plays(start_week = 1, end_week = 15, start_year = 2021, end_year = 2021)
-games.master2 <- get_games(start_week = 1, end_week = 15, start_year = 2021, end_year = 2021)
-games.master2 <- games.master2[,c(1:26)]
+plays.master2 <- get_plays(start_week = 1, end_week = 16, start_year = 2021, end_year = 2021)
+games.master2 <- get_games(start_week = 1, end_week = 16, start_year = 2021, end_year = 2021)
+games.master2 <- games.master2[,c(1:25)]
 games.master2 <- games.master2 %>% filter(!is.na(home_points))
 
+games.master_less <- games.master[,c(1:25)]
 
 #combine data sets 
 plays.master <- rbind(plays.master, plays.master2)
-games.master <- rbind(games.master, games.master2)
+games.master <- rbind(games.master_less, games.master2)
 
 rm(games.master2)
 rm(plays.master2)
+rm(games.master_less)
 # Remove overtime games
 #overtime_games <- plays.master %>% group_by(game_id) %>%
 #  summarise(overtime = ifelse(max(period)>4,1,0)) 
@@ -91,7 +96,7 @@ plays.master.win_prob3 <- plays.master.win_prob2 %>% left_join(elo_ratings_adj, 
   rename(away_elo = elo_rating) %>% 
   distinct() %>% 
   mutate(clock_in_seconds = 2700-(900*(period-1)) + minutes*60 + seconds) %>% 
-  replace_na(list(home_timeouts = 0, away_timeouts = 0, home_elo = 1300, away_elo=1300,
+  tidyr::replace_na(list(home_timeouts = 0, away_timeouts = 0, home_elo = 1300, away_elo=1300,
                   offense_timeouts = 0, defense_timeouts=0))
 
 
