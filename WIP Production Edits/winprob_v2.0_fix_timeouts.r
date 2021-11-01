@@ -204,7 +204,7 @@ dtest <- xgb.DMatrix(x.test,missing=NA)
 param <- list(  objective           = "binary:logistic",
                 gamma               = 0.04, #.02
                 booster             = "gbtree",
-                eval_metric         = "auc",
+                eval_metric         = "logloss",
                 eta                 = 0.06,
                 max_depth           = 20,
                 min_child_weight    = 2,
@@ -217,7 +217,151 @@ XGBm <- xgb.cv(params=param,nfold=5,nrounds=5000,missing=NA,data=dtrain,print_ev
 
 #train the full model
 watchlist <- list( train = dtrain)
-XGBm <- xgb.train( params=param,nrounds=50,missing=NA,data=dtrain,watchlist=watchlist,print_every_n=100)
+XGBm <- xgb.train(params=param,
+                  nrounds=700,
+                  missing=NA,
+                  data=dtrain,
+                  watchlist=watchlist,
+                  print_every_n=100,
+                  early_stopping_rounds = 50)
+
+### Try it nflfastR way
+
+
+nrounds <- 65
+params <-
+  list(
+    booster = "gbtree",
+    objective = "binary:logistic",
+    eval_metric = c("logloss"),
+    eta = 0.2,
+    gamma = 0,
+    subsample = 0.8,
+    colsample_bytree = 0.8,
+    max_depth = 4,
+    min_child_weight = 1
+  )
+
+seasons <- unique(plays.master.win_prob4$year)
+
+model_data <- plays.master.win_prob4 %>% 
+  select(year, home_score_lead_deficit, clock_in_seconds, down, distance,
+         yards_to_goal, home_poss_flag, home_timeouts_new, away_timeouts_new, 
+         home_elo_wp, game_over, home_outcome)
+
+cv_results <- map_dfr(seasons, function(x) {
+  test_data <- model_data %>%
+    filter(year == x) %>%
+    select(-year)
+  train_data <- model_data %>%
+    filter(year != x) %>%
+    select(-year)
+  
+  full_train <- xgboost::xgb.DMatrix(model.matrix(~ . + 0, data = train_data %>% select(-home_outcome)),
+                                     label = train_data$home_outcome
+  )
+  wp_model <- xgboost::xgboost(params = params, data = full_train, nrounds = nrounds, verbose = 2)
+  
+  preds <- as.data.frame(
+    matrix(predict(wp_model, as.matrix(test_data %>% select(-home_outcome))))
+  ) %>%
+    dplyr::rename(wp = V1)
+  
+  cv_data <- bind_cols(test_data, preds) %>% mutate(season = x)
+  return(cv_data)
+})
+
+# TIME FOR BINNING
+wp_cv_loso_calibration_results <- cv_results %>%
+  # Create BINS for wp:
+  mutate(bin_pred_prob = round(wp / 0.01) * .01) %>%
+  # Group by both the qtr and bin_pred_prob:
+  group_by(bin_pred_prob) %>%
+  # Calculate the calibration results:
+  summarize(
+    n_plays = n(),
+    n_wins = length(which(home_outcome == 1)),
+    bin_actual_prob = n_wins / n_plays
+  )
+
+ann_text <- data.frame(
+  x = c(.25, 0.75), y = c(0.75, 0.25),
+  lab = c("More times\nthan expected", "Fewer times\nthan expected")
+)
+
+wp_cv_loso_calibration_results %>%
+  ungroup() %>%
+  ggplot() +
+  geom_point(aes(x = bin_pred_prob, y = bin_actual_prob, size = n_plays)) +
+  geom_smooth(aes(x = bin_pred_prob, y = bin_actual_prob), method = "loess") +
+  geom_abline(slope = 1, intercept = 0, color = "black", lty = 2) +
+  coord_equal() +
+  scale_x_continuous(limits = c(0, 1)) +
+  scale_y_continuous(limits = c(0, 1)) +
+  labs(
+    size = "Number of plays",
+    x = "Estimated win probability",
+    y = "Observed win probability"
+  ) +
+  geom_text(data = ann_text, aes(x = x, y = y, label = lab), size = 3) +
+  theme_bw() +
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    strip.background = element_blank(),
+    strip.text = element_text(size = 12),
+    axis.title = element_text(size = 12),
+    axis.text.y = element_text(size = 12),
+    axis.text.x = element_text(size = 10, angle = 90),
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 12),
+    legend.position = "bottom"
+  )
+
+# Calculate the calibration error values:
+wp_cv_cal_error <- wp_cv_loso_calibration_results %>%
+  ungroup() %>%
+  mutate(cal_diff = abs(bin_pred_prob - bin_actual_prob)) %>%
+  summarize(
+    weight_cal_error = weighted.mean(cal_diff, n_plays, na.rm = TRUE),
+    n_wins = sum(n_wins, na.rm = TRUE)
+  )
+
+
+# This method appears better calibrated, 
+# or at least the calibration plot isn't overfitted thanks to
+# leave-one-season-out method
+
+full_train <- xgboost::xgb.DMatrix(model.matrix(~ . + 0, data = model_data %>% filter(year != 2021) %>% select(-home_outcome)),
+                                   label = model_data %>% filter(year != 2021) %>% pull(home_outcome))
+
+wp_model <- xgboost::xgboost(params = params, 
+                             data = full_train, 
+                             nrounds = nrounds, 
+                             verbose = 2)
+
+preds <- as.data.frame(
+  matrix(predict(wp_model, as.matrix(model_data %>% filter(year == 2021) %>% select(-home_outcome))))
+) %>%
+  dplyr::rename(wp = V1)
+
+full_preds <- cbind(plays.master.win_prob4 %>% filter(year == 2021), preds)
+
+full_preds %>% 
+  filter(game_id == 401309885) %>% 
+  ggplot(aes(x = -clock_in_seconds, y = wp)) +
+  geom_line() +
+  ylim(0,1) +
+  geom_vline(xintercept=-900, colour="grey") +
+  geom_text(aes(x=-900, label="\nEnd Q3", y=0.8), colour="blue", angle=90, text=element_text(size=9)) +
+  geom_vline(xintercept=-1800, colour="grey") +
+  geom_text(aes(x=-1800, label="\nEnd Q2", y=0.8), colour="blue", angle=90, text=element_text(size=9)) +
+  geom_vline(xintercept=-2700, colour="grey") +
+  geom_text(aes(x=-2700, label="\nEnd Q1", y=0.8), colour="blue", angle=90, text=element_text(size=9)) +
+  geom_text(aes(x = -3300, y = .9, label = home)) +
+  geom_text(aes(x = -3300, y = .1, label = away))
+  
+
+### End NFLfastR method
 
 library(zoo)
 
