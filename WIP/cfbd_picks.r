@@ -16,7 +16,14 @@ week_of_games_just_played <- elo %>%
   pull(week) %>% 
   unique()
 
-week_of_upcoming_games <- week_of_games_just_played + 1L
+
+week_of_upcoming_games <-
+  games %>% 
+  group_by(week) %>% 
+  summarise(any_na = any(is.na(home_points))) %>% 
+  filter(any_na == TRUE) %>% 
+  pull(week) %>% 
+  min()
 
 games_elo <- games %>% 
   filter(week == week_of_upcoming_games) %>% 
