@@ -274,14 +274,14 @@ elo_w_last_week <- joined_stats %>%
 home_top <- upcoming.games %>% 
   mutate(team = home_team) %>% 
   group_by(team) %>% 
-  filter(week <= week_of_elo_last_updated) %>% 
+  filter(!is.na(home_points)) %>% 
   slice_max(order_by = game_date, n = 1L)
 
 # Most recent away result for each team
 away_top <- upcoming.games %>% 
   mutate(team = away_team) %>% 
   group_by(team) %>% 
-  filter(week <= week_of_elo_last_updated) %>% 
+  filter(!is.na(home_points)) %>% 
   slice_max(order_by = game_date, n = 1L)
 
 # Row-bind latest home and away games
@@ -705,6 +705,13 @@ ggsave(filename = paste0(year(now()), week_of_upcoming_games, "_vegas_vs_elo_", 
 
 ## Calculate biggest upsets week-over-week by win prob and change in Elo
 
+last_complete_week <- upcoming.games %>% 
+  group_by(week) %>% 
+  summarise(any_na = any(is.na(home_points))) %>% 
+  filter(any_na == FALSE) %>% 
+  pull(week) %>% 
+  max()
+
 home_wow_elo_change <- elo_ratings %>% 
   filter(season == max(season)) %>% 
   arrange(desc(date)) %>% 
@@ -729,14 +736,14 @@ wow_elo_change <- rbind(home_wow_elo_change, away_wow_elo_change) %>%
 
 wow_elo_change_top <- wow_elo_change %>% 
   arrange(desc(wow_change)) %>% 
-  filter(week == week_of_elo_last_updated) %>% 
+  filter(week == last_complete_week) %>% 
   select(-date, -home_surprise, -away_surprise, -conference, -game_outcome_home) %>% 
   ungroup() %>% 
   slice_max(order_by = wow_change, n = 10)
 
 wow_elo_change_bottom <- wow_elo_change %>% 
   arrange((wow_change)) %>% 
-  filter(week == week_of_elo_last_updated) %>% 
+  filter(week == last_complete_week) %>% 
   select(-date, -home_surprise, -away_surprise, -conference, -game_outcome_home) %>% 
   ungroup() %>% 
   slice_min(order_by = wow_change, n = 10)
@@ -754,7 +761,7 @@ wow_elo_change_combined <- wow_elo_change_top %>%
 wow_elo_change_tbl <- wow_elo_change_combined %>% 
   select(team, opponent, elo_rating, previous_elo, wow_change, win_prob) %>% 
   gt() %>% 
-  tab_header(title = paste0(as.character(max(upcoming.games$season)), " Week ", as.character(week_of_elo_last_updated), " Biggest Elo Movers"),
+  tab_header(title = paste0(as.character(max(upcoming.games$season)), " Week ", as.character(last_complete_week), " Biggest Elo Movers"),
              subtitle = "Largest changes in Elo") %>% 
   cols_label(team = "Team", elo_rating = "New Elo", previous_elo = "Old Elo", wow_change = "Pct. Change", opponent = "Opponent", win_prob = "Win Probability") %>% 
   fmt_number(columns = c(elo_rating, previous_elo), decimals = 0, use_seps = FALSE) %>% 
@@ -766,9 +773,9 @@ wow_elo_change_tbl <- wow_elo_change_combined %>%
              alpha = 0.7) %>% 
   tab_source_note("@kylebeni012 | @staturdays — Data: @cfb_data")
 
-if(week_of_elo_last_updated > 0){
+if(last_complete_week > 0){
   gtsave(data = wow_elo_change_tbl, 
-         filename = paste0(year(today()), "_wow_elo_change_tbl_", week_of_elo_last_updated, "_", str_replace_all(now(), ":", "."), ".png"),
+         filename = paste0(year(today()), "_wow_elo_change_tbl_", last_complete_week, "_", str_replace_all(now(), ":", "."), ".png"),
          path = "R Plots/")
 }
 
@@ -808,7 +815,7 @@ elo_brier_plot <- upcoming.games %>%
              color = staturdays_colors("white"), fontface = "bold", size = 4, 
              fill = staturdays_colors("orange")) +
   staturdays_theme +
-  labs(title = paste0("Elo Predicted vs. Actual \nThrough Week ", week_of_elo_last_updated),
+  labs(title = paste0("Elo Predicted vs. Actual \nThrough Week ", last_complete_week),
        subtitle = paste0("Brier Score of ", round(brier, 2)),
        caption = "@staturdays | @kylebeni012 - Data: @cfb_data",
        x = "Predicted Win Probability",
@@ -816,7 +823,7 @@ elo_brier_plot <- upcoming.games %>%
   scale_y_continuous(labels = percent) +
   scale_x_continuous(labels = percent)
 
-if(week_of_elo_last_updated > 0){
+if(last_complete_week > 0){
   ggsave(filename = paste0(year(now()), "_elo_brier_plot_", str_replace_all(now(), ":", "."), ".png"), 
          plot = elo_brier_plot,
          path = "R Plots/",
