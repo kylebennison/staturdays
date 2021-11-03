@@ -346,6 +346,7 @@ preds <- as.data.frame(
 
 full_preds <- cbind(plays.master.win_prob4 %>% filter(year == 2021), preds)
 
+# Look at single games from 2021
 full_preds %>% 
   filter(game_id == 401309885) %>% 
   ggplot(aes(x = -clock_in_seconds, y = wp)) +
@@ -359,9 +360,18 @@ full_preds %>%
   geom_text(aes(x=-2700, label="\nEnd Q1", y=0.8), colour="blue", angle=90, text=element_text(size=9)) +
   geom_text(aes(x = -3300, y = .9, label = home)) +
   geom_text(aes(x = -3300, y = .1, label = away))
-  
+
+# Look at end-game wps. Not all 0s and 1s so not ideal
+full_preds %>%
+  filter(game_over == 1) %>%
+  select(wp) %>% 
+  ggplot(aes(x = wp)) + 
+  geom_histogram()
 
 ### End NFLfastR method
+
+## Next step is compare the above method's calibration error to the original 
+## in-game WP 1.0 in production now.
 
 library(zoo)
 
