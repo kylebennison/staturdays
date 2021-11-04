@@ -463,9 +463,11 @@ win_probs_w_lines <- win_probs %>%
   left_join(betting_consensus, by = "id")
 
 # Join Lines and find any mismatches between Elo and the Lines
-win_probs_w_lines <- win_probs_w_lines %>% 
-  mutate(home_favorite = case_when(str_detect(win_probs_w_lines$formattedSpread, win_probs_w_lines$home_team) ~ T, # Search if home team is favored
-                                   TRUE ~ F)) %>% 
+win_probs_w_lines <- win_probs_w_lines %>%
+  mutate(home_favorite = case_when(str_trim(
+    str_remove_all(formattedSpread, "[^a-zA-Z\\s]") # Anything not a letter or a space
+  ) == home_team ~ T, # Search if home team is favored
+  TRUE ~ F)) %>% 
   mutate(elo_different = case_when(is.na(spread) == TRUE ~ F, # Check if Elo agrees or disagrees
                                    (home_favorite == TRUE) & (home_pred_win_prob < 0.5) ~ T,
                                    (home_favorite == FALSE) & (home_pred_win_prob >= 0.5) ~ T,
