@@ -227,19 +227,19 @@ XGBm <- xgb.train(params=param,
 
 ### Try it nflfastR way
 
-
+# More conservative model = less overfitting
 nrounds <- 65
 params <-
   list(
     booster = "gbtree",
     objective = "binary:logistic",
     eval_metric = c("logloss"),
-    eta = 0.2,
+    eta = 0.2, # higher = less conservative
     gamma = 0,
-    subsample = 0.8,
-    colsample_bytree = 0.8,
-    max_depth = 4,
-    min_child_weight = 1
+    subsample = 0.8, # most conservative is 0.5
+    colsample_bytree = 0.8, # most conservative is 0.5
+    max_depth = 5, # higher = less conservative
+    min_child_weight = 2 # higher = more conservative
   )
 
 seasons <- unique(plays.master.win_prob4$year)
@@ -326,10 +326,32 @@ wp_cv_cal_error <- wp_cv_loso_calibration_results %>%
     n_wins = sum(n_wins, na.rm = TRUE)
   )
 
+wp_cv_cal_error
 
 # This method appears better calibrated, 
 # or at least the calibration plot isn't overfitted thanks to
 # leave-one-season-out method
+
+# nflfastR logloss wp_cv_cal_error = 
+# A tibble: 1 x 2
+# weight_cal_error n_wins
+# <dbl>  <int>
+#   1          0.00770 337707
+# v1 logloss
+# A tibble: 1 x 2
+#weight_cal_error n_wins
+#<dbl>  <int>
+#  1           0.0694 337707
+# nflfastR logloss w/ max_depth 5 instead of 4
+# A tibble: 1 x 2
+# weight_cal_error n_wins
+# <dbl>  <int>
+#   1           0.0127 337707
+# nflfastR logloss w/ min_child_weight = 2 instead of 1
+# A tibble: 1 x 2
+# weight_cal_error n_wins
+# <dbl>  <int>
+#   1           0.0118 337707
 
 full_train <- xgboost::xgb.DMatrix(model.matrix(~ . + 0, data = model_data %>% filter(year != 2021) %>% select(-home_outcome)),
                                    label = model_data %>% filter(year != 2021) %>% pull(home_outcome))
@@ -368,10 +390,23 @@ full_preds %>%
   ggplot(aes(x = wp)) + 
   geom_histogram()
 
-### End NFLfastR method
+full_preds %>% 
+  filter(game_over == 1) %>% 
+  select(wp) %>% 
+  round(1) %>% 
+  group_by(wp) %>% 
+  summarise(n = n()) %>% 
+  mutate(pct = n/sum(n))
 
 ## Next step is compare the above method's calibration error to the original 
 ## in-game WP 1.0 in production now.
+
+# NflfastR - 84% of games at .9-1 or .1-0 at game_over
+# v1.0 model - 93.6% of all games at .9-1 or .1-0 at game over
+# NflfastsR w/ max_depth = 5 -> 91.3%
+# w/ min_child_weight 2 -> 91.7%
+
+### End NFLfastR method
 
 library(zoo)
 
