@@ -139,18 +139,16 @@ plays.master.win_prob3 <- plays.master.win_prob3 %>%
 
 
 ### keep only the first play when there are duplicate times ####
-#filter out timeout rows?
-plays.master.win_prob3 <- plays.master.win_prob3 %>% group_by(game_id, clock_in_seconds) %>% 
-  filter(row_number()==1) %>%  #n()) %>% 
-  ungroup()
-
-
 #MAKE END ROW FOR EACH GAME THAT SHOWS WHO WON - only for games that are finished
 plays.make.end.rows <- plays.master.win_prob3 %>% 
   group_by(game_id) %>% 
   filter(row_number()==n()) %>% 
   ungroup()
 
+#filter out timeout rows?
+plays.master.win_prob3 <- plays.master.win_prob3 %>% group_by(game_id, clock_in_seconds) %>% 
+  filter(row_number()==1) %>%  #n()) %>% 
+  ungroup()
 
 x<-plays.make.end.rows %>% 
   mutate(period=-10,
