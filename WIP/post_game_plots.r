@@ -26,8 +26,15 @@ tok <- create_token(app=app_name,
 setwd("C:/Users/Kyle/Documents/Kyle/Staturdays/Staturdays Github/Github/staturdays")
 
 elo <- get_elo()
-max_week <- max(elo$week)
-current_week <- max_week + 1L
+calendar <- get_anything("https://api.collegefootballdata.com/calendar", 2021, 2021, key = my_key)
+max_week <- calendar %>% 
+  filter(lastGameStart <= lubridate::today()) %>% 
+  pull(week) %>% 
+  max()
+current_week <- calendar %>% 
+  filter(lastGameStart >= lubridate::today()) %>% 
+  pull(week) %>% 
+  min()
 current_year <- max(elo$season)
 plays <- get_plays(current_week, current_week, current_year, current_year)
 plays <- plays %>% add_success()
@@ -81,12 +88,12 @@ game_ids <- game_ids[which(!game_ids %in% games_done$games_done)] # Filter out a
 # In-Game WP
 
 # Read in model
-XGBm <- readRDS("Production Models/in_game_wp.rds")
+XGBm <- readRDS("Production Models/in_game_wp_v2.rds")
 
 # Prep plays data
 
 games.temp <- games %>% 
-  select(id, home_team, home_points, away_team, away_points) %>% 
+  select(id, home_team, home_points, away_team, away_points, neutral_site) %>% 
   mutate(id = as.character(id))
 
 plays.master.win_prob <- plays %>%
@@ -118,6 +125,17 @@ plays.master.win_prob2 <- plays.master.win_prob2 %>%
          home_timeouts = if_else(home == offense, offense_timeouts, defense_timeouts),
          away_timeouts = if_else(away == offense, offense_timeouts, defense_timeouts))
 
+### NEW
+# Adjust timeouts based on the half
+plays.master.win_prob2 <- plays.master.win_prob2 %>% 
+  mutate(home_timeouts_new = if_else(period %in% c(1,2), 
+                                     home_timeouts + 3L,
+                                     home_timeouts),
+         away_timeouts_new = if_else(period %in% c(1,2), 
+                                     away_timeouts + 3L,
+                                     away_timeouts)
+  )
+### END NEW
 
 rm(plays.master.win_prob)
 
@@ -133,13 +151,34 @@ plays.master.win_prob3 <- plays.master.win_prob2 %>% left_join(elo_ratings_adj, 
   rename(away_elo = elo_rating) %>% 
   distinct() %>% 
   mutate(clock_in_seconds = 2700-(900*(period-1)) + minutes*60 + seconds) %>% 
-  replace_na(list(home_timeouts = 0, away_timeouts = 0, home_elo = 1300, away_elo=1300,
-                  offense_timeouts = 0, defense_timeouts=0))
+  tidyr::replace_na(list(home_timeouts = 0, away_timeouts = 0, home_elo = 1300, away_elo=1300,
+                         offense_timeouts = 0, defense_timeouts=0,
+                         home_timeouts_new = 0,
+                         away_timeouts_new = 0))
 
 
 # Add home_elo_diff
 plays.master.win_prob3 <- plays.master.win_prob3 %>% 
   mutate(home_elo_diff = home_elo - away_elo)
+
+
+calc_expected_score <- function(team_rating, opp_team_rating){
+  quotient_home <- 10^((team_rating)/400)
+  quotient_away <- 10^((opp_team_rating)/400)
+  return(expected_score_home <- quotient_home / (quotient_home + quotient_away))
+}
+
+### NEW
+# Add elo home wp
+
+plays.master.win_prob3 <- plays.master.win_prob3 %>% 
+  mutate(home_elo_wp = calc_expected_score(home_elo + 
+                                             if_else(neutral_site == FALSE |
+                                                       is.na(neutral_site) == TRUE, 
+                                                     55L, 
+                                                     0L),
+                                           away_elo))
+### END NEW
 
 
 ### keep only the first play when there are duplicate times ####
@@ -160,10 +199,12 @@ x<-plays.make.end.rows %>%
   mutate(period=-10,
          home_timeouts=-10,
          away_timeouts=-10,
+         home_timeouts_new=-10,
+         away_timeouts_new=-10,
          clock_in_seconds=-.5,
          down=-10,
          distance=-10,
-         home_score_lead_deficit=home_points-away_points,
+         home_score_lead_deficit=home_score_lead_deficit,
          yards_to_goal=-10,
          home_poss_flag=-10,
   )
@@ -180,8 +221,8 @@ plays_wp <- plays.master.win_prob4
 
 x.test <- plays_wp %>% 
   select(home_score_lead_deficit, clock_in_seconds, down, distance,
-         yards_to_goal, home_poss_flag, home_timeouts,away_timeouts, 
-         home_elo_diff, game_over) %>% 
+         yards_to_goal, home_poss_flag, home_timeouts_new, away_timeouts_new, 
+         home_elo_wp, game_over) %>% 
   as.matrix()
 
 dtest <- xgb.DMatrix(x.test,missing=NA)
