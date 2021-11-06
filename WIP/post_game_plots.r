@@ -77,6 +77,10 @@ cum_sum_qb <- plays %>%
 
 team_colors <- get_colors()
 
+# Change any teams that are pure white to their backup color - only applies to Toledo
+team_colors <- team_colors %>% 
+  mutate(color = if_else(color == "#ffffff", alt_color, color))
+
 cum_sum_qb_plot_data <- cum_sum_qb %>% 
   left_join(team_colors, by = c("offense" = "school")) %>% 
   group_by(player) %>% 
