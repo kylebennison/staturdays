@@ -220,7 +220,7 @@ plays.master.win_prob4 <- plays.master.win_prob4 %>%
 plays_wp <- plays.master.win_prob4
 
 x.test <- plays_wp %>% 
-  select(home_score_lead_deficit, clock_in_seconds, down, distance,
+  select(year, home_score_lead_deficit, clock_in_seconds, down, distance,
          yards_to_goal, home_poss_flag, home_timeouts_new, away_timeouts_new, 
          home_elo_wp, game_over) %>% 
   as.matrix()
@@ -336,7 +336,6 @@ plot2 <- this_game_data %>%
   scale_color_gradient(low = (unique(this_game_data$color_away)), 
                            high = (unique(this_game_data$color_home)),
                        guide = "none") +
-  ylim(0, 1) +
   ggimage::geom_image(aes(image = light_home),
                       size = .1,
                       by = "width",
