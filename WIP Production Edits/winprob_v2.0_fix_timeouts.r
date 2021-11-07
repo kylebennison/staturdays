@@ -197,31 +197,31 @@ x.test <- plays.master.win_prob4 %>% filter(year == 2021, game_id == "401309885"
 dtrain <- xgb.DMatrix(x.train,label=y.train,missing=NA)
 dtest <- xgb.DMatrix(x.test,missing=NA)
 
-
-# Use cross validation 
-param <- list(  objective           = "binary:logistic",
-                gamma               = 0.04, #.02
-                booster             = "gbtree",
-                eval_metric         = "logloss",
-                eta                 = 0.06,
-                max_depth           = 20,
-                min_child_weight    = 2,
-                subsample           = 1,
-                colsample_bytree    = 1,
-                tree_method = 'hist'
-)
-#run this for training, otherwise skip
-XGBm <- xgb.cv(params=param,nfold=5,nrounds=5000,missing=NA,data=dtrain,print_every_n=10, early_stopping_rounds = 25)
-
-#train the full model
-watchlist <- list( train = dtrain)
-XGBm <- xgb.train(params=param,
-                  nrounds=700,
-                  missing=NA,
-                  data=dtrain,
-                  watchlist=watchlist,
-                  print_every_n=100,
-                  early_stopping_rounds = 50)
+# Old v1.0 method
+# # Use cross validation 
+# param <- list(  objective           = "binary:logistic",
+#                 gamma               = 0.04, #.02
+#                 booster             = "gbtree",
+#                 eval_metric         = "logloss",
+#                 eta                 = 0.06,
+#                 max_depth           = 20,
+#                 min_child_weight    = 2,
+#                 subsample           = 1,
+#                 colsample_bytree    = 1,
+#                 tree_method = 'hist'
+# )
+# #run this for training, otherwise skip
+# XGBm <- xgb.cv(params=param,nfold=5,nrounds=5000,missing=NA,data=dtrain,print_every_n=10, early_stopping_rounds = 25)
+# 
+# #train the full model
+# watchlist <- list( train = dtrain)
+# XGBm <- xgb.train(params=param,
+#                   nrounds=700,
+#                   missing=NA,
+#                   data=dtrain,
+#                   watchlist=watchlist,
+#                   print_every_n=100,
+#                   early_stopping_rounds = 50)
 
 ### Try it nflfastR way
 
@@ -350,6 +350,11 @@ wp_cv_cal_error
 # weight_cal_error n_wins
 # <dbl>  <int>
 #   1           0.0118 337707
+# v2.0 w fixed make.end.row.s
+# A tibble: 1 x 2
+#weight_cal_error n_wins
+#<dbl>  <int>
+#  1           0.0123 340441
 
 full_train <- xgboost::xgb.DMatrix(model.matrix(~ . + 0, data = model_data %>% filter(year != 2021) %>% select(-home_outcome)),
                                    label = model_data %>% filter(year != 2021) %>% pull(home_outcome))
@@ -403,6 +408,7 @@ full_preds %>%
 # v1.0 model - 93.6% of all games at .9-1 or .1-0 at game over
 # NflfastsR w/ max_depth = 5 -> 91.3%
 # w/ min_child_weight 2 -> 91.7%
+# w/ fixed make.end.rows. -> 92.1%
 
 ### End NFLfastR method
 
