@@ -633,7 +633,7 @@ expected_value_tbl <- win_probs_moneyline_1 %>%
 library(gtExtras)
 
 exp_value_gt <- expected_value_tbl %>% 
-  filter(home_exp_value > 0 | away_exp_value > 0) %>% 
+  filter(home_exp_value > 1 | away_exp_value > 1) %>% 
   select(home_team, home_pred_win_prob, home_implied_odds, home_exp_value,
          away_team, away_pred_win_prob, away_implied_odds, away_exp_value) %>% 
   gt() %>% 
