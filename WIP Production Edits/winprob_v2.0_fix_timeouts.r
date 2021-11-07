@@ -151,17 +151,17 @@ plays.master.win_prob3 <- plays.master.win_prob3 %>% group_by(game_id, clock_in_
   ungroup()
 
 x<-plays.make.end.rows %>% 
-  mutate(period=-10,
-         home_timeouts=-10,
-         away_timeouts=-10,
-         home_timeouts_new=-10,
-         away_timeouts_new=-10,
-         clock_in_seconds=-.5,
-         down=-10,
-         distance=-10,
+  mutate(period=20,
+         home_timeouts=0,
+         away_timeouts=0,
+         home_timeouts_new=0,
+         away_timeouts_new=0,
+         clock_in_seconds=-10000,
+         down=5,
+         distance=100,
          home_score_lead_deficit=home_score_lead_deficit,
-         yards_to_goal=-10,
-         home_poss_flag=-10,
+         yards_to_goal=100,
+         home_poss_flag=if_else(home_score_lead_deficit > 0, 1, 0),
          )
 
 #add on user created row
@@ -169,7 +169,7 @@ plays.master.win_prob4 <- rbind(plays.master.win_prob3, x)
 
 
 plays.master.win_prob4 <- plays.master.win_prob4 %>% 
-  mutate(game_over = ifelse(period==-10,1,0))
+  mutate(game_over = ifelse(period==20,1,0))
   
 
 # Prep Data for Modeling 
@@ -355,6 +355,16 @@ wp_cv_cal_error
 #weight_cal_error n_wins
 #<dbl>  <int>
 #  1           0.0123 340441
+# v2.1 w more logical values for game_over values
+# A tibble: 1 x 2
+#weight_cal_error n_wins
+#<dbl>  <int>
+#  1           0.0114 340441
+# v2.2 w changing final home possession flag based on winner
+# A tibble: 1 x 2
+#weight_cal_error n_wins
+#<dbl>  <int>
+#  1           0.0118 340441
 
 full_train <- xgboost::xgb.DMatrix(model.matrix(~ . + 0, data = model_data %>% filter(year != 2021) %>% select(-home_outcome)),
                                    label = model_data %>% filter(year != 2021) %>% pull(home_outcome))
@@ -409,6 +419,8 @@ full_preds %>%
 # NflfastsR w/ max_depth = 5 -> 91.3%
 # w/ min_child_weight 2 -> 91.7%
 # w/ fixed make.end.rows. -> 92.1%
+# w/ logical values for game_over -> 94%
+# w/ adaptive home_possession flag on last play based on winner -> 96.7%
 
 ### End NFLfastR method
 
