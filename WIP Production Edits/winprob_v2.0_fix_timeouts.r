@@ -366,7 +366,7 @@ wp_cv_cal_error
 #<dbl>  <int>
 #  1           0.0118 340441
 
-full_train <- xgboost::xgb.DMatrix(model.matrix(~ . + 0, data = model_data %>% filter(year != 2021) %>% select(-home_outcome)),
+full_train <- xgboost::xgb.DMatrix(model.matrix(~ . + 0, data = model_data %>% filter(year != 2021) %>% select(-home_outcome, -year)),
                                    label = model_data %>% filter(year != 2021) %>% pull(home_outcome))
 
 wp_model <- xgboost::xgboost(params = params, 
@@ -375,7 +375,7 @@ wp_model <- xgboost::xgboost(params = params,
                              verbose = 2)
 
 preds <- as.data.frame(
-  matrix(predict(wp_model, as.matrix(model_data %>% filter(year == 2021) %>% select(-home_outcome))))
+  matrix(predict(wp_model, as.matrix(model_data %>% filter(year == 2021) %>% select(-home_outcome, -year))))
 ) %>%
   dplyr::rename(wp = V1)
 
@@ -383,6 +383,7 @@ full_preds <- cbind(plays.master.win_prob4 %>% filter(year == 2021), preds)
 
 # Look at single games from 2021
 full_preds %>% 
+  mutate(clock_in_seconds = if_else(clock_in_seconds == -10000, -.5, clock_in_seconds)) %>% 
   filter(game_id == 401309885) %>% 
   ggplot(aes(x = -clock_in_seconds, y = wp)) +
   geom_line() +
