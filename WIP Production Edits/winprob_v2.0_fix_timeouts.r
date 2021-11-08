@@ -33,6 +33,9 @@ plays.master <- fread("C:/Users/drewb/Desktop/cfb_plays_2014_2020.csv")
 #   mutate(game_id = str_remove(game_id, "id_")) %>% 
 #   mutate(game_id = as.integer(game_id))
 
+# Get betting data
+betting <- get_betting(2014,2021,1,20)
+
 #bring in new games
 plays.master2 <- get_plays(start_week = 1, end_week = 16, start_year = 2021, end_year = 2021)
 games.master2 <- get_games(start_week = 1, end_week = 16, start_year = 2021, end_year = 2021)
@@ -172,8 +175,6 @@ plays.master.win_prob4 <- plays.master.win_prob4 %>%
   mutate(game_over = ifelse(period==20,1,0))
 
 # Join in betting data
-betting <- get_betting(2014,2021,1,20)
-
 plays.master.win_prob4 <- plays.master.win_prob4 %>% 
   left_join(betting %>% select(id, spread), by = c("game_id" = "id")) %>% 
   filter(is.na(spread) == FALSE) %>% 
