@@ -170,6 +170,14 @@ plays.master.win_prob4 <- rbind(plays.master.win_prob3, x)
 
 plays.master.win_prob4 <- plays.master.win_prob4 %>% 
   mutate(game_over = ifelse(period==20,1,0))
+
+# Join in betting data
+betting <- get_betting(2014,2021,1,20)
+
+plays.master.win_prob4 <- plays.master.win_prob4 %>% 
+  left_join(betting %>% select(id, spread), by = c("game_id" = "id")) %>% 
+  filter(is.na(spread) == FALSE) %>% 
+  mutate(spread = spread * (clock_in_seconds/3600)^2) # Decrease spread as game goes on to reduce it's effect
   
 
 # Prep Data for Modeling 
@@ -177,7 +185,7 @@ y.train <- plays.master.win_prob4$home_outcome
 x.train <- plays.master.win_prob4 %>% 
   select(home_score_lead_deficit, clock_in_seconds, down, distance,
          yards_to_goal, home_poss_flag, home_timeouts_new, away_timeouts_new, 
-         home_elo_wp, game_over) %>% 
+         home_elo_wp, game_over, spread) %>% 
   as.matrix()
 
 #extra columns that aren't used for modeling but might be good for prediction
@@ -189,7 +197,7 @@ x.train.leftover <- plays.master.win_prob4 %>%
 x.test <- plays.master.win_prob4 %>% filter(year == 2021, game_id == "401309885") %>% 
   select(home_score_lead_deficit, clock_in_seconds, down, distance,
          yards_to_goal, home_poss_flag, home_timeouts_new, away_timeouts_new, 
-         home_elo_wp, game_over) %>% 
+         home_elo_wp, game_over, spread) %>% 
   as.matrix()
 
 
@@ -245,7 +253,7 @@ seasons <- unique(plays.master.win_prob4$year)
 model_data <- plays.master.win_prob4 %>% 
   select(year, home_score_lead_deficit, clock_in_seconds, down, distance,
          yards_to_goal, home_poss_flag, home_timeouts_new, away_timeouts_new, 
-         home_elo_wp, game_over, home_outcome)
+         home_elo_wp, game_over, home_outcome, spread)
 
 cv_results <- map_dfr(seasons, function(x) {
   test_data <- model_data %>%
@@ -365,6 +373,8 @@ wp_cv_cal_error
 #weight_cal_error n_wins
 #<dbl>  <int>
 #  1           0.0118 340441
+# v2.3.1 time-decayed spread
+# .0106
 
 full_train <- xgboost::xgb.DMatrix(model.matrix(~ . + 0, data = model_data %>% filter(year != 2021) %>% select(-home_outcome, -year)),
                                    label = model_data %>% filter(year != 2021) %>% pull(home_outcome))
@@ -422,6 +432,7 @@ full_preds %>%
 # w/ fixed make.end.rows. -> 92.1%
 # w/ logical values for game_over -> 94%
 # w/ adaptive home_possession flag on last play based on winner -> 96.7%
+# w/ time-decay spread v2.3.1 -> 97.2%
 
 ### End NFLfastR method
 
