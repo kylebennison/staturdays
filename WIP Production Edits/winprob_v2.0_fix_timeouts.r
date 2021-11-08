@@ -177,7 +177,7 @@ betting <- get_betting(2014,2021,1,20)
 plays.master.win_prob4 <- plays.master.win_prob4 %>% 
   left_join(betting %>% select(id, spread), by = c("game_id" = "id")) %>% 
   filter(is.na(spread) == FALSE) %>% 
-  mutate(spread = spread * (clock_in_seconds/3600)^2) # Decrease spread as game goes on to reduce it's effect
+  mutate(spread = spread * (clock_in_seconds/3600)^3) # Decrease spread as game goes on to reduce it's effect
   
 
 # Prep Data for Modeling 
@@ -375,6 +375,8 @@ wp_cv_cal_error
 #  1           0.0118 340441
 # v2.3.1 time-decayed spread
 # .0106
+# v2.3.2 more severe time-decay ^3 instead of ^2
+# .0096
 
 full_train <- xgboost::xgb.DMatrix(model.matrix(~ . + 0, data = model_data %>% filter(year != 2021) %>% select(-home_outcome, -year)),
                                    label = model_data %>% filter(year != 2021) %>% pull(home_outcome))
@@ -420,7 +422,10 @@ full_preds %>%
   round(1) %>% 
   group_by(wp) %>% 
   summarise(n = n()) %>% 
-  mutate(pct = n/sum(n))
+  mutate(pct = n/sum(n)) %>% 
+  filter(wp >=.9 | wp <= .1) %>% 
+  pull(pct) %>% 
+  sum()
 
 ## Next step is compare the above method's calibration error to the original 
 ## in-game WP 1.0 in production now.
@@ -433,6 +438,7 @@ full_preds %>%
 # w/ logical values for game_over -> 94%
 # w/ adaptive home_possession flag on last play based on winner -> 96.7%
 # w/ time-decay spread v2.3.1 -> 97.2%
+# w/ ^3 time-decay spread v2.3.2 -> 97.5%
 
 ### End NFLfastR method
 
