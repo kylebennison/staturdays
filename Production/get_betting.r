@@ -65,6 +65,22 @@ get_betting <-
       
     }
     
+    # Do some stuff that needs to be done eventually anyway
+    betting.master <- betting.master %>% 
+      group_by(id, homeTeam, awayTeam) %>% 
+      summarise(spread = mean(as.double(spread), na.rm = TRUE),
+                spreadOpen = mean(as.double(spreadOpen), na.rm = TRUE),
+                overUnder = mean(as.double(overUnder), na.rm = TRUE),
+                overUnderOpen = mean(as.double(overUnderOpen), na.rm = TRUE),
+                homeMoneyline = mean(homeMoneyline, na.rm = TRUE),
+                awayMoneyline = mean(awayMoneyline, na.rm = TRUE)
+      ) %>% 
+      mutate(formattedSpread = paste0(if_else(spread > 0, awayTeam, homeTeam),
+                                      " ",
+                                      "-",
+                                      abs(spread))) %>% 
+      ungroup()
+    
     return(betting.master)
     
   }
