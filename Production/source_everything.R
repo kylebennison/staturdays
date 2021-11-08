@@ -20,3 +20,5 @@ source("https://raw.githubusercontent.com/kylebennison/staturdays/master/Product
 source("https://raw.githubusercontent.com/kylebennison/staturdays/master/Production/get_colors_api.r")
 # Get anything else
 source("https://raw.githubusercontent.com/kylebennison/staturdays/master/Production/get_anything.R")
+# Get betting
+source("https://raw.githubusercontent.com/kylebennison/staturdays/master/Production/get_betting.r")
