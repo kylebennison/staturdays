@@ -465,8 +465,9 @@ win_probs_w_lines <- win_probs %>%
 # Join Lines and find any mismatches between Elo and the Lines
 win_probs_w_lines <- win_probs_w_lines %>%
   mutate(home_favorite = case_when(str_trim(
-    str_remove_all(formattedSpread, "[^a-zA-Z\\s]") # Anything not a letter or a space
-  ) == home_team ~ T, # Search if home team is favored
+    str_remove_all(formattedSpread, "[^a-zA-Z\\s()\\&]") # Anything not a letter, space, &, or ()
+  ) == str_trim(
+    str_remove_all(home_team, "[^a-zA-Z\\s()\\&]")) ~ T, # Search if home team is favored, perform the same regex in case an unintended character in the school name is removed.
   TRUE ~ F)) %>% 
   mutate(elo_different = case_when(is.na(spread) == TRUE ~ F, # Check if Elo agrees or disagrees
                                    (home_favorite == TRUE) & (home_pred_win_prob < 0.5) ~ T,
@@ -487,6 +488,7 @@ win_probs_w_lines <- win_probs_w_lines %>%
                                  paste0("+", awayMoneyline)))
 
 list_of_conferences <- c(win_probs_w_lines$home_conference, win_probs_w_lines$away_conference) %>% unique()
+list_of_conferences <- list_of_conferences[which(list_of_conferences != "NA")]
 for(i in 1:length(list_of_conferences)){
   
   conf_name <- list_of_conferences[i]
