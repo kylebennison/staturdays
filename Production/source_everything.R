@@ -22,3 +22,5 @@ source("https://raw.githubusercontent.com/kylebennison/staturdays/master/Product
 source("https://raw.githubusercontent.com/kylebennison/staturdays/master/Production/get_anything.R")
 # Get betting
 source("https://raw.githubusercontent.com/kylebennison/staturdays/master/Production/get_betting.r")
+# Quickly save a plot
+source("https://raw.githubusercontent.com/kylebennison/staturdays/master/Production/plot_save.r")
