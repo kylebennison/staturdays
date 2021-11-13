@@ -221,7 +221,8 @@ dtest <- xgb.DMatrix(x.test,missing=NA)
 # )
 # #run this for training, otherwise skip
 # XGBm <- xgb.cv(params=param,nfold=5,nrounds=5000,missing=NA,data=dtrain,print_every_n=10, early_stopping_rounds = 25)
-# 
+# # best iteration would be (best_round-early_stopping) / ((nfold-1) / nfold)
+#
 # #train the full model
 # watchlist <- list( train = dtrain)
 # XGBm <- xgb.train(params=param,
@@ -293,7 +294,7 @@ wp_cv_loso_calibration_results <- cv_results %>%
 
 ann_text <- data.frame(
   x = c(.25, 0.75), y = c(0.75, 0.25),
-  lab = c("More times\nthan expected", "Fewer times\nthan expected")
+  lab = c("Winning more times\nthan predicted", "Winning fewer times\nthan predicted")
 )
 
 wp_cv_loso_calibration_results %>%
@@ -310,7 +311,7 @@ wp_cv_loso_calibration_results %>%
     x = "Estimated win probability",
     y = "Observed win probability"
   ) +
-  geom_text(data = ann_text, aes(x = x, y = y, label = lab), size = 3) +
+  geom_text(data = ann_text, aes(x = x, y = y, label = lab), size = 5) +
   theme_bw() +
   theme(
     plot.title = element_text(hjust = 0.5),
@@ -322,7 +323,10 @@ wp_cv_loso_calibration_results %>%
     legend.title = element_text(size = 12),
     legend.text = element_text(size = 12),
     legend.position = "bottom"
-  )
+  ) +
+  staturdays_theme
+
+#plot_save(filename = "pred_v2.1")
 
 # Calculate the calibration error values:
 wp_cv_cal_error <- wp_cv_loso_calibration_results %>%
@@ -411,13 +415,7 @@ full_preds %>%
   geom_text(aes(x = -3300, y = .1, label = away))
 
 # Look at end-game wps. Not all 0s and 1s so not ideal
-full_preds %>%
-  filter(game_over == 1) %>%
-  select(wp) %>% 
-  ggplot(aes(x = wp)) + 
-  geom_histogram()
-
-full_preds %>% 
+end_games <- full_preds %>% 
   filter(game_over == 1) %>% 
   select(wp) %>% 
   round(1) %>% 
@@ -427,6 +425,20 @@ full_preds %>%
   filter(wp >=.9 | wp <= .1) %>% 
   pull(pct) %>% 
   sum()
+
+full_preds %>%
+  filter(game_over == 1) %>%
+  select(wp) %>% 
+  ggplot(aes(x = wp)) + 
+  geom_histogram(fill = staturdays_colors("orange")) +
+  staturdays_theme +
+  labs(x = "Win Probability",
+       y = "n Games",
+       title = "Win Probabilities at End of Games",
+       subtitle = paste0(round(end_games*100, 0), "% of games within 10% of 100% or 0% WP\nby the end of the game")) +
+  scale_x_continuous(labels = scales::percent)
+
+#plot_save(filename = "end_game_v2.1")
 
 ## Next step is compare the above method's calibration error to the original 
 ## in-game WP 1.0 in production now.
