@@ -39,6 +39,8 @@ current_year <- max(elo$season)
 plays <- get_plays(current_week, current_week, current_year, current_year)
 plays <- plays %>% add_success()
 games <- get_games(current_year, current_year, current_week, current_week)
+# Get betting data
+betting <- get_betting(current_year, current_year, current_week, current_week)
 
 # Cumulative QB PPA
 
@@ -92,7 +94,7 @@ game_ids <- game_ids[which(!game_ids %in% games_done$games_done)] # Filter out a
 # In-Game WP
 
 # Read in model
-XGBm <- readRDS("Production Models/in_game_wp_v2.rds")
+XGBm <- readRDS("Production Models/in_game_wp_v2.3.2.rds")
 
 # Prep plays data
 
@@ -186,47 +188,52 @@ plays.master.win_prob3 <- plays.master.win_prob3 %>%
 
 
 ### keep only the first play when there are duplicate times ####
-#filter out timeout rows?
-plays.master.win_prob3 <- plays.master.win_prob3 %>% group_by(game_id, clock_in_seconds) %>% 
-  filter(row_number()==1) %>%  #n()) %>% 
-  ungroup()
-
-
 #MAKE END ROW FOR EACH GAME THAT SHOWS WHO WON - only for games that are finished
 plays.make.end.rows <- plays.master.win_prob3 %>% 
   group_by(game_id) %>% 
   filter(row_number()==n()) %>% 
   ungroup()
 
+#filter out timeout rows?
+plays.master.win_prob3 <- plays.master.win_prob3 %>% group_by(game_id, clock_in_seconds) %>% 
+  filter(row_number()==1) %>%  #n()) %>% 
+  ungroup()
 
 x<-plays.make.end.rows %>% 
-  mutate(period=-10,
-         home_timeouts=-10,
-         away_timeouts=-10,
-         home_timeouts_new=-10,
-         away_timeouts_new=-10,
-         clock_in_seconds=-.5,
-         down=-10,
-         distance=-10,
+  mutate(period=20,
+         home_timeouts=0,
+         away_timeouts=0,
+         home_timeouts_new=0,
+         away_timeouts_new=0,
+         clock_in_seconds=-10000,
+         down=5,
+         distance=100,
          home_score_lead_deficit=home_score_lead_deficit,
-         yards_to_goal=-10,
-         home_poss_flag=-10,
+         yards_to_goal=100,
+         home_poss_flag=if_else(home_score_lead_deficit > 0, 1, 0),
   )
 
 #add on user created row
 plays.master.win_prob4 <- rbind(plays.master.win_prob3, x)
 
+
 plays.master.win_prob4 <- plays.master.win_prob4 %>% 
-  mutate(game_over = ifelse(period==-10,1,0))
+  mutate(game_over = ifelse(period==20,1,0))
+
+# Join in betting data
+plays.master.win_prob4 <- plays.master.win_prob4 %>% 
+  left_join(betting %>% select(id, spread) %>% mutate(id = as.character(id)), by = c("game_id" = "id")) %>% 
+  filter(is.na(spread) == FALSE) %>% 
+  mutate(spread = spread * (clock_in_seconds/3600)^3) # Decrease spread as game goes on to reduce it's effect
 
 # Predict In-Game WP
 
 plays_wp <- plays.master.win_prob4
 
 x.test <- plays_wp %>% 
-  select(year, home_score_lead_deficit, clock_in_seconds, down, distance,
+  select(home_score_lead_deficit, clock_in_seconds, down, distance,
          yards_to_goal, home_poss_flag, home_timeouts_new, away_timeouts_new, 
-         home_elo_wp, game_over) %>% 
+         home_elo_wp, game_over, spread) %>% 
   as.matrix()
 
 dtest <- xgb.DMatrix(x.test,missing=NA)
@@ -334,6 +341,7 @@ library(ggtext)
 
 # Plot In-Game WP
 plot2 <- this_game_data %>% 
+  mutate(clock_in_seconds = if_else(clock_in_seconds == -10000, -1.5, clock_in_seconds)) %>% 
   ggplot(aes(x = -clock_in_seconds, y = home_wp)) +
   geom_line(aes(color = home_wp),
             size = 2) +
