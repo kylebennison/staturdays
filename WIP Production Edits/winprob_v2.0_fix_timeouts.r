@@ -518,3 +518,4 @@ res %>%
 # Save model
 # saveRDS(XGBm, file = "Production Models/in_game_wp.rds")
 # saveRDS(wp_model, file = "Production Models/in_game_wp_v2.rds")
+# saveRDS(wp_model, file = "Production Models/in_game_wp_v2.3.2.rds")
