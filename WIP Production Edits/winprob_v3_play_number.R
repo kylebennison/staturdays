@@ -94,8 +94,6 @@ plays.master.win_prob2 <- plays.master.win_prob2 %>%
   )
 ### END NEW
 
-plays.master.win_prob2
-
 rm(plays.master)
 rm(plays.master.win_prob)
 
@@ -139,6 +137,13 @@ plays.master.win_prob3 <- plays.master.win_prob3 %>%
                                                      0L),
                                            away_elo))
 ### END NEW
+
+### Get number of plays and % of plays completed
+plays.master.win_prob3 <- plays.master.win_prob3 %>% 
+  group_by(game_id) %>% 
+  mutate(play_num = row_number(),
+         n_plays = n(),
+         pct_done = play_num / n_plays)
 
 
 ### keep only the first play when there are duplicate times ####
@@ -184,9 +189,10 @@ plays.master.win_prob4 <- plays.master.win_prob4 %>%
 # Prep Data for Modeling 
 y.train <- plays.master.win_prob4$home_outcome
 x.train <- plays.master.win_prob4 %>% 
-  select(home_score_lead_deficit, clock_in_seconds, down, distance,
+  select(home_score_lead_deficit, down, distance, clock_in_seconds,
          yards_to_goal, home_poss_flag, home_timeouts_new, away_timeouts_new, 
-         home_elo_wp, game_over, spread) %>% 
+         home_elo_wp, game_over, spread,
+         pct_done) %>% 
   as.matrix()
 
 #extra columns that aren't used for modeling but might be good for prediction
@@ -196,9 +202,10 @@ x.train.leftover <- plays.master.win_prob4 %>%
 
 #pick one game if you want to test
 x.test <- plays.master.win_prob4 %>% filter(year == 2021, game_id == "401309885") %>% 
-  select(home_score_lead_deficit, clock_in_seconds, down, distance,
+  select(home_score_lead_deficit, down, distance, clock_in_seconds,
          yards_to_goal, home_poss_flag, home_timeouts_new, away_timeouts_new, 
-         home_elo_wp, game_over, spread) %>% 
+         home_elo_wp, game_over, spread,
+         pct_done) %>% 
   as.matrix()
 
 
@@ -253,9 +260,10 @@ params <-
 seasons <- unique(plays.master.win_prob4$year)
 
 model_data <- plays.master.win_prob4 %>% 
-  select(year, home_score_lead_deficit, clock_in_seconds, down, distance,
+  select(year, home_score_lead_deficit, down, distance, clock_in_seconds,
          yards_to_goal, home_poss_flag, home_timeouts_new, away_timeouts_new, 
-         home_elo_wp, game_over, home_outcome, spread)
+         home_elo_wp, game_over, home_outcome, spread,
+         pct_done)
 
 cv_results <- map_dfr(seasons, function(x) {
   test_data <- model_data %>%
@@ -382,6 +390,8 @@ wp_cv_cal_error
 # .0106
 # v2.3.2 more severe time-decay ^3 instead of ^2
 # .0096
+# v3.0 add in pct_done, keep clock
+# .0101
 
 full_train <- xgboost::xgb.DMatrix(model.matrix(~ . + 0, data = model_data %>% filter(year != 2021) %>% select(-home_outcome, -year)),
                                    label = model_data %>% filter(year != 2021) %>% pull(home_outcome))
@@ -452,6 +462,7 @@ full_preds %>%
 # w/ adaptive home_possession flag on last play based on winner -> 96.7%
 # w/ time-decay spread v2.3.1 -> 97.2%
 # w/ ^3 time-decay spread v2.3.2 -> 97.5%
+# v3.0 add in pct_done, keep clock -> 97.6%
 
 ### End NFLfastR method
 
