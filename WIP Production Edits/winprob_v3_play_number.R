@@ -182,9 +182,10 @@ plays.master.win_prob4 <- plays.master.win_prob4 %>%
 # Join in betting data
 plays.master.win_prob4 <- plays.master.win_prob4 %>% 
   left_join(betting %>% select(id, spread), by = c("game_id" = "id")) %>% 
-  filter(is.na(spread) == FALSE) %>% 
+  mutate(spread = if_else(is.na(spread) == TRUE, 0, spread)) %>% 
   mutate(spread = spread * (clock_in_seconds/3600)^3) # Decrease spread as game goes on to reduce it's effect
 
+### NEW
 
 # Prep Data for Modeling 
 y.train <- plays.master.win_prob4$home_outcome
@@ -264,6 +265,8 @@ model_data <- plays.master.win_prob4 %>%
          yards_to_goal, home_poss_flag, home_timeouts_new, away_timeouts_new, 
          home_elo_wp, game_over, home_outcome, spread,
          pct_done)
+
+set.seed(123)
 
 cv_results <- map_dfr(seasons, function(x) {
   test_data <- model_data %>%
