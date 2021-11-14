@@ -186,6 +186,9 @@ plays.master.win_prob4 <- plays.master.win_prob4 %>%
   mutate(spread = spread * (clock_in_seconds/3600)^3) # Decrease spread as game goes on to reduce it's effect
 
 ### NEW
+# Add kickoff indicator
+plays.master.win_prob4 <- plays.master.win_prob4 %>% 
+  mutate(is_kickoff = if_else(play_type %in% c("Kickoff", "Kickoff Return (Offense)"), 1, 0))
 
 # Prep Data for Modeling 
 y.train <- plays.master.win_prob4$home_outcome
@@ -193,7 +196,7 @@ x.train <- plays.master.win_prob4 %>%
   select(home_score_lead_deficit, down, distance, clock_in_seconds,
          yards_to_goal, home_poss_flag, home_timeouts_new, away_timeouts_new, 
          home_elo_wp, game_over, spread,
-         pct_done) %>% 
+         pct_done, is_kickoff) %>% 
   as.matrix()
 
 #extra columns that aren't used for modeling but might be good for prediction
@@ -206,7 +209,7 @@ x.test <- plays.master.win_prob4 %>% filter(year == 2021, game_id == "401309885"
   select(home_score_lead_deficit, down, distance, clock_in_seconds,
          yards_to_goal, home_poss_flag, home_timeouts_new, away_timeouts_new, 
          home_elo_wp, game_over, spread,
-         pct_done) %>% 
+         pct_done, is_kickoff) %>% 
   as.matrix()
 
 
@@ -264,7 +267,7 @@ model_data <- plays.master.win_prob4 %>%
   select(year, home_score_lead_deficit, down, distance, clock_in_seconds,
          yards_to_goal, home_poss_flag, home_timeouts_new, away_timeouts_new, 
          home_elo_wp, game_over, home_outcome, spread,
-         pct_done)
+         pct_done, is_kickoff)
 
 set.seed(123)
 
@@ -395,6 +398,8 @@ wp_cv_cal_error
 # .0096
 # v3.0 add in pct_done, keep clock
 # .0101
+# v3.1 add is_kickoff
+# .0010
 
 full_train <- xgboost::xgb.DMatrix(model.matrix(~ . + 0, data = model_data %>% filter(year != 2021) %>% select(-home_outcome, -year)),
                                    label = model_data %>% filter(year != 2021) %>% pull(home_outcome))
@@ -466,6 +471,7 @@ full_preds %>%
 # w/ time-decay spread v2.3.1 -> 97.2%
 # w/ ^3 time-decay spread v2.3.2 -> 97.5%
 # v3.0 add in pct_done, keep clock -> 97.6%
+# v3.1 add is_kickoff -> 97.2%
 
 ### End NFLfastR method
 
