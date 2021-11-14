@@ -153,10 +153,10 @@ plays.make.end.rows <- plays.master.win_prob3 %>%
   filter(row_number()==n()) %>% 
   ungroup()
 
-#filter out timeout rows?
-plays.master.win_prob3 <- plays.master.win_prob3 %>% group_by(game_id, clock_in_seconds) %>% 
-  filter(row_number()==1) %>%  #n()) %>% 
-  ungroup()
+# #filter out timeout rows?
+# plays.master.win_prob3 <- plays.master.win_prob3 %>% group_by(game_id, clock_in_seconds) %>% 
+#   filter(row_number()==1) %>%  #n()) %>% 
+#   ungroup()
 
 x<-plays.make.end.rows %>% 
   mutate(period=20,
@@ -193,7 +193,7 @@ plays.master.win_prob4 <- plays.master.win_prob4 %>%
 # Prep Data for Modeling 
 y.train <- plays.master.win_prob4$home_outcome
 x.train <- plays.master.win_prob4 %>% 
-  select(home_score_lead_deficit, down, distance, clock_in_seconds,
+  select(home_score_lead_deficit, down, distance,
          yards_to_goal, home_poss_flag, home_timeouts_new, away_timeouts_new, 
          home_elo_wp, game_over, spread,
          pct_done, is_kickoff) %>% 
@@ -206,7 +206,7 @@ x.train.leftover <- plays.master.win_prob4 %>%
 
 #pick one game if you want to test
 x.test <- plays.master.win_prob4 %>% filter(year == 2021, game_id == "401309885") %>% 
-  select(home_score_lead_deficit, down, distance, clock_in_seconds,
+  select(home_score_lead_deficit, down, distance,
          yards_to_goal, home_poss_flag, home_timeouts_new, away_timeouts_new, 
          home_elo_wp, game_over, spread,
          pct_done, is_kickoff) %>% 
@@ -264,7 +264,7 @@ params <-
 seasons <- unique(plays.master.win_prob4$year)
 
 model_data <- plays.master.win_prob4 %>% 
-  select(year, home_score_lead_deficit, down, distance, clock_in_seconds,
+  select(year, home_score_lead_deficit, down, distance,
          yards_to_goal, home_poss_flag, home_timeouts_new, away_timeouts_new, 
          home_elo_wp, game_over, home_outcome, spread,
          pct_done, is_kickoff)
@@ -399,7 +399,11 @@ wp_cv_cal_error
 # v3.0 add in pct_done, keep clock
 # .0101
 # v3.1 add is_kickoff
-# .0010
+# .0100
+# v3.1.1 if you keep duplicate clock rows with clock_in_seconds
+# .0135
+# v3.1.12 if you keep duplicate clock rows but remove clock_in_seconds
+# .0113
 
 full_train <- xgboost::xgb.DMatrix(model.matrix(~ . + 0, data = model_data %>% filter(year != 2021) %>% select(-home_outcome, -year)),
                                    label = model_data %>% filter(year != 2021) %>% pull(home_outcome))
@@ -472,6 +476,8 @@ full_preds %>%
 # w/ ^3 time-decay spread v2.3.2 -> 97.5%
 # v3.0 add in pct_done, keep clock -> 97.6%
 # v3.1 add is_kickoff -> 97.2%
+# v3.1.1 if you keep duplicate clock rows with clock_in_seconds -> 94.8%
+# v3.1.12 if you keep duplicate clock rows without clock_in_seconds -> 97.0%
 
 ### End NFLfastR method
 
