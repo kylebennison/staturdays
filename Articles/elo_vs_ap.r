@@ -16,8 +16,18 @@ ap_top_25 <- ap %>%
   rename(pre_week = week) %>% 
   unnest(polls) %>% 
   unnest(ranks) %>% 
-  filter(poll == "AP Top 25") %>% 
-  rename(ap_rank = rank)
+  filter(poll %in% c("AP Top 25"))
+
+cfp_top_25 <- ap %>% 
+  rename(pre_week = week) %>% 
+  unnest(polls) %>% 
+  unnest(ranks) %>% 
+  filter(poll %in% c("Playoff Committee Rankings"))
+
+ap_joined <- ap_top_25 %>% 
+  full_join(cfp_top_25, by = c("season", "pre_week", "seasonType", "school",
+                               "conference"),
+            suffix = c("_ap", "_cfp"))
 
 games <- get_games(2000, 2021)
 
@@ -32,10 +42,10 @@ games_joined <- games_result %>%
   left_join(elo_ready, by = c("start_date" = "join_date",
                               "away_team" = "team"),
             suffix = c("_home", "_away")) %>% 
-  left_join(ap_top_25, by = c("season",
+  left_join(ap_joined, by = c("season",
                               "week" = "pre_week",
                               "home_team" = "school")) %>% 
-  left_join(ap_top_25, by = c("season",
+  left_join(ap_joined, by = c("season",
                               "week" = "pre_week",
                               "away_team" = "school"),
             suffix = c("_home", "_away"))
@@ -46,23 +56,33 @@ calc_expected_score <- function(team_rating, opp_team_rating){
   return(expected_score_home <- quotient_home / (quotient_home + quotient_away))
 }
 
-games_ready <- games_joined %>% 
-  filter(ap_rank_home <= 25 & ap_rank_away <= 25,
-         season_type == "regular") %>% 
+games_ready <- games_joined %>%
+  filter((rank_ap_home <= 25 &
+            rank_ap_away <= 25),
+         season_type == "regular"
+  ) %>% 
   mutate(home_elo_diff = elo_rating_home - elo_rating_away,
          home_elo_wp = calc_expected_score(elo_rating_home + if_else(neutral_site == TRUE, 0L, 55L), elo_rating_away))
 
-model_ap <- glm(formula = home_result ~ ap_rank_home + ap_rank_away, family = "binomial", data = games_ready)
+games_ready_cfp <- games_joined %>% 
+  filter((rank_cfp_home <= 25 &
+            rank_cfp_away <= 25),
+         season_type == "regular")
+  
+
+model_ap <- glm(formula = home_result ~ rank_ap_home + rank_ap_away, family = "binomial", data = games_ready)
 model_elo <- glm(formula = home_result ~ elo_ranking_home + elo_ranking_away, family = "binomial", data = games_ready)
 model_elo_rating <- glm(formula = home_result ~ elo_rating_home + elo_rating_away, family = "binomial", data = games_ready)
 model_elo_diff <- glm(formula = home_result ~ home_elo_diff, family = "binomial", data = games_ready)
 model_elo_wp <- glm(formula = home_result ~ home_elo_wp, family = "binomial", data = games_ready)
+model_cfp <- glm(formula = home_result ~ rank_cfp_home + rank_cfp_away, family = "binomial", data = games_ready_cfp)
 
 summary(model_ap) # 1111 AIC
 summary(model_elo) # 1117
 summary(model_elo_rating) # 1082
 summary(model_elo_diff) # 1081
 summary(model_elo_wp) # 1078.9
+summary(model_cfp) # 135
 
 games_predict <- games_ready %>% 
   mutate(ap_predict = predict(model_ap, newdata = games_ready),
@@ -167,9 +187,9 @@ source("Production/plot_save.r")
 plot_save(filename = "elo_vs_ap_plot")
 
 games_predict %>% 
-  group_by(ap_rank_home) %>% 
+  group_by(rank_home) %>% 
   summarise(avg_result = mean(home_result), n = n()) %>% 
-  ggplot(aes(x = ap_rank_home, y = avg_result)) +
+  ggplot(aes(x = rank_home, y = avg_result)) +
   geom_point() +
   scale_y_continuous(labels = scales::percent) +
   staturdays_theme +
