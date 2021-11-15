@@ -405,6 +405,8 @@ wp_cv_cal_error
 # .0135
 # v3.1.12 if you keep duplicate clock rows but remove clock_in_seconds
 # .0113
+# v3.1.13 remove game_id which was accidentally being included
+# .0076
 
 full_train <- xgboost::xgb.DMatrix(model.matrix(~ . + 0, data = model_data %>% filter(year != 2021) %>% select(-home_outcome, -year)),
                                    label = model_data %>% filter(year != 2021) %>% pull(home_outcome))
@@ -438,7 +440,7 @@ full_preds %>%
   geom_text(aes(x = -3300, y = .1, label = away))
 
 # Look at end-game wps. Not all 0s and 1s so not ideal
-end_games <- full_preds %>% 
+end_games <- cv_results %>% 
   filter(game_over == 1) %>% 
   select(wp) %>% 
   round(1) %>% 
@@ -449,7 +451,7 @@ end_games <- full_preds %>%
   pull(pct) %>% 
   sum()
 
-full_preds %>%
+cv_results %>%
   filter(game_over == 1) %>%
   select(wp) %>% 
   ggplot(aes(x = wp)) + 
@@ -479,6 +481,7 @@ full_preds %>%
 # v3.1 add is_kickoff -> 97.2%
 # v3.1.1 if you keep duplicate clock rows with clock_in_seconds -> 94.8%
 # v3.1.12 if you keep duplicate clock rows without clock_in_seconds -> 97.0%
+# v3.1.13 remove game_id which was accidentally being included -> 98.3%
 
 ### End NFLfastR method
 
@@ -547,3 +550,4 @@ res %>%
 # saveRDS(wp_model, file = "Production Models/in_game_wp_v2.rds")
 # saveRDS(wp_model, file = "Production Models/in_game_wp_v2.3.2.rds")
 # saveRDS(wp_model, file = "Production Models/in_game_wp_v3.0.rds")
+# saveRDS(wp_model, file = "Production Models/in_game_wp_v3.1.13.rds")
