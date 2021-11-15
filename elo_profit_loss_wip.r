@@ -417,15 +417,18 @@ expected_value_tbl <- win_probs_moneyline_1 %>%
 # Calc profit/loss for the year
 
 expected_value_tbl %>% 
-  filter(home_exp_value > 0 | away_exp_value > 0) %>% 
+  filter(home_exp_value > 1 | away_exp_value > 1) %>% 
   mutate(profit = case_when(game_outcome_home == 1 & home_exp_value > 0 ~ home_win_10d_bet - 10, # Betting rules. Bet on home when home exp. value > 0
                             game_outcome_home == 0 & home_exp_value > 0 ~ -10,
                             game_outcome_home == 1 & away_exp_value > 0 ~ -10,
                             game_outcome_home == 0 & away_exp_value > 0 ~ away_win_10d_bet - 10,
-                            TRUE ~ -Inf),
+                            TRUE ~ 0),
          wins = if_else(profit > 0, 1, 0),
          losses = 1 - wins) %>% 
   ungroup() %>% 
+  group_by(week) %>% 
   summarise(p_and_l = sum(profit), n = n(),
             winning_bets = sum(wins),
-            losing_bets = sum(losses))
+            losing_bets = sum(losses)) %>% 
+  janitor::adorn_totals() %>% 
+  tibble()
