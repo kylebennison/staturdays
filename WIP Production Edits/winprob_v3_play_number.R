@@ -188,7 +188,8 @@ plays.master.win_prob4 <- plays.master.win_prob4 %>%
 ### NEW
 # Add kickoff indicator
 plays.master.win_prob4 <- plays.master.win_prob4 %>% 
-  mutate(is_kickoff = if_else(play_type %in% c("Kickoff", "Kickoff Return (Offense)"), 1, 0))
+  mutate(is_kickoff = if_else(play_type %in% c("Kickoff", "Kickoff Return (Offense)"), 1, 0)) %>% 
+  ungroup()
 
 # Prep Data for Modeling 
 y.train <- plays.master.win_prob4$home_outcome
@@ -545,3 +546,4 @@ res %>%
 # saveRDS(XGBm, file = "Production Models/in_game_wp.rds")
 # saveRDS(wp_model, file = "Production Models/in_game_wp_v2.rds")
 # saveRDS(wp_model, file = "Production Models/in_game_wp_v2.3.2.rds")
+# saveRDS(wp_model, file = "Production Models/in_game_wp_v3.0.rds")
