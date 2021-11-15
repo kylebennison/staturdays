@@ -23,7 +23,7 @@ base_url_drives <- "https://api.collegefootballdata.com/drives?" # Base URL for 
 #get plays data and gmes data
 #get plays data and gmes data
 #plays.master <- get_plays(start_week = 1, end_week = 15, start_year = 2014, end_year = 2020)
-games.master <- get_games(start_week = 1, end_week = 16, start_year = 2014, end_year = 2020)
+games.master <- get_games(start_year = 2014, end_year = 2020)
 
 #save plays data so as not to call the API each time
 #fwrite(plays.master, "C:/Users/drewb/Desktop/cfb_plays_2014_2020.csv")
