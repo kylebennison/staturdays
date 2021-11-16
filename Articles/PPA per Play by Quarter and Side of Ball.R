@@ -29,13 +29,16 @@ conf <- conf %>% select(school, conference)
 
 combined <- combined %>% left_join(conf, by = c("team" = "school"))
 
-combined %>% filter(conference == "Big Ten") %>% 
+combined %>% filter(conference == "SEC") %>% 
   ggplot(aes(x=period, y=avg_ppa, fill=side)) + geom_col(position = position_dodge2(preserve = "single")) +
   facet_wrap(~team) +
   staturdays_theme +
   labs(x="Quarter",
        y="Avg. PPA/Play",
-       fill="When team is on...") +
+       fill="When team is on...",
+       title = "How team performance varies by quarter",
+       caption = "@Staturdays | Data: @CFB_Data",
+       subtitle = "Positive PPA is good for offense and defense") +
   theme( # remove the vertical grid lines
     panel.grid.major.x = element_blank() ,
     # explicitly set the horizontal lines (or they will disappear too)
