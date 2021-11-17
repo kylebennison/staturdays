@@ -9,6 +9,8 @@ add_wpa <- function(plays_df){
   
   plays.master <- plays_df
   
+  original_columns <- colnames(plays.master)
+  
   if(any(class(plays.master) %in% c("data.frame", "tbl_df", "tbl"))){
     
     # Start data manipulation
@@ -199,6 +201,9 @@ add_wpa <- function(plays_df){
       as.matrix()
     
     dtest <- xgb.DMatrix(x.test,missing=NA)
+    
+    plays_wp <- plays_wp %>% 
+      select(original_columns)
     
     plays_wp$home_wp <- predict(XGBm, newdata = dtest)
     
