@@ -4,6 +4,7 @@
 #' I'm pretty sure the plays data doesn't get published until after
 #' the game.
 #'
+#' Last updated with 3.1.13 model on 11/17/21 by kylebennison
 
 source("https://raw.githubusercontent.com/kylebennison/staturdays/master/Production/source_everything.R")
 
