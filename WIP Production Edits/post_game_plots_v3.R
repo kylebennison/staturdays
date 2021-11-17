@@ -351,6 +351,13 @@ this_post_game_data <- games %>%
     )
   )
 
+# Get avg. in-game wp
+avg_wp <- this_game_data %>% 
+  group_by(home, away, home_outcome) %>% 
+  summarise(avg_wp = mean(home_wp)) %>% 
+  mutate(winner = paste0(if_else(home_outcome == 1, home, away)),
+         winner_wp = if_else(home_outcome == 1, avg_wp, 1-avg_wp))
+
 quarters <- this_game_data %>% filter(game_id == game_ids[i]) %>% 
   filter(period == 3 & lead(period) == 4 |
            period == 2 & lead(period) == 3 |
@@ -388,7 +395,7 @@ plot2 <- this_game_data %>%
   staturdays_theme +
   geom_vline(xintercept = c(quarters), linetype = c(2,1,2)) +
   annotate(geom = "label", x = c(mid_quarters), y = 0,
-           label = paste0("Q", 1:4),
+           label = paste0("Q", 1:length(mid_quarters)),
            alpha = .5,
            fill = staturdays_colors("light_blue"),
            color = "white") +
@@ -403,9 +410,9 @@ plot2 <- this_game_data %>%
                       ";'>",
                       unique(this_game_data$home),
                       "</span> Win Probability"),
-       subtitle = paste0(this_post_game_data$winner,
-                         " Postgame Win Probability of <b>",
-                         scales::percent(round(this_post_game_data$winner_post_game_wp, 2)),
+       subtitle = paste0(avg_wp$winner,
+                         " Average Win Probability of <b>",
+                         scales::percent(round(avg_wp$winner_wp, 2)),
                          "</b>"),
        caption = "@kylebeni012 for @staturdays | Data: @cfb_data") +
   theme(plot.title = element_markdown(),
