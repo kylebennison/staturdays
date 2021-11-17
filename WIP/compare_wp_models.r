@@ -1,4 +1,5 @@
 ### Compare Models
+# requires manual intervention
 
 model_2.3.2 <- readRDS("Production Models/in_game_wp_v2.3.2.rds")
 data_2.3.2 <- plays.master.win_prob4 %>% 
