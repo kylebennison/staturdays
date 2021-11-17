@@ -94,7 +94,7 @@ game_ids <- game_ids[which(!game_ids %in% games_done$games_done)] # Filter out a
 # In-Game WP
 
 # Read in model
-XGBm <- readRDS("Production Models/in_game_wp_v2.3.2.rds")
+XGBm <- readRDS("Production Models/in_game_wp_v3.1.13.rds")
 
 # Prep plays data
 
@@ -145,6 +145,7 @@ plays.master.win_prob2 <- plays.master.win_prob2 %>%
 
 rm(plays.master.win_prob)
 
+#elo ratings
 elo_ratings <- elo %>% 
   select(team, elo_rating, week, season)
 
@@ -167,7 +168,6 @@ plays.master.win_prob3 <- plays.master.win_prob2 %>% left_join(elo_ratings_adj, 
 plays.master.win_prob3 <- plays.master.win_prob3 %>% 
   mutate(home_elo_diff = home_elo - away_elo)
 
-
 calc_expected_score <- function(team_rating, opp_team_rating){
   quotient_home <- 10^((team_rating)/400)
   quotient_away <- 10^((opp_team_rating)/400)
@@ -186,6 +186,13 @@ plays.master.win_prob3 <- plays.master.win_prob3 %>%
                                            away_elo))
 ### END NEW
 
+### Get number of plays and % of plays completed
+plays.master.win_prob3 <- plays.master.win_prob3 %>% 
+  group_by(game_id) %>% 
+  mutate(play_num = row_number(),
+         n_plays = n(),
+         pct_done = play_num / n_plays)
+
 
 ### keep only the first play when there are duplicate times ####
 #MAKE END ROW FOR EACH GAME THAT SHOWS WHO WON - only for games that are finished
@@ -194,10 +201,10 @@ plays.make.end.rows <- plays.master.win_prob3 %>%
   filter(row_number()==n()) %>% 
   ungroup()
 
-#filter out timeout rows?
-plays.master.win_prob3 <- plays.master.win_prob3 %>% group_by(game_id, clock_in_seconds) %>% 
-  filter(row_number()==1) %>%  #n()) %>% 
-  ungroup()
+# #filter out timeout rows?
+# plays.master.win_prob3 <- plays.master.win_prob3 %>% group_by(game_id, clock_in_seconds) %>% 
+#   filter(row_number()==1) %>%  #n()) %>% 
+#   ungroup()
 
 x<-plays.make.end.rows %>% 
   mutate(period=20,
@@ -222,9 +229,15 @@ plays.master.win_prob4 <- plays.master.win_prob4 %>%
 
 # Join in betting data
 plays.master.win_prob4 <- plays.master.win_prob4 %>% 
-  left_join(betting %>% select(id, spread) %>% mutate(id = as.character(id)), by = c("game_id" = "id")) %>% 
-  filter(is.na(spread) == FALSE) %>% 
+  left_join(betting %>% select(id, spread), by = c("game_id" = "id")) %>% 
+  mutate(spread = if_else(is.na(spread) == TRUE, 0, spread)) %>% 
   mutate(spread = spread * (clock_in_seconds/3600)^3) # Decrease spread as game goes on to reduce it's effect
+
+### NEW
+# Add kickoff indicator
+plays.master.win_prob4 <- plays.master.win_prob4 %>% 
+  mutate(is_kickoff = if_else(play_type %in% c("Kickoff", "Kickoff Return (Offense)"), 1, 0)) %>% 
+  ungroup()
 
 # Predict In-Game WP
 
