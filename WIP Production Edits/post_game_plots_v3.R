@@ -244,9 +244,10 @@ plays.master.win_prob4 <- plays.master.win_prob4 %>%
 plays_wp <- plays.master.win_prob4
 
 x.test <- plays_wp %>% 
-  select(home_score_lead_deficit, clock_in_seconds, down, distance,
+  select(home_score_lead_deficit, down, distance,
          yards_to_goal, home_poss_flag, home_timeouts_new, away_timeouts_new, 
-         home_elo_wp, game_over, spread) %>% 
+         home_elo_wp, game_over, spread,
+         pct_done, is_kickoff) %>% 
   as.matrix()
 
 dtest <- xgb.DMatrix(x.test,missing=NA)
