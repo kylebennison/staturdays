@@ -229,7 +229,7 @@ plays.master.win_prob4 <- plays.master.win_prob4 %>%
 
 # Join in betting data
 plays.master.win_prob4 <- plays.master.win_prob4 %>% 
-  left_join(betting %>% select(id, spread), by = c("game_id" = "id")) %>% 
+  left_join(betting %>% mutate(id = as.character(id)) %>% select(id, spread), by = c("game_id" = "id")) %>% 
   mutate(spread = if_else(is.na(spread) == TRUE, 0, spread)) %>% 
   mutate(spread = spread * (clock_in_seconds/3600)^3) # Decrease spread as game goes on to reduce it's effect
 
@@ -369,7 +369,7 @@ library(ggtext)
 # Plot In-Game WP
 plot2 <- this_game_data %>% 
   mutate(clock_in_seconds = if_else(clock_in_seconds == -10000, -1.5, clock_in_seconds)) %>% 
-  ggplot(aes(x = -clock_in_seconds, y = home_wp)) +
+  ggplot(aes(x = play_num, y = home_wp)) +
   geom_line(aes(color = home_wp),
             size = 2) +
   scale_color_gradient(low = (unique(this_game_data$color_away)), 
@@ -379,12 +379,12 @@ plot2 <- this_game_data %>%
                       size = .1,
                       by = "width",
                       asp = 2,
-                      x = -3300, y = .9) +
+                      x = 30, y = .9) +
   ggimage::geom_image(aes(image = light_away),
                       size = .1,
                       by = "width",
                       asp = 2,
-                      x = -3300, y = .1) +
+                      x = 30, y = .1) +
   staturdays_theme +
   geom_vline(xintercept = c(quarters), linetype = c(2,1,2)) +
   annotate(geom = "label", x = c(mid_quarters), y = 0,
