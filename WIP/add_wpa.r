@@ -202,9 +202,6 @@ add_wpa <- function(plays_df){
     
     dtest <- xgb.DMatrix(x.test,missing=NA)
     
-    plays_wp <- plays_wp %>% 
-      select(original_columns)
-    
     plays_wp$home_wp <- predict(XGBm, newdata = dtest)
     
     plays_wp %>% 
@@ -214,6 +211,10 @@ add_wpa <- function(plays_df){
              away_wpa = -home_wpa,
              offense_wpa = if_else(offense == home, home_wpa, away_wpa),
              defense_wpa = if_else(defense == home, home_wpa, away_wpa))
+    
+    plays_wp <- plays_wp %>% 
+      select(original_columns, home_wp, contains("wpa"), play_num,
+             pct_done, home_elo_wp)
     
     message("Done")
     return(plays_wp)
