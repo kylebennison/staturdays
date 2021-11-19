@@ -432,3 +432,21 @@ expected_value_tbl %>%
             losing_bets = sum(losses)) %>% 
   janitor::adorn_totals() %>% 
   tibble()
+
+# Explore trends
+expected_value_tbl %>% 
+  filter(game_date <= lubridate::today()) %>% 
+  mutate(profit = case_when(game_outcome_home == 1 & home_exp_value > 0 ~ home_win_10d_bet - 10, # Betting rules. Bet on home when home exp. value > 0
+                            game_outcome_home == 0 & home_exp_value > 0 ~ -10,
+                            game_outcome_home == 1 & away_exp_value > 0 ~ -10,
+                            game_outcome_home == 0 & away_exp_value > 0 ~ away_win_10d_bet - 10,
+                            TRUE ~ 0),
+         wins = if_else(profit > 0, 1, 0),
+         losses = 1 - wins,
+         bucket = round(home_diff, 2)) %>% 
+  group_by(spread) %>% 
+  summarise(p_and_l = sum(profit), n = n(),
+            winning_bets = sum(wins),
+            losing_bets = sum(losses)) %>% 
+  ggplot(aes(x = spread, y = p_and_l)) +
+  geom_point()
