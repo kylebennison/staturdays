@@ -2,8 +2,8 @@
 get_betting <-
   function(start_year,
            end_year,
-           start_week = 1,
-           end_week = 20) {
+           start_week,
+           end_week) {
     
     source(
       "https://raw.githubusercontent.com/kylebennison/staturdays/master/Production/cfbd_api_key_function.R"
@@ -45,25 +45,47 @@ get_betting <-
     
     betting.master = data.frame()
     
-    for (j in start_year:end_year) {
-      for (i in start_week:end_week) {
-        message("Getting betting data for ", j, " Week ", i)
-        betting_url <-
-          paste0("https://api.collegefootballdata.com/lines?year=",
-                 j,
-                 "&")
-        full_url_betting <- paste0(betting_url, "week=", as.character(i))
-        
-        full_url_betting_encoded <- URLencode(full_url_betting)
-        betting <- cfbd_api(full_url_betting_encoded, my_key)
-        betting <- as_tibble(betting)
-        if(nrow(betting) > 0){
-        betting <- unnest(betting, cols = c(lines))
+    if (missing(start_week) | missing(end_week)) {
+      
+      for (j in start_year:end_year) {
+          message("Getting betting data for ", j)
+          betting_url <-
+            paste0("https://api.collegefootballdata.com/lines?year=",
+                   j)
+          full_url_betting_encoded <- URLencode(betting_url)
+          betting <- cfbd_api(full_url_betting_encoded, my_key)
+          betting <- as_tibble(betting)
+          if(nrow(betting) > 0){
+            betting <- unnest(betting, cols = c(lines))
+          }
+          betting.master = rbind(betting.master, betting)
         }
-        betting.master = rbind(betting.master, betting)
+        
+    } else {
+        
+      for (j in start_year:end_year) {
+        for (i in start_week:end_week) {
+          message("Getting betting data for ", j, " Week ", i)
+          betting_url <-
+            paste0("https://api.collegefootballdata.com/lines?year=",
+                   j,
+                   "&")
+          full_url_betting <- paste0(betting_url, "week=", as.character(i))
+          
+          full_url_betting_encoded <- URLencode(full_url_betting)
+          betting <- cfbd_api(full_url_betting_encoded, my_key)
+          betting <- as_tibble(betting)
+          if(nrow(betting) > 0){
+            betting <- unnest(betting, cols = c(lines))
+          }
+          betting.master = rbind(betting.master, betting)
+        }
+        
       }
       
-    }
+      }
+    
+    
     
     # Do some stuff that needs to be done eventually anyway
     betting.master <- betting.master %>% 
