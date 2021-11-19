@@ -204,7 +204,7 @@ add_wpa <- function(plays_df){
     
     plays_wp$home_wp <- predict(XGBm, newdata = dtest)
     
-    plays_wp %>% 
+    plays_wp <- plays_wp %>% 
       group_by(game_id) %>% 
       mutate(home_wpa = lead(home_wp, n = 1L, order_by = play_num) -
                home_wp,
