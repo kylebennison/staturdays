@@ -57,7 +57,7 @@ win_probs <- games_this_week %>%
 
 #Bring in data for overtime sim and the overtime function
 lookup_table <- fread("https://raw.githubusercontent.com/kylebennison/staturdays/master/Production/overtime_lookup_table.csv")
-source_url("https://raw.githubusercontent.com/kylebennison/staturdays/master/Production/overtime_function_only.R")
+overtime_sim <- source("https://raw.githubusercontent.com/kylebennison/staturdays/master/Production/overtime_function_only.R")
 
 # UI ----------------------------------------------------------------------
 
