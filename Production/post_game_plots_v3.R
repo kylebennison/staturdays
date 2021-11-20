@@ -394,12 +394,12 @@ plot2 <- this_game_data %>%
                       asp = 2,
                       x = 30, y = .1) +
   staturdays_theme +
-  geom_vline(xintercept = c(quarters), linetype = c(2,1,2)) +
+  {if(length(quarters) == 3){geom_vline(xintercept = c(quarters), linetype = c(2,1,2)) +
   annotate(geom = "label", x = c(mid_quarters), y = 0,
            label = paste0("Q", 1:length(mid_quarters)),
            alpha = .5,
            fill = staturdays_colors("light_blue"),
-           color = "white") +
+           color = "white") }} +
   scale_y_continuous(labels = scales::percent,
                      limits = c(0,1)) +
   labs(title = paste0("<span style='color: ",
