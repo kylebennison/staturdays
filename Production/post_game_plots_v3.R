@@ -516,10 +516,14 @@ text <- plays %>%
             media = file2,
             token = tok,
             in_reply_to_status_id = reply_to_status_id)
+ 
+# Write games_done to csv for reference the next time the job runs in 30 mins
 
 game_ids_df <- tibble(games_done = game_ids[i])
 
-games_done <- rbind(games_done, game_ids_df)
+game_ids_df <- game_ids_df %>% mutate(games_done = paste0("id_", games_done))
+
+data.table::fwrite(game_ids_df, file = "Data/games_done.csv", append = TRUE)
 
 # message("tweet posted: ", text, "\n",
 #         "plot:")
@@ -536,8 +540,3 @@ Sys.sleep(10)
 
 }
   
-# Write games_done to csv for reference the next time the job runs in 30 mins
-games_done <- games_done %>% mutate(games_done = paste0("id_", games_done))
-
-# No need to append since we're reading and appending inside the script
-data.table::fwrite(games_done, file = "Data/games_done.csv")
