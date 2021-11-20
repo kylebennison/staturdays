@@ -10,6 +10,7 @@ colors <- data.table::fread("https://raw.githubusercontent.com/kylebennison/stat
                             encoding = "UTF-8")
 
 orange_pal <- function(x) grDevices::rgb(grDevices::colorRamp(c("#e6bba5", "#de703b"))(x), maxColorValue = 255)
+dunkin_pal <- function(x) grDevices::rgb(grDevices::colorRamp(c("#861388", "#E6E6E9", "#de703b"))(x), maxColorValue = 255)
 
 logos <- colors %>% 
   select(school, light)
@@ -25,6 +26,34 @@ elo_ratings <- elo_master %>%
 elo_ratings <- elo_ratings %>% 
   left_join(logos, by = c("team" = "school")) %>% 
   select(rank, team, light, everything())
+
+# Calculate win probabilities this week
+calendar <- get_anything("https://api.collegefootballdata.com/calendar", 2021, 2021, key = my_key)
+current_week <- calendar %>% 
+  filter(lastGameStart >= lubridate::today()) %>% 
+  pull(week) %>% 
+  min()
+current_year <- max(elo_ratings$season)
+
+games_this_week <- get_games(current_year, current_year, current_week, current_week)
+
+calc_expected_score <- function(team_rating, opp_team_rating){
+  quotient_home <- 10^((team_rating)/400)
+  quotient_away <- 10^((opp_team_rating)/400)
+  return(expected_score_home <- quotient_home / (quotient_home + quotient_away))
+}
+
+win_probs <- games_this_week %>% 
+  left_join(elo_ratings, by = c("home_team" = "team")) %>% 
+  left_join(elo_ratings, by = c("away_team" = "team"),
+            suffix = c("_home", "_away")) %>% 
+  mutate(home_elo_wp = calc_expected_score(elo_rating_home + if_else(neutral_site == TRUE,
+                                                                     0L,
+                                                                     55L), 
+                                           elo_rating_away),
+         away_elo_wp = 1 - home_elo_wp,
+         start_date = lubridate::as_datetime(start_date),
+         start_date = lubridate::with_tz(start_date, "America/New_York"))
 
 #Bring in data for overtime sim and the overtime function
 lookup_table <- fread("https://raw.githubusercontent.com/kylebennison/staturdays/master/Production/overtime_lookup_table.csv")
@@ -68,6 +97,8 @@ ui <- shiny::navbarPage(title = "Staturdays",
                                         ),
                         
                         shiny::navbarMenu(title = "Elo",
+                                          shiny::tabPanel(title = "Win Probabilities This Week",
+                                                          reactable::reactableOutput(outputId = "elo_win_probs")),
                                           shiny::tabPanel(title = "Elo Ratings",
                                                           reactable::reactableOutput(outputId = "elo_ratings")),
                                           shiny::tabPanel(title = "Graph Teams",
@@ -109,7 +140,53 @@ server <- function(input, output) {
     
   })
   
-  
+  output$elo_win_probs <- renderReactable(
+    reactable(win_probs %>% 
+                select(start_date, away_team, light_away, away_elo_wp, home_elo_wp, light_home, home_team),
+              columns = list(
+                start_date = colDef(name = "Start Time",
+                                    format = colFormat(datetime = TRUE)),
+                away_team = colDef(name = "Away"),
+                light_away = colDef(name = "",
+                                    cell = function(value) {
+                                      image <- htmltools::img(src = value, height = "50px", alt = "")
+                                      htmltools::tagList(
+                                        htmltools::div(style = list(display = "inline-block", width = "25px"), 
+                                                       image)
+                                      )
+                                    }),
+                away_elo_wp = colDef(name = "Win Probability",
+                                     style = function(value) {
+                                       normalized <- (value - min(win_probs$away_elo_wp)) / (max(win_probs$away_elo_wp) - min(win_probs$away_elo_wp))
+                                       color <- dunkin_pal(normalized)
+                                       list(background = color, "font-weight" = "bold")
+                                     }),
+                home_elo_wp = colDef(name = "Win Probability",
+                                     style = function(value) {
+                                       normalized <- (value - min(win_probs$home_elo_wp)) / (max(win_probs$home_elo_wp) - min(win_probs$home_elo_wp))
+                                       color <- dunkin_pal(normalized)
+                                       list(background = color, "font-weight" = "bold")
+                                     }),
+                light_home = colDef(name = "",
+                                    cell = function(value) {
+                                      image <- htmltools::img(src = value, height = "50px", alt = "")
+                                      htmltools::tagList(
+                                        htmltools::div(style = list(display = "inline-block", width = "25px"), 
+                                                       image)
+                                      )
+                                    }),
+                home = colDef(name = "Home")
+              ),
+              theme = reactableTheme(
+                style = list(fontFamily = "-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif, Roboto, Fira Mono, Chivo, serif/*rtl:Amiri, Georgia, Times New Roman, serif*/;")),
+              defaultSortOrder = "asc",
+              defaultSorted = c("start_date"),
+              defaultColDef = colDef(format = colFormat(digits = 1, percent = TRUE)),
+              searchable = TRUE,
+              minRows = 30,
+              defaultPageSize = 30,
+              pagination = FALSE,
+              striped = TRUE))
   
   output$elo_ratings <- renderReactable(reactable(elo_ratings %>% select(-season),
                                                   columns = list(
