@@ -157,13 +157,13 @@ server <- function(input, output) {
                                     }),
                 away_elo_wp = colDef(name = "Win Probability",
                                      style = function(value) {
-                                       normalized <- (value - min(win_probs$away_elo_wp)) / (max(win_probs$away_elo_wp) - min(win_probs$away_elo_wp))
+                                       normalized <- (value) / (1)
                                        color <- dunkin_pal(normalized)
                                        list(background = color, "font-weight" = "bold")
                                      }),
                 home_elo_wp = colDef(name = "Win Probability",
                                      style = function(value) {
-                                       normalized <- (value - min(win_probs$home_elo_wp)) / (max(win_probs$home_elo_wp) - min(win_probs$home_elo_wp))
+                                       normalized <- (value) / (1)
                                        color <- dunkin_pal(normalized)
                                        list(background = color, "font-weight" = "bold")
                                      }),
