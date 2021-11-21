@@ -11,6 +11,7 @@ colors <- data.table::fread("https://raw.githubusercontent.com/kylebennison/stat
 
 orange_pal <- function(x) grDevices::rgb(grDevices::colorRamp(c("#e6bba5", "#de703b"))(x), maxColorValue = 255)
 dunkin_pal <- function(x) grDevices::rgb(grDevices::colorRamp(c("#861388", "#E6E6E9", "#de703b"))(x), maxColorValue = 255)
+cool_pal <- c("FFEFC1","EBD4BB","D7BAB5","C39FB0","AF84AA","9B6AA4","874F9E")
 
 logos <- colors %>% 
   select(school, light)
@@ -151,8 +152,9 @@ server <- function(input, output) {
                                     cell = function(value) {
                                       image <- htmltools::img(src = value, height = "50px", alt = "")
                                       htmltools::tagList(
-                                        htmltools::div(style = list(display = "inline-block", width = "25px"), 
-                                                       image)
+                                        htmltools::div(style = list("text-align" = "center"),
+                                                       htmltools::div(style = list(display = "inline-block", width = "25px"), 
+                                                                      image))
                                       )
                                     }),
                 away_elo_wp = colDef(name = "Win Probability",
@@ -171,11 +173,12 @@ server <- function(input, output) {
                                     cell = function(value) {
                                       image <- htmltools::img(src = value, height = "50px", alt = "")
                                       htmltools::tagList(
+                                        htmltools::div(style = list("text-align" = "center"),
                                         htmltools::div(style = list(display = "inline-block", width = "25px"), 
-                                                       image)
+                                                       image))
                                       )
                                     }),
-                home = colDef(name = "Home")
+                home_team = colDef(name = "Home")
               ),
               theme = reactableTheme(
                 style = list(fontFamily = "-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif, Roboto, Fira Mono, Chivo, serif/*rtl:Amiri, Georgia, Times New Roman, serif*/;")),
