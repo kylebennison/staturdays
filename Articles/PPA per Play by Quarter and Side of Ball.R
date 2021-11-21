@@ -29,7 +29,7 @@ conf <- conf %>% select(school, conference)
 
 combined <- combined %>% left_join(conf, by = c("team" = "school"))
 
-combined %>% filter(conference == "SEC") %>% 
+combined %>% filter(conference == "Big 12") %>% 
   ggplot(aes(x=period, y=avg_ppa, fill=side)) + geom_col(position = position_dodge2(preserve = "single")) +
   facet_wrap(~team) +
   staturdays_theme +
