@@ -161,13 +161,19 @@ server <- function(input, output) {
                                      style = function(value) {
                                        normalized <- (value) / (1)
                                        color <- dunkin_pal(normalized)
-                                       list(background = color, "font-weight" = "bold")
+                                       list(background = color, "font-weight" = "bold",
+                                            color = if_else(normalized < .3 | normalized > .7, 
+                                                            "#ffffff", 
+                                                            "#000000"))
                                      }),
                 home_elo_wp = colDef(name = "Win Probability",
                                      style = function(value) {
                                        normalized <- (value) / (1)
                                        color <- dunkin_pal(normalized)
-                                       list(background = color, "font-weight" = "bold")
+                                       list(background = color, "font-weight" = "bold",
+                                            color = if_else(normalized < .3 | normalized > .7, 
+                                                            "#ffffff", 
+                                                            "#000000"))
                                      }),
                 light_home = colDef(name = "",
                                     cell = function(value) {
