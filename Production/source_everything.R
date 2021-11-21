@@ -24,3 +24,5 @@ source("https://raw.githubusercontent.com/kylebennison/staturdays/master/Product
 source("https://raw.githubusercontent.com/kylebennison/staturdays/master/Production/get_betting.r")
 # Quickly save a plot
 source("https://raw.githubusercontent.com/kylebennison/staturdays/master/Production/plot_save.r")
+# Add wpa to plays data
+source("https://raw.githubusercontent.com/kylebennison/staturdays/master/Production/add_wpa.r")
