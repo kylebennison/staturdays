@@ -146,7 +146,7 @@ server <- function(input, output) {
                 select(start_date, away_team, light_away, away_elo_wp, home_elo_wp, light_home, home_team),
               columns = list(
                 start_date = colDef(name = "Start Time",
-                                    format = colFormat(datetime = TRUE)),
+                                    cell = function(x) format(x, "%I:%M%p %a %b %d, %Y")),
                 away_team = colDef(name = "Away"),
                 light_away = colDef(name = "",
                                     cell = function(value) {
