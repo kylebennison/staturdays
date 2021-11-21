@@ -19,6 +19,11 @@ staturdays_col_list <- c(
 )
 
 staturdays_palette <- c("#5c6272", "#ffffff", "#de703b")
+forest_palette <- c("99ddc8","95bf74","659b5e","556f44","283f3b")
+mint_palette <- c("a0eec0","8ae9c1","86cd82","72a276","666b6a")
+orange_pal <- function(x) grDevices::rgb(grDevices::colorRamp(c("#e6bba5", "#de703b"))(x), maxColorValue = 255)
+dunkin_pal <- function(x) grDevices::rgb(grDevices::colorRamp(c("#861388", "#E6E6E9", "#de703b"))(x), maxColorValue = 255)
+cool_pal <- c("FFEFC1","EBD4BB","D7BAB5","C39FB0","AF84AA","9B6AA4","874F9E")
 
 staturdays_ramp <- function(x) rgb(colorRamp(c(staturdays_palette))(x), maxColorValue = 255)
 
