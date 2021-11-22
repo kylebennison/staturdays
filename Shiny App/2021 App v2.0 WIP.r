@@ -7,7 +7,8 @@ library(devtools)
 source("https://raw.githubusercontent.com/kylebennison/staturdays/master/Production/source_everything.R")
 
 colors <- data.table::fread("https://raw.githubusercontent.com/kylebennison/staturdays/master/Production/colors_logos.csv",
-                            encoding = "UTF-8")
+                            encoding = "UTF-8",
+                            na.strings = "")
 
 orange_pal <- function(x) grDevices::rgb(grDevices::colorRamp(c("#e6bba5", "#de703b"))(x), maxColorValue = 255)
 dunkin_pal <- function(x) grDevices::rgb(grDevices::colorRamp(c("#861388", "#E6E6E9", "#de703b"))(x), maxColorValue = 255)
@@ -29,14 +30,20 @@ elo_ratings <- elo_ratings %>%
   select(rank, team, light, everything())
 
 # Calculate win probabilities this week
-calendar <- get_anything("https://api.collegefootballdata.com/calendar", 2021, 2021, key = my_key)
+calendar <- data.table::fread("https://raw.githubusercontent.com/kylebennison/staturdays/master/Data/calendar.csv")
 current_week <- calendar %>% 
   filter(lastGameStart >= lubridate::today()) %>% 
   pull(week) %>% 
   min()
 current_year <- max(elo_ratings$season)
 
-games_this_week <- get_games(current_year, current_year, current_week, current_week)
+
+games_url <- "https://github.com/kylebennison/staturdays/raw/master/Data/games_2021.rds"
+games_rds <- readRDS(gzcon(url(games_url)))
+
+games_this_week <- games_rds %>% 
+  filter(season == current_year,
+         week == current_week)
 
 calc_expected_score <- function(team_rating, opp_team_rating){
   quotient_home <- 10^((team_rating)/400)
