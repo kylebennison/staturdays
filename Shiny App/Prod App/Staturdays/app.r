@@ -68,7 +68,7 @@ win_probs <- games_this_week %>%
          start_date = lubridate::with_tz(start_date, "America/New_York"))
 
 #Bring in data for overtime sim and the overtime function
-lookup_table <- fread("https://raw.githubusercontent.com/kylebennison/staturdays/master/Production/overtime_lookup_table.csv")
+lookup_table <- data.table::fread("https://raw.githubusercontent.com/kylebennison/staturdays/master/Production/overtime_lookup_table.csv")
 overtime_sim <- source("https://raw.githubusercontent.com/kylebennison/staturdays/master/Production/overtime_function_only.R")
 
 # UI ----------------------------------------------------------------------
