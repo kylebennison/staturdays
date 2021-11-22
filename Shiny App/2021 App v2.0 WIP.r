@@ -12,7 +12,10 @@ colors <- data.table::fread("https://raw.githubusercontent.com/kylebennison/stat
 
 orange_pal <- function(x) grDevices::rgb(grDevices::colorRamp(c("#e6bba5", "#de703b"))(x), maxColorValue = 255)
 dunkin_pal <- function(x) grDevices::rgb(grDevices::colorRamp(c("#861388", "#E6E6E9", "#de703b"))(x), maxColorValue = 255)
-cool_pal <- c("FFEFC1","EBD4BB","D7BAB5","C39FB0","AF84AA","9B6AA4","874F9E")
+cool_pal <- c("#FFEFC1","#EBD4BB","#D7BAB5","#C39FB0","#AF84AA","#9B6AA4","#874F9E")
+forest_palette <- c("#99ddc8","#95bf74","#659b5e","#556f44","#283f3b")
+mint_palette <- c("#a0eec0","#8ae9c1","#86cd82","#72a276","#666b6a")
+any_pal <- function(x, pal) grDevices::rgb(grDevices::colorRamp(c(pal))(x), maxColorValue = 255)
 
 logos <- colors %>% 
   select(school, light)
@@ -205,7 +208,7 @@ server <- function(input, output) {
               pagination = FALSE,
               striped = TRUE))
   
-  output$elo_ratings <- renderReactable(reactable(elo_ratings %>% select(-season),
+  output$elo_ratings <- renderReactable(reactable(elo_ratings %>% select(-c(season, color)),
                                                   columns = list(
                                                     rank = colDef(name = "Rank",
                                                                   width = 60),
@@ -222,8 +225,11 @@ server <- function(input, output) {
                                                     elo_rating = colDef(name = "Rating",
                                                                         style = function(value) {
                                                                           normalized <- (value - min(elo_ratings$elo_rating)) / (max(elo_ratings$elo_rating) - min(elo_ratings$elo_rating))
-                                                                          color <- orange_pal(normalized)
-                                                                          list(background = color, "font-weight" = "bold")
+                                                                          color <- any_pal(normalized, forest_palette)
+                                                                          list(background = color, "font-weight" = "bold",
+                                                                               color = if_else(normalized > .7, 
+                                                                                               "#ffffff", 
+                                                                                               "#000000"))
                                                                         }),
                                                     week = colDef(name = "Week"),
                                                     date = colDef(name = "Date Updated",
