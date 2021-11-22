@@ -1,7 +1,6 @@
 library(jsonlite)
 library(tidyverse)
 library(httr)
-library(RCurl)
 
 # Prereq: You need to get an API key, and then locate your .Renviron file and add a new line
 # cfbd_staturdays_key = "mysecretkey"
