@@ -17,7 +17,8 @@ cool_pal <- c("FFEFC1","EBD4BB","D7BAB5","C39FB0","AF84AA","9B6AA4","874F9E")
 logos <- colors %>% 
   select(school, light)
 
-elo_master <- get_elo()
+elo_master <- get_elo() %>% 
+  left_join(colors %>% select(school, color), by = c("team" = "school"))
 
 elo_ratings <- elo_master %>% 
   group_by(team) %>% 
@@ -243,10 +244,16 @@ server <- function(input, output) {
       filter(team %in% input$elo_plot_teams)})
   
   output$elo_plot <- shiny::renderPlot({
-    ggplot(elo_plot_data(), aes(x = week, y = elo_rating, color = team)) +
-      geom_line() +
+    ggplot(elo_plot_data(), aes(x = week, y = elo_rating)) +
+      geom_line(size = 2,
+                aes(color = color)) +
+      geom_text(aes(label = if_else(week == elo_plot_data()$week %>% max(), team, "")),
+                nudge_x = .5) +
+      scale_color_identity() +
       scale_x_continuous(breaks = (0:15), labels = (0:15), limits = c(0,15)) +
-      staturdays_theme
+      staturdays_theme +
+      labs(x = "Week",
+           y = "Elo Rating")
     }
     )
   # font-family: "Chivo", "Fira Mono", serif/*rtl:Amiri, Georgia, "Times New Roman", serif*/;
