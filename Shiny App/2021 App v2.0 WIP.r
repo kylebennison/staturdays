@@ -74,6 +74,18 @@ overtime_sim <- source("https://raw.githubusercontent.com/kylebennison/staturday
 # UI ----------------------------------------------------------------------
 
 ui <- shiny::navbarPage(title = "Staturdays",
+                        shiny::navbarMenu(title = "Elo",
+                                          shiny::tabPanel(title = "Win Probabilities This Week",
+                                                          reactable::reactableOutput(outputId = "elo_win_probs")),
+                                          shiny::tabPanel(title = "Elo Ratings",
+                                                          reactable::reactableOutput(outputId = "elo_ratings")),
+                                          shiny::tabPanel(title = "Graph Teams",
+                                                          shiny::selectizeInput(inputId = "elo_plot_teams",
+                                                                                label = "Choose one or more teams to plot",
+                                                                                choices = unique(elo_ratings$team),
+                                                                                multiple = TRUE,
+                                                                                selected = elo_ratings[which(elo_ratings$elo_rating == max(elo_ratings$elo_rating)),2]),
+                                                          shiny::plotOutput(outputId = "elo_plot"))),
                         shiny::tabPanel(title = "Overtime Simulator",
                                         fluidRow(
                                           column(6, align="center",
@@ -106,20 +118,8 @@ ui <- shiny::navbarPage(title = "Staturdays",
                                           column(12, align="center",
                                         shiny::htmlOutput(outputId = "home_overtime_win"))
                                         )
-                                        ),
-                        
-                        shiny::navbarMenu(title = "Elo",
-                                          shiny::tabPanel(title = "Win Probabilities This Week",
-                                                          reactable::reactableOutput(outputId = "elo_win_probs")),
-                                          shiny::tabPanel(title = "Elo Ratings",
-                                                          reactable::reactableOutput(outputId = "elo_ratings")),
-                                          shiny::tabPanel(title = "Graph Teams",
-                                                          shiny::selectizeInput(inputId = "elo_plot_teams",
-                                                                                label = "Choose one or more teams to plot",
-                                                                                choices = unique(elo_ratings$team),
-                                                                                multiple = TRUE,
-                                                                                selected = "Alabama"),
-                                                          shiny::plotOutput(outputId = "elo_plot"))))
+                                        )
+                        )
 
 # Server ------------------------------------------------------------------
 
