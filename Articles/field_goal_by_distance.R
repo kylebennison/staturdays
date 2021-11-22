@@ -4,7 +4,7 @@ library(ggplot2)
 
 source("Production/source_everything.R")
 
-dt <- get_plays(start_week = 1, end_week = 20, start_year = 2010, end_year = 2020)
+dt <- get_plays(start_week = 1, end_week = 20, start_year = 2021, end_year = 2021)
 
 
 x <- dt %>% group_by(play_type) %>% count()
@@ -21,6 +21,8 @@ dt_fg_averages <- dt_fg %>% group_by(new_fg_attempt_yards) %>%
   summarise(make_probability = mean(made_fg),
             new_fg_attempt_yards = as.numeric(new_fg_attempt_yards)) %>% 
   unique()
+
+#not enough data
 
 #by player
 dt_fg_averages_player <- dt_fg %>% group_by(new_fg_attempt_yards, fg_kicker, offense) %>% 
@@ -41,6 +43,9 @@ dt_fg_averages %>%
 dt_fg_averages_player %>% 
   ggplot(aes(x=as.factor(new_fg_attempt_yards), y=make_probability)) + 
   geom_boxplot()
+
+#percentile in 40+ and 30 and below
+#minimum kicks
 
 
 #are the bottom 25% of characters worse at every distance than the top 25%

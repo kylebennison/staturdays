@@ -5,25 +5,23 @@ library(scales)
 library(ggimage)
 library(jsonlite)
 library(RCurl)
+source("Production/source_everything.R")
 
 staturdays_palette <- c("#041e42", "#22345a", "#394871", "#4c5872", "#5c6272", "#de703b")
 
-team_colors <- fromJSON(getURL("https://api.collegefootballdata.com/teams/fbs?year=2020"))
+team_colors <- get_colors()
 
-team_colors <- team_colors %>% unnest(cols = logos) %>% 
-  mutate(logo_color = if_else(str_detect(logos, "dark"), "dark", "light")) %>% 
-  pivot_wider(names_from = logo_color, values_from = logos)
+team_colors <- team_colors %>% select(school, light, conference)
 
-dt <- read.csv("C:/Users/drewb/Desktop/2020_plays_epa_wpa.csv")
-
-dt <- dt
+dt <- get_plays(start_week = 1, end_week = 20, start_year = 2021, end_year = 2021)
 
 make_buckets <- tibble(distance=c(1,2,3,4,5,6,7,8,9,10),
                        bucket = c("1&2", "1&2", "3&4", "3&4", "5&6", "5&6", "7&8", "7&8", "9&10", "9&10"))
 
+#filter for third downs
 third_downs <- dt %>% 
-  filter(Goal_To_Go == FALSE, down==3) %>% 
-  select(offense_play, play_type, down, distance, yards_gained) %>% 
+  filter(down==3) %>% 
+  select(offense, play_type, down, distance, yards_gained) %>% 
   filter(play_type!= "Timeout", play_type != "Kickoff", play_type!="Punt",
          play_type!="Field Goal Missed", play_type!="Field Goal Good",
          play_type!="Blocked Field Goal", play_type!="Kickoff Return (Offense)",
@@ -32,17 +30,19 @@ third_downs <- dt %>%
   left_join(make_buckets) %>% 
   filter(distance<11)
 
+#league average conversion rate by bucket
 league_averages <- third_downs %>% 
   group_by(bucket) %>%
   summarise(converstion_rate = mean(converted)) %>% 
   filter(!is.na(bucket))
 
+#league acerage coversion rate by bucket plot
 league_averages_plot <- league_averages %>% 
   rename(Bucket = bucket, `Conversion Rate` = converstion_rate) %>% 
   mutate(`Conversion Rate` = percent(`Conversion Rate`)) %>% 
   gt() %>% 
   tab_header(title = "CFB 3rd Down Conversion Rate by Distance",
-             subtitle = "2020 season") %>% 
+             subtitle = "2021 season") %>% 
   tab_source_note("@staturdays - Data: @cfb_data")
 
 gtsave(data = league_averages_plot, 
@@ -50,8 +50,9 @@ gtsave(data = league_averages_plot,
        path = "C:/Users/drewb/Desktop",
        )
 
+#team conversion rate by bucket
 team_third_downs <- third_downs %>% 
-  group_by(offense_play, bucket) %>% 
+  group_by(offense, bucket) %>% 
   add_count() %>% 
   filter(n>=10) %>% 
   select(-n) %>% 
@@ -62,13 +63,13 @@ combined <- team_third_downs %>%
   mutate(above_league_average = converstion_rate.x-converstion_rate.y)
 
 
-
+#average third down distance for all third downs by league and team
 league_average_distance <- third_downs %>% 
   summarise(average_distance = mean(distance)) %>% 
   pull()
 
 team_distance <- third_downs %>%
-  group_by(offense_play) %>% 
+  group_by(offense) %>% 
   add_count() %>% 
   filter(n>=50) %>% 
   select(-n) %>% 
@@ -78,14 +79,32 @@ combined_distance <- team_distance %>%
   mutate(league_average = league_average_distance,
          above_league_average = average_distance-league_average)
 
+#################################################################
 
-master <- combined %>% left_join(combined_distance, by=c("offense_play")) %>% 
-  left_join(team_colors, by=c("offense_play"="school"))
+#average third down distance for all third downs by bucket, league, and team
+league_average_distance_bucket <- third_downs %>% 
+  group_by(bucket) %>% 
+  summarise(average_distance_league = mean(distance)) 
+
+team_distance_bucket <- third_downs %>%
+  group_by(offense, bucket) %>% 
+  add_count() %>% 
+  filter(n>=10) %>% 
+  select(-n) %>% 
+  summarise(average_distance = mean(distance))
+
+combined_distance_bucket <- team_distance_bucket %>% 
+  left_join(league_average_distance_bucket) %>% 
+  mutate(above_league_average_yards = average_distance-average_distance_league)
+###############################################################
+
+master <- combined %>% left_join(combined_distance_bucket, by=c("offense", "bucket")) %>% 
+  left_join(team_colors, by=c("offense"="school"))
   
 
 master %>% filter(!is.na(bucket), conference %in% c("SEC", "ACC", "Pac-12", "Big 12", 
                                                     "FBS Independents", "Big Ten")) %>% 
-  ggplot(aes(x=above_league_average.x, y=above_league_average.y)) +
+  ggplot(aes(x=above_league_average, y=above_league_average_yards)) +
   geom_point() +
   geom_hline(yintercept = 0) +
   geom_vline(xintercept = 0) +
@@ -99,7 +118,7 @@ master %>% filter(!is.na(bucket), conference %in% c("SEC", "ACC", "Pac-12", "Big
   #geom_label_repel(aes(label=ifelse(above_league_average.x>.2,as.character(offense_play),''))) +
   labs(title = "Average distance to go on 3rd downs\nabove/below average vs.\n3rd down conversion rate by\ndistance above/below average",
     x="3rd down conversion rate above/below league average",
-       y="3rd down yards to go above/below league average")
+       y="3rd down yards to go above/below league average at that distance")
 
 ggsave("C:/Users/drewb/Desktop/mainplot.png", height = 15, width = 5)
 
