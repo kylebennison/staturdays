@@ -6,6 +6,8 @@ overtime_sim <- function(home_team, away_team, start_with_ball) {
   tie <- 0
   more_than_two <- 0
   
+  lookup_table <- data.table::fread("https://raw.githubusercontent.com/kylebennison/staturdays/master/Production/overtime_lookup_table.csv")
+  
   #bring in team information
   home_team_td <- lookup_table %>% 
     filter(list_of_teams == home_team,
