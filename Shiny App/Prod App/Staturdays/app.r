@@ -15,6 +15,7 @@ dunkin_pal <- function(x) grDevices::rgb(grDevices::colorRamp(c("#861388", "#E6E
 cool_pal <- c("#FFEFC1","#EBD4BB","#D7BAB5","#C39FB0","#AF84AA","#9B6AA4","#874F9E")
 forest_palette <- c("#99ddc8","#95bf74","#659b5e","#556f44","#283f3b")
 mint_palette <- c("#a0eec0","#8ae9c1","#86cd82","#72a276","#666b6a")
+green_red_pal <- c("#d60d0d", "#FFFFFF", "#0dd686")
 any_pal <- function(x, pal) grDevices::rgb(grDevices::colorRamp(c(pal))(x), maxColorValue = 255)
 
 logos <- colors %>% 
@@ -32,6 +33,23 @@ elo_ratings <- elo_master %>%
 elo_ratings <- elo_ratings %>% 
   left_join(logos, by = c("team" = "school")) %>% 
   select(rank, team, light, everything())
+
+# Add last-week's elo ranking to this week's
+elo_last_week <- elo_master %>% 
+  group_by(team) %>% 
+  slice_max(order_by = date, n = 2L) %>% 
+  slice_min(order_by = date, n = 1L) %>% 
+  ungroup() %>% 
+  mutate(rank = rank(desc(elo_rating), ties.method = "min")) %>% 
+  select(team, elo_rating, rank) %>% 
+  rename(last_week_elo = elo_rating,
+         last_week_rank = rank)
+
+elo_ratings <- elo_ratings %>% 
+  left_join(elo_last_week, by = "team") %>% 
+  mutate(elo_change = round(elo_rating - last_week_elo, digits = 0),
+         rank_change = -(rank - last_week_rank)) %>% 
+  select(-c(last_week_elo, last_week_rank))
 
 # Calculate win probabilities this week
 calendar <- data.table::fread("https://raw.githubusercontent.com/kylebennison/staturdays/master/Data/calendar.csv")
@@ -236,7 +254,16 @@ server <- function(input, output) {
                                                                         }),
                                                     week = colDef(name = "Week"),
                                                     date = colDef(name = "Date Updated",
-                                                                  format = colFormat(date = TRUE))),
+                                                                  format = colFormat(date = TRUE)),
+                                                    elo_change = colDef(name = "Δ Elo",
+                                                                        style = function(value) {
+                                                                          normalized <- (value - min(elo_ratings$elo_change)) / 
+                                                                            (max(elo_ratings$elo_change) - min(elo_ratings$elo_change))
+                                                                          color <- any_pal(normalized, green_red_pal)
+                                                                          list(background = color, "font-weight" = "bold")
+                                                                        }),
+                                                    rank_change = colDef(name = "Δ Rank")
+                                                    ),
                                                   theme = reactableTheme(
                                                     style = list(fontFamily = "-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif, Roboto, Fira Mono, Chivo, serif/*rtl:Amiri, Georgia, Times New Roman, serif*/;")),
                                                   defaultSortOrder = "desc",
