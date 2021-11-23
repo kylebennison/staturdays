@@ -87,6 +87,61 @@ win_probs <- games_this_week %>%
          conference = if_else(home_conference == away_conference, home_conference,
                               paste0(away_conference, " @ ", home_conference)))
 
+# Add last game result to Elo Rating table
+# Most recent home result for each team
+home_top <- games_rds %>% 
+  mutate(team = home_team) %>% 
+  group_by(team) %>% 
+  filter(!is.na(home_points)) %>% 
+  slice_max(order_by = start_date, n = 1L)
+
+# Most recent away result for each team
+away_top <- games_rds %>% 
+  mutate(team = away_team) %>% 
+  group_by(team) %>% 
+  filter(!is.na(home_points)) %>% 
+  slice_max(order_by = start_date, n = 1L)
+
+# Row-bind latest home and away games
+bottom <- home_top %>% rbind(away_top) %>% 
+  slice_max(order_by = start_date, n = 1L)
+
+# Get last game result for each team
+last_game_result <- bottom %>% 
+  mutate(result = case_when(team == home_team & 
+                              home_points > away_points ~ paste0("W ",
+                                                                 away_team,
+                                                                 " ",
+                                                                 home_points,
+                                                                 "-",
+                                                                 away_points),
+                            team == home_team & 
+                              home_points < away_points ~ paste0("L ",
+                                                                 away_team,
+                                                                 " ",
+                                                                 away_points,
+                                                                 "-",
+                                                                 home_points),
+                            team == away_team & 
+                              home_points < away_points ~ paste0("W ",
+                                                                 home_team,
+                                                                 " ",
+                                                                 away_points,
+                                                                 "-",
+                                                                 home_points),
+                            team == away_team & 
+                              home_points > away_points ~ paste0("L ",
+                                                                 home_team,
+                                                                 " ",
+                                                                 home_points,
+                                                                 "-",
+                                                                 away_points),
+                            TRUE ~ "failed")) %>% 
+  select(team, result)
+
+elo_ratings <- elo_ratings %>% 
+  left_join(last_game_result, by = "team")
+
 #Bring in data for overtime sim and the overtime function
 lookup_table <- data.table::fread("https://raw.githubusercontent.com/kylebennison/staturdays/master/Production/overtime_lookup_table.csv")
 overtime_sim <- source("https://raw.githubusercontent.com/kylebennison/staturdays/master/Production/overtime_function_only.R")
@@ -262,7 +317,8 @@ server <- function(input, output) {
                                                                           color <- any_pal(normalized, green_red_pal)
                                                                           list(background = color, "font-weight" = "bold")
                                                                         }),
-                                                    rank_change = colDef(name = "Δ Rank")
+                                                    rank_change = colDef(name = "Δ Rank"),
+                                                    result = colDef(name = "Last Game")
                                                     ),
                                                   theme = reactableTheme(
                                                     style = list(fontFamily = "-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif, Roboto, Fira Mono, Chivo, serif/*rtl:Amiri, Georgia, Times New Roman, serif*/;")),
