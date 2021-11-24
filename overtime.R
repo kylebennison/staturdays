@@ -19,11 +19,18 @@ base_url_drives <- "https://api.collegefootballdata.com/drives?" # Base URL for 
 
 #get plays data and gmes data
 #get plays data and gmes data
-plays.master <- get_plays(start_week = 1, end_week = 15, start_year = 2020, end_year = 2021)
-drives.master <- get_drives(start_week = 1, end_week = 15, start_year = 2020, end_year = 2021)
+plays.master <- get_plays(start_week = 10, end_week = 20, start_year = 2020, end_year = 2020)
+drives.master <- get_drives(start_week = 10, end_week = 20, start_year = 2020, end_year = 2020)
+plays.master2 <- get_plays(start_week = 1, end_week = 15, start_year = 2021, end_year = 2021)
+drives.master2 <- get_drives(start_week = 1, end_week = 15, start_year = 2021, end_year = 2021)
+
+plays.master <- rbind(plays.master, plays.master2)
+drives.master <- drives.master[,c(1:20)]
+drives.master2 <- drives.master2[,c(1:20)]
+drives.master <- rbind(drives.master, drives.master2)
 
 #keep only last rolling 15 games maximum
-drives.master <- drives.master[,c(1:28)]
+drives.master <- drives.master[,c(1:20)]
 
 
 #find drives where there was a first down that started between the opponnet's 20 and 30 yard line
@@ -76,6 +83,8 @@ lookup_table <- master %>% left_join(combined, by=c("list_of_teams"="offense.x",
   replace_na(list(probability=0))
 
 #upload lookup table to github
+
+fwrite(lookup_table, "./Production/overtime_lookup_table.csv")
 
 overtime_sim <- function(home_team, away_team, start_with_ball) {
   
