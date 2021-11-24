@@ -65,10 +65,12 @@ win_probs <- games_this_week %>%
                                            elo_rating_away),
          away_elo_wp = 1 - home_elo_wp,
          start_date = lubridate::as_datetime(start_date),
-         start_date = lubridate::with_tz(start_date, "America/New_York"))
+         start_date = lubridate::with_tz(start_date, "America/New_York"),
+         conference = if_else(home_conference == away_conference, home_conference,
+                              paste0(away_conference, " @ ", home_conference)))
 
 #Bring in data for overtime sim and the overtime function
-lookup_table <- fread("https://raw.githubusercontent.com/kylebennison/staturdays/master/Production/overtime_lookup_table.csv")
+lookup_table <- data.table::fread("https://raw.githubusercontent.com/kylebennison/staturdays/master/Production/overtime_lookup_table.csv")
 overtime_sim <- source("https://raw.githubusercontent.com/kylebennison/staturdays/master/Production/overtime_function_only.R")
 
 # UI ----------------------------------------------------------------------
@@ -154,7 +156,7 @@ server <- function(input, output) {
   
   output$elo_win_probs <- renderReactable(
     reactable(win_probs %>% 
-                select(start_date, away_team, light_away, away_elo_wp, home_elo_wp, light_home, home_team),
+                select(start_date, away_team, light_away, away_elo_wp, home_elo_wp, light_home, home_team, conference),
               columns = list(
                 start_date = colDef(name = "Start Time",
                                     cell = function(x) format(x, "%I:%M%p %a %b %d, %Y")),
@@ -195,7 +197,8 @@ server <- function(input, output) {
                                                        image))
                                       )
                                     }),
-                home_team = colDef(name = "Home")
+                home_team = colDef(name = "Home"),
+                conference = colDef(name = "Conference")
               ),
               theme = reactableTheme(
                 style = list(fontFamily = "-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif, Roboto, Fira Mono, Chivo, serif/*rtl:Amiri, Georgia, Times New Roman, serif*/;")),
