@@ -87,6 +87,19 @@ win_probs <- games_this_week %>%
          conference = if_else(home_conference == away_conference, home_conference,
                               paste0(away_conference, " @ ", home_conference)))
 
+# Get betting
+betting <- get_betting(current_year, current_year, current_week, current_week)
+
+# Join to win_probs
+win_probs <- win_probs %>% 
+  left_join(betting, by = "id") %>% 
+  mutate(homeMoneyline = if_else(homeMoneyline < 0, 
+                                 as.character(homeMoneyline),
+                                 paste0("+", homeMoneyline)),
+         awayMoneyline = if_else(awayMoneyline < 0, 
+                                 as.character(awayMoneyline),
+                                 paste0("+", awayMoneyline)))
+
 # Add last game result to Elo Rating table
 # Most recent home result for each team
 home_top <- games_rds %>% 
@@ -229,11 +242,12 @@ server <- function(input, output) {
   
   output$elo_win_probs <- renderReactable(
     reactable(win_probs %>% 
-                select(start_date, away_team, light_away, away_elo_wp, home_elo_wp, light_home, home_team, conference),
+                select(start_date, away_team, awayMoneyline, light_away, away_elo_wp, home_elo_wp, light_home, homeMoneyline, home_team, conference),
               columns = list(
                 start_date = colDef(name = "Start Time",
                                     cell = function(x) format(x, "%I:%M%p %a %b %d, %Y")),
                 away_team = colDef(name = "Away"),
+                awayMoneyline = colDef(name = "Moneyline"),
                 light_away = colDef(name = "",
                                     cell = function(value) {
                                       image <- htmltools::img(src = value, height = "50px", alt = "")
@@ -270,6 +284,7 @@ server <- function(input, output) {
                                                        image))
                                       )
                                     }),
+                homeMoneyline = colDef(name = "Moneyline"),
                 home_team = colDef(name = "Home"),
                 conference = colDef(name = "Conference")
               ),
