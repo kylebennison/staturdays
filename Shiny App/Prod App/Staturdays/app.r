@@ -301,7 +301,7 @@ server <- function(input, output) {
   })
   
   output$expected_values <- renderReactable(
-    reactable(exp_val_rbind %>% select(-id),
+    reactable(exp_val_rbind,
               columns = list(
                 start_date = colDef(name = "Start Time (EST)",
                                     cell = function(x) format(x, "%I:%M%p %a %b %d, %Y")),
@@ -353,7 +353,8 @@ server <- function(input, output) {
                                                                "#ffffff", 
                                                                "#000000"))
                                         }),
-                home_away = colDef(show = FALSE)
+                home_away = colDef(show = FALSE),
+                id = colDef(show = FALSE)
               ),
               theme = reactableTheme(
                 style = list(fontFamily = "-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif, Roboto, Fira Mono, Chivo, serif/*rtl:Amiri, Georgia, Times New Roman, serif*/;"),
@@ -370,7 +371,7 @@ server <- function(input, output) {
               },
               searchable = TRUE,
               defaultPageSize = 30,
-              #defaultSorted = c("id", "home_away"),
+              defaultSorted = c("start_date", "id", "home_away"),
               pagination = FALSE,
               striped = TRUE,
               borderless = FALSE,
