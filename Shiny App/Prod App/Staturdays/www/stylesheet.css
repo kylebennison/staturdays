@@ -1,0 +1,16 @@
+@import url('https://fonts.googleapis.com/css2?family=Roboto+Mono&display=fallback');
+
+.number {
+  font-family: "Fira Mono", Consolas, Monaco, monospace;
+//  display: flex;
+//  align-items: center;
+//  justify-content: center;
+//  text-align: center;
+//  font-size: 16px;
+//  line-height: 30px;
+//  white-space: pre;
+}
+
+h2 {
+  font-family: "Fira Mono", Consolas, Monaco, monospace;
+}
