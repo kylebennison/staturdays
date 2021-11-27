@@ -304,7 +304,14 @@ server <- function(input, output) {
     reactable(exp_val_rbind,
               columns = list(
                 start_date = colDef(name = "Start Time (EST)",
-                                    cell = function(x) format(x, "%I:%M%p %a %b %d, %Y")),
+                                    cell = function(x, index) {
+                                      home_away <- exp_val_rbind[index, "home_away"]
+                                      if(home_away == "away"){
+                                        format(x, "%I:%M%p %a %b %d, %Y")
+                                      } else {
+                                        format(x, " ")
+                                      }
+                                    }),
                 team = colDef(name = "Home"),
                 light = colDef(name = "",
                                     cell = function(value, index) {
