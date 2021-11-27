@@ -318,14 +318,11 @@ server <- function(input, output) {
                                       image <- htmltools::img(src = value, height = "50px", alt = "")
                                       home_away <- exp_val_rbind[index, "home_away"] %>% stringr::str_to_title()
                                       htmltools::tagList(
-                                        htmltools::div(style = list("text-align" = "center", "display" = "table",
-                                                                    width = "100%"),
-                                                       htmltools::div(style = list(display = "table-cell", 
-                                                                                   "vertical-align" = "middle"), 
-                                                                      image),
-                                                       div(home_away, style = list(display = "table-cell",
-                                                                                   "vertical-align" = "middle",
-                                                                                   "font-family" = "Roboto Mono")))
+                                        div(style = list(display = "flex", flexDirection = "row", justifyContent = "space-between",
+                                                         "align-items" = "center", gap = "0px 10px"),
+                                          div(image),
+                                          div(home_away, style = list("font-family" = "Roboto Mono"))
+                                          )
                                       )
                                     }),
                 elo_wp = colDef(name = "Elo WP",
