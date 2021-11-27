@@ -98,7 +98,35 @@ win_probs <- win_probs %>%
                                  paste0("+", homeMoneyline)),
          awayMoneyline = if_else(awayMoneyline < 0, 
                                  as.character(awayMoneyline),
-                                 paste0("+", awayMoneyline)))
+                                 paste0("+", awayMoneyline))) %>% 
+  filter(start_date >= lubridate::now())
+
+win_probs_w_lines <- win_probs %>% 
+  mutate(home_implied_odds = case_when(str_detect(homeMoneyline, "-") == TRUE ~ abs(as.integer(homeMoneyline))/(abs(as.integer(homeMoneyline)) + 100),
+                                       str_detect(homeMoneyline, "-") == FALSE ~ 100/(abs(as.integer(homeMoneyline))+100),
+                                       TRUE ~ 0),
+         away_implied_odds = case_when(str_detect(awayMoneyline, "-") == TRUE ~ abs(as.integer(awayMoneyline))/(abs(as.integer(awayMoneyline)) + 100),
+                                       str_detect(awayMoneyline, "-") == FALSE ~ 100/(abs(as.integer(awayMoneyline))+100),
+                                       TRUE ~ 0)) %>% 
+  filter(is.na(homeMoneyline) == FALSE)
+
+# Calc expected value on Elo bets
+
+expected_value_tbl <- win_probs_w_lines %>% 
+  mutate(home_diff = home_elo_wp - home_implied_odds,
+         away_diff = away_elo_wp - away_implied_odds,
+         home_win_10d_bet = if_else(str_detect(homeMoneyline, "-") == TRUE,
+                                    (abs(as.double(homeMoneyline) - 100)) / (abs(as.double(homeMoneyline)) / 10),
+                                    (as.double(homeMoneyline) + 100) / 10),
+         away_win_10d_bet = if_else(str_detect(awayMoneyline, "-") == TRUE,
+                                    (abs(as.double(awayMoneyline) - 100)) / (abs(as.double(awayMoneyline)) / 10),
+                                    (as.double(awayMoneyline) + 100) / 10),
+         home_exp_value = ((home_win_10d_bet - 10) * home_elo_wp) - (10 * (1-home_elo_wp)),
+         away_exp_value = ((away_win_10d_bet - 10) * away_elo_wp) - (10 * (1-away_elo_wp))) %>% 
+  filter(home_exp_value > 1 | away_exp_value > 1) %>% 
+  filter(start_date >= lubridate::now()) %>% 
+  select(start_date, home_team, light_home, home_elo_wp, home_implied_odds, home_exp_value,
+         away_team, light_away, away_elo_wp, away_implied_odds, away_exp_value)
 
 # Add last game result to Elo Rating table
 # Most recent home result for each team
@@ -163,6 +191,13 @@ overtime_sim <- source("https://raw.githubusercontent.com/kylebennison/staturday
 
 ui <- shiny::navbarPage(title = "Staturdays",
                         shiny::navbarMenu(title = "Elo",
+                                          shiny::tabPanel(title = "Expected Values",
+                                                          h2("Positive Expected Value Bets"),
+                                                          gt::html("Expected <span style='color: #0dd686; font-weight: bold'>Profit</span>/<span style='color: #d60d0d; font-weight: bold'>Loss</span> Based on $10 Bet<br>",
+                                                               current_year, "Week", current_week),
+                                                          reactable::reactableOutput(outputId = "expected_values"),
+                                                          htmltools::HTML("<p><sup>1</sup>WP = Win Probability</p>",
+                                                                   "<p><sup>2</sup>Expected Value based on profit or loss from a $10 bet</p>")),
                                           shiny::tabPanel(title = "Win Probabilities This Week",
                                                           reactable::reactableOutput(outputId = "elo_win_probs")),
                                           shiny::tabPanel(title = "Elo Ratings",
@@ -240,11 +275,78 @@ server <- function(input, output) {
     
   })
   
+  output$expected_values <- renderReactable(
+    reactable(expected_value_tbl,
+              columns = list(
+                start_date = colDef(name = "Start Time (EST)",
+                                    cell = function(x) format(x, "%I:%M%p %a %b %d, %Y")),
+                home_team = colDef(name = "Home"),
+                light_home = colDef(name = "",
+                                    cell = function(value) {
+                                      image <- htmltools::img(src = value, height = "50px", alt = "")
+                                      htmltools::tagList(
+                                        htmltools::div(style = list("text-align" = "center"),
+                                                       htmltools::div(style = list(display = "inline-block", width = "25px"), 
+                                                                      image))
+                                      )
+                                    }),
+                home_elo_wp = colDef(name = "Elo WP"),
+                home_implied_odds = colDef(name = "Implied WP"),
+                home_exp_value = colDef(name = "Expected Value",
+                                        format = colFormat(currency = "USD"),
+                                        style = function(value) {
+                                          normalized <- (value - min(expected_value_tbl$home_exp_value)) / (max(expected_value_tbl$home_exp_value) - min(expected_value_tbl$home_exp_value))
+                                          color <- any_pal(normalized, green_red_pal)
+                                          list(background = color, "font-weight" = "bold",
+                                               color = if_else(normalized > .9 | normalized < .1, 
+                                                               "#ffffff", 
+                                                               "#000000"),
+                                               borderRight = "3px solid #000000")
+                                        }),
+                away_team = colDef(name = "Away"),
+                light_away = colDef(name = "",
+                                    cell = function(value) {
+                                      image <- htmltools::img(src = value, height = "50px", alt = "")
+                                      htmltools::tagList(
+                                        htmltools::div(style = list("text-align" = "center"),
+                                                       htmltools::div(style = list(display = "inline-block", width = "25px"), 
+                                                                      image))
+                                      )
+                                    }),
+                away_elo_wp = colDef(name = "Elo WP"),
+                away_implied_odds = colDef(name = "Implied WP"),
+                away_exp_value = colDef(name = "Expected Value",
+                                        format = colFormat(currency = "USD"),
+                                        style = function(value) {
+                                          normalized <- (value - min(expected_value_tbl$away_exp_value)) / (max(expected_value_tbl$away_exp_value) - min(expected_value_tbl$away_exp_value))
+                                          color <- any_pal(normalized, green_red_pal)
+                                          list(background = color, "font-weight" = "bold",
+                                               color = if_else(normalized > .9 | normalized < .1, 
+                                                               "#ffffff", 
+                                                               "#000000"))
+                                        })
+              ),
+              theme = reactableTheme(
+                style = list(fontFamily = "-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif, Roboto, Fira Mono, Chivo, serif/*rtl:Amiri, Georgia, Times New Roman, serif*/;"),
+                headerStyle = list(
+                  borderColor = "#000000",
+                  "&:hover[aria-sort]" = list(background = "hsl(0, 0%, 96%)"),
+                  "&[aria-sort='ascending'], &[aria-sort='descending']" = list(background = "hsl(0, 0%, 96%)")
+                )),
+              defaultColDef = colDef(format = colFormat(digits = 1, percent = TRUE)),
+              searchable = TRUE,
+              defaultPageSize = 30,
+              pagination = FALSE,
+              striped = TRUE,
+              borderless = FALSE
+              )
+  )
+  
   output$elo_win_probs <- renderReactable(
     reactable(win_probs %>% 
                 select(start_date, away_team, awayMoneyline, light_away, away_elo_wp, home_elo_wp, light_home, homeMoneyline, home_team, conference),
               columns = list(
-                start_date = colDef(name = "Start Time",
+                start_date = colDef(name = "Start Time (EST)",
                                     cell = function(x) format(x, "%I:%M%p %a %b %d, %Y")),
                 away_team = colDef(name = "Away"),
                 awayMoneyline = colDef(name = "Moneyline"),
