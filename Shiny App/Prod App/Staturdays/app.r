@@ -307,18 +307,41 @@ server <- function(input, output) {
                                     cell = function(x) format(x, "%I:%M%p %a %b %d, %Y")),
                 team = colDef(name = "Home"),
                 light = colDef(name = "",
-                                    cell = function(value) {
+                                    cell = function(value, index) {
                                       image <- htmltools::img(src = value, height = "50px", alt = "")
+                                      home_away <- exp_val_rbind[index, "home_away"] %>% stringr::str_to_title()
                                       htmltools::tagList(
-                                        htmltools::div(style = list("text-align" = "center"),
-                                                       htmltools::div(style = list(display = "inline-block", width = "25px"), 
-                                                                      image))
+                                        htmltools::div(style = list("text-align" = "center", "display" = "table",
+                                                                    width = "100%"),
+                                                       htmltools::div(style = list(display = "table-cell", 
+                                                                                   "vertical-align" = "middle"), 
+                                                                      image),
+                                                       div(home_away, style = list(display = "table-cell",
+                                                                                   "vertical-align" = "middle",
+                                                                                   "font-family" = "Roboto Mono")))
                                       )
                                     }),
                 elo_wp = colDef(name = "Elo WP",
-                                     class = "number"),
+                                     class = "number",
+                                style = function(value) {
+                                  normalized <- (value) / (1)
+                                  color <- any_pal(normalized, green_red_pal)
+                                  list(background = color, "font-weight" = "bold",
+                                       color = if_else(normalized > .9 | normalized < .1, 
+                                                       "#ffffff", 
+                                                       "#000000"))
+                                }),
                 implied_odds = colDef(name = "Implied WP",
-                                           class = "number"),
+                                           class = "number",
+                                      style = function(value) {
+                                        normalized <- (value) / (1)
+                                        color <- any_pal(normalized, green_red_pal)
+                                        list(background = color, "font-weight" = "bold",
+                                             color = if_else(normalized > .9 | normalized < .1, 
+                                                             "#ffffff", 
+                                                             "#000000"),
+                                             borderRight = "2px solid #000000")
+                                      }),
                 exp_value = colDef(name = "Expected Value",
                                         format = colFormat(currency = "USD"),
                                         class = "number",
@@ -328,9 +351,9 @@ server <- function(input, output) {
                                           list(background = color, "font-weight" = "bold",
                                                color = if_else(normalized > .9 | normalized < .1, 
                                                                "#ffffff", 
-                                                               "#000000"),
-                                               borderRight = "3px solid #000000")
-                                        })
+                                                               "#000000"))
+                                        }),
+                home_away = colDef(show = FALSE)
               ),
               theme = reactableTheme(
                 style = list(fontFamily = "-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif, Roboto, Fira Mono, Chivo, serif/*rtl:Amiri, Georgia, Times New Roman, serif*/;"),
@@ -342,7 +365,7 @@ server <- function(input, output) {
               defaultColDef = colDef(format = colFormat(digits = 1, percent = TRUE)),
               rowStyle = function(index){
                 if (exp_val_rbind[index, "home_away"] == "home") {
-                  list(borderBottom = "3px solid #000000")
+                  list(borderBottom = "3px solid #828282")
                 }
               },
               searchable = TRUE,
