@@ -192,9 +192,11 @@ overtime_sim <- source("https://raw.githubusercontent.com/kylebennison/staturday
 ui <- shiny::navbarPage(title = "Staturdays",
                         shiny::navbarMenu(title = "Elo",
                                           shiny::tabPanel(title = "Expected Values",
+                                                          tags$head(
+                                                            tags$link(rel = "stylesheet", type = "text/css", href = "stylesheet.css")),
                                                           h2("Positive Expected Value Bets"),
-                                                          gt::html("Expected <span style='color: #0dd686; font-weight: bold'>Profit</span>/<span style='color: #d60d0d; font-weight: bold'>Loss</span> Based on $10 Bet<br>",
-                                                               current_year, "Week", current_week),
+                                                          h3(htmltools::HTML("Expected <span style='color: #0dd686; font-weight: bold'>Profit</span>/<span style='color: #d60d0d; font-weight: bold'>Loss</span> Based on $10 Bet<br>",
+                                                               current_year, "<b>", "Week", current_week, "</b>")),
                                                           reactable::reactableOutput(outputId = "expected_values"),
                                                           htmltools::HTML("<p><sup>1</sup>WP = Win Probability</p>",
                                                                    "<p><sup>2</sup>Expected Value based on profit or loss from a $10 bet</p>")),
@@ -290,10 +292,13 @@ server <- function(input, output) {
                                                                       image))
                                       )
                                     }),
-                home_elo_wp = colDef(name = "Elo WP"),
-                home_implied_odds = colDef(name = "Implied WP"),
+                home_elo_wp = colDef(name = "Elo WP",
+                                     class = "number"),
+                home_implied_odds = colDef(name = "Implied WP",
+                                           class = "number"),
                 home_exp_value = colDef(name = "Expected Value",
                                         format = colFormat(currency = "USD"),
+                                        class = "number",
                                         style = function(value) {
                                           normalized <- (value - min(expected_value_tbl$home_exp_value)) / (max(expected_value_tbl$home_exp_value) - min(expected_value_tbl$home_exp_value))
                                           color <- any_pal(normalized, green_red_pal)
@@ -313,10 +318,13 @@ server <- function(input, output) {
                                                                       image))
                                       )
                                     }),
-                away_elo_wp = colDef(name = "Elo WP"),
-                away_implied_odds = colDef(name = "Implied WP"),
+                away_elo_wp = colDef(name = "Elo WP",
+                                     class = "number"),
+                away_implied_odds = colDef(name = "Implied WP",
+                                           class = "number"),
                 away_exp_value = colDef(name = "Expected Value",
                                         format = colFormat(currency = "USD"),
+                                        class = "number",
                                         style = function(value) {
                                           normalized <- (value - min(expected_value_tbl$away_exp_value)) / (max(expected_value_tbl$away_exp_value) - min(expected_value_tbl$away_exp_value))
                                           color <- any_pal(normalized, green_red_pal)
