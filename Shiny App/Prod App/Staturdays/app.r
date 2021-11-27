@@ -370,7 +370,8 @@ server <- function(input, output) {
                   "&:hover[aria-sort]" = list(background = "hsl(0, 0%, 96%)"),
                   "&[aria-sort='ascending'], &[aria-sort='descending']" = list(background = "hsl(0, 0%, 96%)")
                 )),
-              defaultColDef = colDef(format = colFormat(digits = 1, percent = TRUE)),
+              defaultColDef = colDef(format = colFormat(digits = 1, percent = TRUE),
+                                     headerClass = "header"),
               rowStyle = function(index){
                 if (exp_val_rbind[index, "home_away"] == "home") {
                   list(borderBottom = "3px solid #828282")
@@ -440,7 +441,8 @@ server <- function(input, output) {
                 style = list(fontFamily = "-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif, Roboto, Fira Mono, Chivo, serif/*rtl:Amiri, Georgia, Times New Roman, serif*/;")),
               defaultSortOrder = "asc",
               defaultSorted = c("start_date"),
-              defaultColDef = colDef(format = colFormat(digits = 1, percent = TRUE)),
+              defaultColDef = colDef(format = colFormat(digits = 1, percent = TRUE),
+                                     headerClass = "header"),
               searchable = TRUE,
               minRows = 30,
               defaultPageSize = 30,
@@ -487,7 +489,8 @@ server <- function(input, output) {
                                                     style = list(fontFamily = "-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif, Roboto, Fira Mono, Chivo, serif/*rtl:Amiri, Georgia, Times New Roman, serif*/;")),
                                                   defaultSortOrder = "desc",
                                                   defaultSorted = c("elo_rating"),
-                                                  defaultColDef = colDef(format = colFormat(digits = 0)),
+                                                  defaultColDef = colDef(format = colFormat(digits = 0),
+                                                                         headerClass = "header"),
                                                   searchable = TRUE,
                                                   minRows = 30,
                                                   defaultPageSize = 30,
