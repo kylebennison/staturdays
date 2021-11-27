@@ -125,8 +125,31 @@ expected_value_tbl <- win_probs_w_lines %>%
          away_exp_value = ((away_win_10d_bet - 10) * away_elo_wp) - (10 * (1-away_elo_wp))) %>% 
   filter(home_exp_value > 1 | away_exp_value > 1) %>% 
   filter(start_date >= lubridate::now()) %>% 
-  select(start_date, home_team, light_home, home_elo_wp, home_implied_odds, home_exp_value,
+  select(id, start_date, home_team, light_home, home_elo_wp, home_implied_odds, home_exp_value,
          away_team, light_away, away_elo_wp, away_implied_odds, away_exp_value)
+
+# Home
+home_exp_val <- expected_value_tbl %>% 
+  select(id, start_date, contains("home")) %>% 
+  mutate(home_away = "home") %>% 
+  rename(team = home_team,
+         light = light_home,
+         elo_wp = home_elo_wp,
+         implied_odds = home_implied_odds,
+         exp_value = home_exp_value)
+
+# Away
+away_exp_val <- expected_value_tbl %>% 
+  select(id, start_date, contains("away")) %>% 
+  mutate(home_away = "away") %>% 
+  rename(team = away_team,
+         light = light_away,
+         elo_wp = away_elo_wp,
+         implied_odds = away_implied_odds,
+         exp_value = away_exp_value)
+
+exp_val_rbind <- rbind(home_exp_val, away_exp_val) %>% 
+  arrange(id, start_date, home_away) 
 
 # Add last game result to Elo Rating table
 # Most recent home result for each team
@@ -278,12 +301,12 @@ server <- function(input, output) {
   })
   
   output$expected_values <- renderReactable(
-    reactable(expected_value_tbl,
+    reactable(exp_val_rbind %>% select(-id),
               columns = list(
                 start_date = colDef(name = "Start Time (EST)",
                                     cell = function(x) format(x, "%I:%M%p %a %b %d, %Y")),
-                home_team = colDef(name = "Home"),
-                light_home = colDef(name = "",
+                team = colDef(name = "Home"),
+                light = colDef(name = "",
                                     cell = function(value) {
                                       image <- htmltools::img(src = value, height = "50px", alt = "")
                                       htmltools::tagList(
@@ -292,46 +315,21 @@ server <- function(input, output) {
                                                                       image))
                                       )
                                     }),
-                home_elo_wp = colDef(name = "Elo WP",
+                elo_wp = colDef(name = "Elo WP",
                                      class = "number"),
-                home_implied_odds = colDef(name = "Implied WP",
+                implied_odds = colDef(name = "Implied WP",
                                            class = "number"),
-                home_exp_value = colDef(name = "Expected Value",
+                exp_value = colDef(name = "Expected Value",
                                         format = colFormat(currency = "USD"),
                                         class = "number",
                                         style = function(value) {
-                                          normalized <- (value - min(expected_value_tbl$home_exp_value)) / (max(expected_value_tbl$home_exp_value) - min(expected_value_tbl$home_exp_value))
+                                          normalized <- (value - min(exp_val_rbind$exp_value)) / (max(exp_val_rbind$exp_value) - min(exp_val_rbind$exp_value))
                                           color <- any_pal(normalized, green_red_pal)
                                           list(background = color, "font-weight" = "bold",
                                                color = if_else(normalized > .9 | normalized < .1, 
                                                                "#ffffff", 
                                                                "#000000"),
                                                borderRight = "3px solid #000000")
-                                        }),
-                away_team = colDef(name = "Away"),
-                light_away = colDef(name = "",
-                                    cell = function(value) {
-                                      image <- htmltools::img(src = value, height = "50px", alt = "")
-                                      htmltools::tagList(
-                                        htmltools::div(style = list("text-align" = "center"),
-                                                       htmltools::div(style = list(display = "inline-block", width = "25px"), 
-                                                                      image))
-                                      )
-                                    }),
-                away_elo_wp = colDef(name = "Elo WP",
-                                     class = "number"),
-                away_implied_odds = colDef(name = "Implied WP",
-                                           class = "number"),
-                away_exp_value = colDef(name = "Expected Value",
-                                        format = colFormat(currency = "USD"),
-                                        class = "number",
-                                        style = function(value) {
-                                          normalized <- (value - min(expected_value_tbl$away_exp_value)) / (max(expected_value_tbl$away_exp_value) - min(expected_value_tbl$away_exp_value))
-                                          color <- any_pal(normalized, green_red_pal)
-                                          list(background = color, "font-weight" = "bold",
-                                               color = if_else(normalized > .9 | normalized < .1, 
-                                                               "#ffffff", 
-                                                               "#000000"))
                                         })
               ),
               theme = reactableTheme(
@@ -342,11 +340,20 @@ server <- function(input, output) {
                   "&[aria-sort='ascending'], &[aria-sort='descending']" = list(background = "hsl(0, 0%, 96%)")
                 )),
               defaultColDef = colDef(format = colFormat(digits = 1, percent = TRUE)),
+              rowStyle = function(index){
+                if (exp_val_rbind[index, "home_away"] == "home") {
+                  list(borderBottom = "3px solid #000000")
+                }
+              },
               searchable = TRUE,
               defaultPageSize = 30,
+              #defaultSorted = c("id", "home_away"),
               pagination = FALSE,
               striped = TRUE,
-              borderless = FALSE
+              borderless = FALSE,
+              fullWidth = FALSE,
+              #groupBy = c("id"),
+              defaultExpanded = TRUE
               )
   )
   
@@ -473,7 +480,7 @@ server <- function(input, output) {
            y = "Elo Rating")
     }
     )
-  # font-family: "Chivo", "Fira Mono", serif/*rtl:Amiri, Georgia, "Times New Roman", serif*/;
+  
 }
 
 # Run ---------------------------------------------------------------------
