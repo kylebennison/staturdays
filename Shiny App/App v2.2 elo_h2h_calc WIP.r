@@ -521,10 +521,10 @@ server <- function(input, output) {
               defaultColDef = colDef(format = colFormat(digits = 1, percent = TRUE),
                                      headerClass = "header"),
               searchable = TRUE,
-              minRows = 30,
               defaultPageSize = 30,
               pagination = FALSE,
-              striped = TRUE))
+              striped = TRUE,
+              fullWidth = FALSE))
   
   output$elo_ratings <- renderReactable(reactable(elo_ratings %>% select(-c(season, color)),
                                                   columns = list(
@@ -569,10 +569,10 @@ server <- function(input, output) {
                                                   defaultColDef = colDef(format = colFormat(digits = 0),
                                                                          headerClass = "header"),
                                                   searchable = TRUE,
-                                                  minRows = 30,
                                                   defaultPageSize = 30,
                                                   pagination = FALSE,
-                                                  striped = TRUE
+                                                  striped = TRUE,
+                                                  fullWidth = FALSE
                                                   ))
   
   elo_plot_data <- shiny::reactive({elo_master %>% 
