@@ -54,7 +54,7 @@ elo_ratings <- elo_ratings %>%
 # Calculate win probabilities this week
 calendar <- data.table::fread("https://raw.githubusercontent.com/kylebennison/staturdays/master/Data/calendar.csv")
 current_week <- calendar %>% 
-  filter(lastGameStart >= lubridate::today()) %>% 
+  filter(lastGameStart >= lubridate::now()) %>% 
   pull(week) %>% 
   min()
 current_year <- max(elo_ratings$season)
@@ -98,8 +98,7 @@ win_probs <- win_probs %>%
                                  paste0("+", homeMoneyline)),
          awayMoneyline = if_else(awayMoneyline < 0, 
                                  as.character(awayMoneyline),
-                                 paste0("+", awayMoneyline))) %>% 
-  filter(start_date >= lubridate::now())
+                                 paste0("+", awayMoneyline)))
 
 win_probs_w_lines <- win_probs %>% 
   mutate(home_implied_odds = case_when(str_detect(homeMoneyline, "-") == TRUE ~ abs(as.integer(homeMoneyline))/(abs(as.integer(homeMoneyline)) + 100),
@@ -124,7 +123,6 @@ expected_value_tbl <- win_probs_w_lines %>%
          home_exp_value = ((home_win_10d_bet - 10) * home_elo_wp) - (10 * (1-home_elo_wp)),
          away_exp_value = ((away_win_10d_bet - 10) * away_elo_wp) - (10 * (1-away_elo_wp))) %>% 
   filter(home_exp_value > 1 | away_exp_value > 1) %>% 
-  filter(start_date >= lubridate::now()) %>% 
   select(id, start_date, home_team, light_home, home_elo_wp, home_implied_odds, home_exp_value,
          away_team, light_away, away_elo_wp, away_implied_odds, away_exp_value)
 
@@ -217,91 +215,199 @@ ui <- shiny::navbarPage(title = "Staturdays",
                                           shiny::tabPanel(title = "Expected Values",
                                                           tags$head(
                                                             tags$link(rel = "stylesheet", type = "text/css", href = "stylesheet.css")),
-                                                          h2("Positive Expected Value Bets"),
-                                                          h3(htmltools::HTML("Expected <span style='color: #0dd686; font-weight: bold'>Profit</span>/<span style='color: #d60d0d; font-weight: bold'>Loss</span> Based on $10 Bet<br>",
-                                                               current_year, "<b>", "Week", current_week, "</b>")),
-                                                          reactable::reactableOutput(outputId = "expected_values"),
-                                                          htmltools::HTML("<p><sup>1</sup>WP = Win Probability</p>",
-                                                                   "<p><sup>2</sup>Expected Value based on profit or loss from a $10 bet</p>")),
+                                                          fluidRow(
+                                                            column(12, align = "center",
+                                                                   div(style = "display:inline-block; text-align:left;",
+                                                                       h2("Positive Expected Value Bets"),
+                                                                       h3(htmltools::HTML("Expected <span style='color: #0dd686; font-weight: bold'>Profit</span>/<span style='color: #d60d0d; font-weight: bold'>Loss</span> Based on $10 Bet<br>",
+                                                                                          current_year, "<b>", "Week", current_week, "</b>")),
+                                                                       checkboxInput("upcoming_only", label = "Show Upcoming Games Only", value = FALSE),
+                                                                       reactable::reactableOutput(outputId = "expected_values"),
+                                                                       htmltools::HTML("<p><sup>1</sup>WP = Win Probability</p>",
+                                                                                       "<p><sup>2</sup>Expected Value based on profit or loss from a $10 bet</p>"))
+                                                            )
+                                                          )
+                                          ),
                                           shiny::tabPanel(title = "Win Probabilities This Week",
-                                                          reactable::reactableOutput(outputId = "elo_win_probs")),
+                                                          fluidRow(
+                                                            column(12, align = "center",
+                                                                   div(style = "display:inline-block; text-align:left;",
+                                                                       reactable::reactableOutput(outputId = "elo_win_probs"))))
+                                          )
+                                          ,
                                           shiny::tabPanel(title = "Elo Ratings",
-                                                          reactable::reactableOutput(outputId = "elo_ratings")),
+                                                          fluidRow(
+                                                            column(12, align = "center",
+                                                                   div(style = "display:inline-block; text-align:left;",
+                                                                       reactable::reactableOutput(outputId = "elo_ratings"))
+                                                            )
+                                                          )
+                                          ),
                                           shiny::tabPanel(title = "Graph Teams",
                                                           shiny::selectizeInput(inputId = "elo_plot_teams",
                                                                                 label = "Choose one or more teams to plot",
                                                                                 choices = unique(elo_ratings$team),
                                                                                 multiple = TRUE,
                                                                                 selected = elo_ratings[which(elo_ratings$elo_rating == max(elo_ratings$elo_rating)),2]),
-                                                          shiny::plotOutput(outputId = "elo_plot"))),
+                                                          shiny::plotOutput(outputId = "elo_plot")),
+                                          shiny::tabPanel(title = "Head-to-Head Predictor",
+                                                          fluidRow(
+                                                            column(2,
+                                                                   align = "center",
+                                                                   selectizeInput(inputId = "elo_home",
+                                                                                  label = "Home",
+                                                                                  choices = unique(elo_ratings$team),
+                                                                                  multiple = FALSE,
+                                                                                  selected = {elo_ratings %>% filter(rank == 1)}[1,2])),
+                                                            column(8,
+                                                                   align = "center",
+                                                                   reactable::reactableOutput(outputId = "elo_h2h")),
+                                                            column(2,
+                                                                   align = "center",
+                                                                   selectizeInput(inputId = "elo_away",
+                                                                                  label = "Away",
+                                                                                  choices = unique(elo_ratings$team),
+                                                                                  multiple = FALSE,
+                                                                                  selected = {elo_ratings %>% filter(rank == 2)}[1,2]))
+                                                          ),
+                                                          fluidRow(
+                                                            column(12, align = "center",
+                                                                   radioButtons(inputId = "neutral_field",
+                                                                                label = "Is the game being played at a neutral site?",
+                                                                                choices = c("Yes", "No"),
+                                                                                selected = "No"))
+                                                          ))),
                         shiny::tabPanel(title = "Overtime Simulator",
                                         fluidRow(
                                           column(6, align="center",
-                                          shiny::selectizeInput(inputId = "overtime_select_home",
-                                                              label = "Home Team",
-                                                              choices = unique(lookup_table$list_of_teams),
-                                                              multiple = FALSE,
-                                                              selected = "Alabama")
+                                                 shiny::selectizeInput(inputId = "overtime_select_home",
+                                                                       label = "Home Team",
+                                                                       choices = unique(lookup_table$list_of_teams),
+                                                                       multiple = FALSE,
+                                                                       selected = "Alabama")
                                           ),
                                           column(6, align="center",
-                                        shiny::selectizeInput(inputId = "overtime_select_away",
-                                                              label = "Away Team",
-                                                              choices = unique(lookup_table$list_of_teams),
-                                                              multiple = FALSE,
-                                                              selected = "Georgia")
+                                                 shiny::selectizeInput(inputId = "overtime_select_away",
+                                                                       label = "Away Team",
+                                                                       choices = unique(lookup_table$list_of_teams),
+                                                                       multiple = FALSE,
+                                                                       selected = "Georgia")
                                           )
                                         ),
                                         fluidRow(
                                           column(12, align="center",
-                                        tags$b(radioButtons("dist", "Who is on offense first?",
-                                                     c("Home Team" = "Home Team",
-                                                       "Not Sure Yet" = "unsure",
-                                                       "Away Team" = "Away Team"),
-                                                     selected = "unsure",
-                                                     inline = TRUE)),
-                                        tags$hr()
+                                                 tags$b(radioButtons("dist", "Who is on offense first?",
+                                                                     c("Home Team" = "Home Team",
+                                                                       "Not Sure Yet" = "unsure",
+                                                                       "Away Team" = "Away Team"),
+                                                                     selected = "unsure",
+                                                                     inline = TRUE)),
+                                                 tags$hr()
                                           )
                                         ),
                                         fluidRow(
                                           column(12, align="center",
-                                        shiny::htmlOutput(outputId = "home_overtime_win"))
-                                        )
+                                                 shiny::htmlOutput(outputId = "home_overtime_win"))
                                         )
                         )
+)
 
 # Server ------------------------------------------------------------------
 
 server <- function(input, output) {
   
-  output$home_overtime_win <- renderUI({
-    
-    if(input$dist == "Home Team" | input$dist == "Away Team") {
-    
-    overtime_results <- overtime_sim(home_team=input$overtime_select_home, away_team = input$overtime_select_away,
-                                     start_with_ball = input$dist)
+  home <- reactive({
+    elo_ratings %>%
+      filter(team %in% c(input$elo_home))
+  })
+  
+  away <- reactive({
+    elo_ratings %>%
+      filter(team %in% c(input$elo_away)) %>% 
+      rename_with(~ paste0(.x, "_away"))
+  })
+  
+  joined <- reactive({
+    cbind(home(), away()) %>% 
+      select(team, light, elo_rating, team_away, light_away, elo_rating_away)
+  })
+  
+  binded <- reactive({
+    joined() %>%
+      mutate(
+        home_elo_wp = calc_expected_score(
+          elo_rating + if_else(input$neutral_field == "Yes",
+                               0L,
+                               55L),
+          elo_rating_away
+        ),
+        away_elo_wp = 1 - home_elo_wp
+      )
+  })
+  
+  output$elo_h2h <- renderReactable({
+    reactable(binded() %>% select(elo_rating, home_elo_wp, light, light_away, away_elo_wp, elo_rating_away),
+              columns = list(
+                elo_rating = colDef(name = "Home Elo"),
+                home_elo_wp = colDef(name = "Home Elo WP",
+                                     format = colFormat(percent = TRUE, digits = 1),
+                                     style = function(value) {
+                                       normalized <- (value) / (1)
+                                       color <- any_pal(normalized, green_red_pal)
+                                       list(background = color, "font-weight" = "bold",
+                                            color = if_else(normalized > .9 | normalized < .1, 
+                                                            "#ffffff", 
+                                                            "#000000"))
+                                     }),
+                light = colDef(name = "",
+                               cell = function(value, index) {
+                                 image <- htmltools::img(src = value, height = "100px", alt = "")
+                                 htmltools::tagList(
+                                   div(style = list(display = "flex", flexDirection = "row", justifyContent = "space-between",
+                                                    "align-items" = "center", gap = "0px 10px"),
+                                       div(image)
+                                   )
+                                 )
+                               }),
+                light_away = colDef(name = "",
+                                    cell = function(value, index) {
+                                      image <- htmltools::img(src = value, height = "100px", alt = "")
+                                      htmltools::tagList(
+                                        div(style = list(display = "flex", flexDirection = "row", justifyContent = "space-between",
+                                                         "align-items" = "center", gap = "0px 10px"),
+                                            div(image)
+                                        )
+                                      )
+                                    }),
+                away_elo_wp = colDef(name = "Away Elo WP",
+                                     format = colFormat(percent = TRUE, digits = 1),
+                                     style = function(value) {
+                                       normalized <- (value) / (1)
+                                       color <- any_pal(normalized, green_red_pal)
+                                       list(background = color, "font-weight" = "bold",
+                                            color = if_else(normalized > .9 | normalized < .1, 
+                                                            "#ffffff", 
+                                                            "#000000"))
+                                     }),
+                elo_rating_away = colDef(name = "Away Elo")
+              ),
+              defaultColDef = colDef(format = colFormat(digits = 0),
+                                     headerClass = "header",
+                                     class = "number"))
+  })
+  
+  exp_val_rbind_filtered <- reactive({
+    if(input$upcoming_only == TRUE){
+      exp_val_rbind %>% 
+        filter(start_date >= lubridate::now())
+    } else {
+      exp_val_rbind
     }
-    else{
-      overtime_results1 <- overtime_sim(home_team=input$overtime_select_home, away_team = input$overtime_select_away,
-                                        start_with_ball = "Home Team")
-      overtime_results2 <- overtime_sim(home_team=input$overtime_select_home, away_team = input$overtime_select_away,
-                                        start_with_ball = "Away Team")
-
-      overtime_results <- list(.5*as.numeric(overtime_results1[1])+.5*as.numeric(overtime_results2[1]),
-                               .5*as.numeric(overtime_results1[2])+.5*as.numeric(overtime_results2[2]),
-                               .5*as.numeric(overtime_results1[3])+.5*as.numeric(overtime_results2[3]),
-                               .5*as.numeric(overtime_results1[4])+.5*as.numeric(overtime_results2[4]))
-    
-      }
-    str1 <- paste0(input$overtime_select_home ," Win Probability: ", round(100*as.numeric(overtime_results[1]),2),"%")
-    str2 <- paste0(input$overtime_select_away," Win Probability: ", round(100*as.numeric(overtime_results[2]),2), "%")
-    str3 <- paste0("Probability of more than 1 overtime period: ", round(100*as.numeric(overtime_results[3]),2), "%")
-    str4 <- paste0("Probability of a 2-point attempt shootout: ", round(100*as.numeric(overtime_results[4]),2), "%")
-    HTML(paste(tags$b(str1), str3, str4, tags$b(str2), sep = '<br/>'))
     
   })
   
   output$expected_values <- renderReactable(
-    reactable(exp_val_rbind,
+    reactable(exp_val_rbind_filtered(),
               columns = list(
                 start_date = colDef(name = "Start Time (EST)",
                                     cell = function(x, index) {
@@ -314,19 +420,19 @@ server <- function(input, output) {
                                     }),
                 team = colDef(name = "Home"),
                 light = colDef(name = "",
-                                    cell = function(value, index) {
-                                      image <- htmltools::img(src = value, height = "50px", alt = "")
-                                      home_away <- exp_val_rbind[index, "home_away"] %>% stringr::str_to_title()
-                                      htmltools::tagList(
-                                        div(style = list(display = "flex", flexDirection = "row", justifyContent = "space-between",
-                                                         "align-items" = "center", gap = "0px 10px"),
-                                          div(image),
-                                          div(home_away, style = list("font-family" = "Roboto Mono"))
-                                          )
-                                      )
-                                    }),
+                               cell = function(value, index) {
+                                 image <- htmltools::img(src = value, height = "50px", alt = "")
+                                 home_away <- exp_val_rbind[index, "home_away"] %>% stringr::str_to_title()
+                                 htmltools::tagList(
+                                   div(style = list(display = "flex", flexDirection = "row", justifyContent = "space-between",
+                                                    "align-items" = "center", gap = "0px 10px"),
+                                       div(image),
+                                       div(home_away, style = list("font-family" = "Roboto Mono"))
+                                   )
+                                 )
+                               }),
                 elo_wp = colDef(name = "Elo WP",
-                                     class = "number",
+                                class = "number",
                                 style = function(value) {
                                   normalized <- (value) / (1)
                                   color <- any_pal(normalized, green_red_pal)
@@ -336,7 +442,7 @@ server <- function(input, output) {
                                                        "#000000"))
                                 }),
                 implied_odds = colDef(name = "Implied WP",
-                                           class = "number",
+                                      class = "number",
                                       style = function(value) {
                                         normalized <- (value) / (1)
                                         color <- any_pal(normalized, green_red_pal)
@@ -347,16 +453,16 @@ server <- function(input, output) {
                                              borderRight = "2px solid #000000")
                                       }),
                 exp_value = colDef(name = "Expected Value",
-                                        format = colFormat(currency = "USD"),
-                                        class = "number",
-                                        style = function(value) {
-                                          normalized <- (value - min(exp_val_rbind$exp_value)) / (max(exp_val_rbind$exp_value) - min(exp_val_rbind$exp_value))
-                                          color <- any_pal(normalized, green_red_pal)
-                                          list(background = color, "font-weight" = "bold",
-                                               color = if_else(normalized > .9 | normalized < .1, 
-                                                               "#ffffff", 
-                                                               "#000000"))
-                                        }),
+                                   format = colFormat(currency = "USD"),
+                                   class = "number",
+                                   style = function(value) {
+                                     normalized <- (value - min(exp_val_rbind$exp_value)) / (max(exp_val_rbind$exp_value) - min(exp_val_rbind$exp_value))
+                                     color <- any_pal(normalized, green_red_pal)
+                                     list(background = color, "font-weight" = "bold",
+                                          color = if_else(normalized > .9 | normalized < .1, 
+                                                          "#ffffff", 
+                                                          "#000000"))
+                                   }),
                 home_away = colDef(show = FALSE),
                 id = colDef(show = FALSE)
               ),
@@ -383,7 +489,7 @@ server <- function(input, output) {
               fullWidth = FALSE,
               #groupBy = c("id"),
               defaultExpanded = TRUE
-              )
+    )
   )
   
   output$elo_win_probs <- renderReactable(
@@ -426,8 +532,8 @@ server <- function(input, output) {
                                       image <- htmltools::img(src = value, height = "50px", alt = "")
                                       htmltools::tagList(
                                         htmltools::div(style = list("text-align" = "center"),
-                                        htmltools::div(style = list(display = "inline-block", width = "25px"), 
-                                                       image))
+                                                       htmltools::div(style = list(display = "inline-block", width = "25px"), 
+                                                                      image))
                                       )
                                     }),
                 homeMoneyline = colDef(name = "Moneyline"),
@@ -441,10 +547,10 @@ server <- function(input, output) {
               defaultColDef = colDef(format = colFormat(digits = 1, percent = TRUE),
                                      headerClass = "header"),
               searchable = TRUE,
-              minRows = 30,
               defaultPageSize = 30,
               pagination = FALSE,
-              striped = TRUE))
+              striped = TRUE,
+              fullWidth = FALSE))
   
   output$elo_ratings <- renderReactable(reactable(elo_ratings %>% select(-c(season, color)),
                                                   columns = list(
@@ -481,7 +587,7 @@ server <- function(input, output) {
                                                                         }),
                                                     rank_change = colDef(name = "Δ Rank"),
                                                     result = colDef(name = "Last Game")
-                                                    ),
+                                                  ),
                                                   theme = reactableTheme(
                                                     style = list(fontFamily = "-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif, Roboto, Fira Mono, Chivo, serif/*rtl:Amiri, Georgia, Times New Roman, serif*/;")),
                                                   defaultSortOrder = "desc",
@@ -489,11 +595,11 @@ server <- function(input, output) {
                                                   defaultColDef = colDef(format = colFormat(digits = 0),
                                                                          headerClass = "header"),
                                                   searchable = TRUE,
-                                                  minRows = 30,
                                                   defaultPageSize = 30,
                                                   pagination = FALSE,
-                                                  striped = TRUE
-                                                  ))
+                                                  striped = TRUE,
+                                                  fullWidth = FALSE
+  ))
   
   elo_plot_data <- shiny::reactive({elo_master %>% 
       filter(team %in% input$elo_plot_teams)})
@@ -509,8 +615,35 @@ server <- function(input, output) {
       staturdays_theme +
       labs(x = "Week",
            y = "Elo Rating")
+  }
+  )
+  
+  output$home_overtime_win <- renderUI({
+    
+    if(input$dist == "Home Team" | input$dist == "Away Team") {
+      
+      overtime_results <- overtime_sim(home_team=input$overtime_select_home, away_team = input$overtime_select_away,
+                                       start_with_ball = input$dist)
     }
-    )
+    else{
+      overtime_results1 <- overtime_sim(home_team=input$overtime_select_home, away_team = input$overtime_select_away,
+                                        start_with_ball = "Home Team")
+      overtime_results2 <- overtime_sim(home_team=input$overtime_select_home, away_team = input$overtime_select_away,
+                                        start_with_ball = "Away Team")
+      
+      overtime_results <- list(.5*as.numeric(overtime_results1[1])+.5*as.numeric(overtime_results2[1]),
+                               .5*as.numeric(overtime_results1[2])+.5*as.numeric(overtime_results2[2]),
+                               .5*as.numeric(overtime_results1[3])+.5*as.numeric(overtime_results2[3]),
+                               .5*as.numeric(overtime_results1[4])+.5*as.numeric(overtime_results2[4]))
+      
+    }
+    str1 <- paste0(input$overtime_select_home ," Win Probability: ", round(100*as.numeric(overtime_results[1]),2),"%")
+    str2 <- paste0(input$overtime_select_away," Win Probability: ", round(100*as.numeric(overtime_results[2]),2), "%")
+    str3 <- paste0("Probability of more than 1 overtime period: ", round(100*as.numeric(overtime_results[3]),2), "%")
+    str4 <- paste0("Probability of a 2-point attempt shootout: ", round(100*as.numeric(overtime_results[4]),2), "%")
+    HTML(paste(tags$b(str1), str3, str4, tags$b(str2), sep = '<br/>'))
+    
+  })
   
 }
 
