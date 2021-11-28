@@ -229,9 +229,20 @@ ui <- shiny::navbarPage(title = "Staturdays",
                                                           )
                                                           ),
                                           shiny::tabPanel(title = "Win Probabilities This Week",
-                                                          reactable::reactableOutput(outputId = "elo_win_probs")),
+                                                          fluidRow(
+                                                            column(12, align = "center",
+                                                                   div(style = "display:inline-block; text-align:left;",
+                                                                       reactable::reactableOutput(outputId = "elo_win_probs"))))
+                                                          )
+                                                          ,
                                           shiny::tabPanel(title = "Elo Ratings",
-                                                          reactable::reactableOutput(outputId = "elo_ratings")),
+                                                          fluidRow(
+                                                            column(12, align = "center",
+                                                                   div(style = "display:inline-block; text-align:left;",
+                                                                       reactable::reactableOutput(outputId = "elo_ratings"))
+                                                                   )
+                                                            )
+                                                          ),
                                           shiny::tabPanel(title = "Graph Teams",
                                                           shiny::selectizeInput(inputId = "elo_plot_teams",
                                                                                 label = "Choose one or more teams to plot",
