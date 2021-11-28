@@ -98,8 +98,7 @@ win_probs <- win_probs %>%
                                  paste0("+", homeMoneyline)),
          awayMoneyline = if_else(awayMoneyline < 0, 
                                  as.character(awayMoneyline),
-                                 paste0("+", awayMoneyline))) %>% 
-  filter(start_date >= lubridate::now())
+                                 paste0("+", awayMoneyline)))
 
 win_probs_w_lines <- win_probs %>% 
   mutate(home_implied_odds = case_when(str_detect(homeMoneyline, "-") == TRUE ~ abs(as.integer(homeMoneyline))/(abs(as.integer(homeMoneyline)) + 100),
@@ -124,7 +123,6 @@ expected_value_tbl <- win_probs_w_lines %>%
          home_exp_value = ((home_win_10d_bet - 10) * home_elo_wp) - (10 * (1-home_elo_wp)),
          away_exp_value = ((away_win_10d_bet - 10) * away_elo_wp) - (10 * (1-away_elo_wp))) %>% 
   filter(home_exp_value > 1 | away_exp_value > 1) %>% 
-  filter(start_date >= lubridate::now()) %>% 
   select(id, start_date, home_team, light_home, home_elo_wp, home_implied_odds, home_exp_value,
          away_team, light_away, away_elo_wp, away_implied_odds, away_exp_value)
 
@@ -220,6 +218,7 @@ ui <- shiny::navbarPage(title = "Staturdays",
                                                           h2("Positive Expected Value Bets"),
                                                           h3(htmltools::HTML("Expected <span style='color: #0dd686; font-weight: bold'>Profit</span>/<span style='color: #d60d0d; font-weight: bold'>Loss</span> Based on $10 Bet<br>",
                                                                current_year, "<b>", "Week", current_week, "</b>")),
+                                                          checkboxInput("upcoming_only", label = "Show Upcoming Games Only", value = FALSE),
                                                           reactable::reactableOutput(outputId = "expected_values"),
                                                           htmltools::HTML("<p><sup>1</sup>WP = Win Probability</p>",
                                                                    "<p><sup>2</sup>Expected Value based on profit or loss from a $10 bet</p>")),
@@ -380,8 +379,18 @@ server <- function(input, output) {
                                      class = "number"))
   })
   
+  exp_val_rbind_filtered <- reactive({
+    if(input$upcoming_only == TRUE){
+      exp_val_rbind %>% 
+        filter(start_date >= lubridate::now())
+    } else {
+      exp_val_rbind
+    }
+    
+  })
+  
   output$expected_values <- renderReactable(
-    reactable(exp_val_rbind,
+    reactable(exp_val_rbind_filtered(),
               columns = list(
                 start_date = colDef(name = "Start Time (EST)",
                                     cell = function(x, index) {
