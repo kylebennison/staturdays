@@ -215,13 +215,19 @@ ui <- shiny::navbarPage(title = "Staturdays",
                                           shiny::tabPanel(title = "Expected Values",
                                                           tags$head(
                                                             tags$link(rel = "stylesheet", type = "text/css", href = "stylesheet.css")),
-                                                          h2("Positive Expected Value Bets"),
-                                                          h3(htmltools::HTML("Expected <span style='color: #0dd686; font-weight: bold'>Profit</span>/<span style='color: #d60d0d; font-weight: bold'>Loss</span> Based on $10 Bet<br>",
-                                                               current_year, "<b>", "Week", current_week, "</b>")),
-                                                          checkboxInput("upcoming_only", label = "Show Upcoming Games Only", value = FALSE),
-                                                          reactable::reactableOutput(outputId = "expected_values"),
-                                                          htmltools::HTML("<p><sup>1</sup>WP = Win Probability</p>",
-                                                                   "<p><sup>2</sup>Expected Value based on profit or loss from a $10 bet</p>")),
+                                                          fluidRow(
+                                                            column(12, align = "center",
+                                                                   div(style = "display:inline-block; text-align:left;",
+                                                                       h2("Positive Expected Value Bets"),
+                                                                       h3(htmltools::HTML("Expected <span style='color: #0dd686; font-weight: bold'>Profit</span>/<span style='color: #d60d0d; font-weight: bold'>Loss</span> Based on $10 Bet<br>",
+                                                                                          current_year, "<b>", "Week", current_week, "</b>")),
+                                                                       checkboxInput("upcoming_only", label = "Show Upcoming Games Only", value = FALSE),
+                                                                       reactable::reactableOutput(outputId = "expected_values"),
+                                                                       htmltools::HTML("<p><sup>1</sup>WP = Win Probability</p>",
+                                                                                       "<p><sup>2</sup>Expected Value based on profit or loss from a $10 bet</p>"))
+                                                                   )
+                                                          )
+                                                          ),
                                           shiny::tabPanel(title = "Win Probabilities This Week",
                                                           reactable::reactableOutput(outputId = "elo_win_probs")),
                                           shiny::tabPanel(title = "Elo Ratings",
