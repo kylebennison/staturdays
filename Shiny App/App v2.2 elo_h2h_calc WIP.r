@@ -236,17 +236,17 @@ ui <- shiny::navbarPage(title = "Staturdays",
                                                           shiny::plotOutput(outputId = "elo_plot")),
                                           shiny::tabPanel(title = "Head-to-Head Predictor",
                                                           fluidRow(
-                                                            column(3,
+                                                            column(2,
                                                                    align = "center",
                                                                    selectizeInput(inputId = "elo_home",
                                                                                   label = "Home",
                                                                                   choices = unique(elo_ratings$team),
                                                                                   multiple = FALSE,
                                                                                   selected = {elo_ratings %>% filter(rank == 1)}[1,2])),
-                                                            column(4,
+                                                            column(8,
                                                                    align = "center",
                                                                    reactable::reactableOutput(outputId = "elo_h2h")),
-                                                            column(3,
+                                                            column(2,
                                                                    align = "center",
                                                                    selectizeInput(inputId = "elo_away",
                                                                                   label = "Away",
@@ -255,7 +255,7 @@ ui <- shiny::navbarPage(title = "Staturdays",
                                                                                   selected = {elo_ratings %>% filter(rank == 2)}[1,2]))
                                                           ),
                                                           fluidRow(
-                                                            column(3, align = "center",
+                                                            column(12, align = "center",
                                                                    radioButtons(inputId = "neutral_field",
                                                                                 label = "Is the game being played at a neutral site?",
                                                                                 choices = c("Yes", "No"),
@@ -311,11 +311,13 @@ server <- function(input, output) {
       rename_with(~ paste0(.x, "_away"))
   })
   
-  joined <- cbind(home(), away()) %>% 
+  joined <- reactive({
+    cbind(home(), away()) %>% 
     select(team, light, elo_rating, team_away, light_away, elo_rating_away)
+  })
     
   binded <- reactive({
-    joined %>%
+    joined() %>%
       mutate(
         home_elo_wp = calc_expected_score(
           elo_rating + if_else(input$neutral_field == "Yes",
@@ -331,7 +333,16 @@ server <- function(input, output) {
     reactable(binded() %>% select(elo_rating, home_elo_wp, light, light_away, away_elo_wp, elo_rating_away),
               columns = list(
                 elo_rating = colDef(name = "Home Elo"),
-                home_elo_wp = colDef(name = "Home Elo WP"),
+                home_elo_wp = colDef(name = "Home Elo WP",
+                                     format = colFormat(percent = TRUE, digits = 1),
+                                     style = function(value) {
+                                       normalized <- (value) / (1)
+                                       color <- any_pal(normalized, green_red_pal)
+                                       list(background = color, "font-weight" = "bold",
+                                            color = if_else(normalized > .9 | normalized < .1, 
+                                                            "#ffffff", 
+                                                            "#000000"))
+                                     }),
                 light = colDef(name = "",
                                cell = function(value, index) {
                                  image <- htmltools::img(src = value, height = "100px", alt = "")
@@ -352,9 +363,21 @@ server <- function(input, output) {
                                         )
                                       )
                                     }),
-                away_elo_wp = colDef(name = "Away Elo WP"),
+                away_elo_wp = colDef(name = "Away Elo WP",
+                                     format = colFormat(percent = TRUE, digits = 1),
+                                     style = function(value) {
+                                       normalized <- (value) / (1)
+                                       color <- any_pal(normalized, green_red_pal)
+                                       list(background = color, "font-weight" = "bold",
+                                            color = if_else(normalized > .9 | normalized < .1, 
+                                                            "#ffffff", 
+                                                            "#000000"))
+                                     }),
                 elo_rating_away = colDef(name = "Away Elo")
-              ))
+              ),
+              defaultColDef = colDef(format = colFormat(digits = 0),
+                                     headerClass = "header",
+                                     class = "number"))
   })
   
   output$home_overtime_win <- renderUI({
