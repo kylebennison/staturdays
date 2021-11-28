@@ -253,6 +253,13 @@ ui <- shiny::navbarPage(title = "Staturdays",
                                                                                   choices = unique(elo_ratings$team),
                                                                                   multiple = FALSE,
                                                                                   selected = {elo_ratings %>% filter(rank == 2)}[1,2]))
+                                                          ),
+                                                          fluidRow(
+                                                            column(3, align = "center",
+                                                                   radioButtons(inputId = "neutral_field",
+                                                                                label = "Is the game being played at a neutral site?",
+                                                                                choices = c("Yes", "No"),
+                                                                                selected = "No"))
                                                           ))),
                         shiny::tabPanel(title = "Overtime Simulator",
                                         fluidRow(
@@ -292,6 +299,63 @@ ui <- shiny::navbarPage(title = "Staturdays",
 # Server ------------------------------------------------------------------
 
 server <- function(input, output) {
+  
+  home <- reactive({
+      elo_ratings %>%
+        filter(team %in% c(input$elo_home))
+  })
+  
+  away <- reactive({
+      elo_ratings %>%
+        filter(team %in% c(input$elo_away)) %>% 
+      rename_with(~ paste0(.x, "_away"))
+  })
+  
+  joined <- cbind(home(), away()) %>% 
+    select(team, light, elo_rating, team_away, light_away, elo_rating_away)
+    
+  binded <- reactive({
+    joined %>%
+      mutate(
+        home_elo_wp = calc_expected_score(
+          elo_rating + if_else(input$neutral_field == "Yes",
+                               0L,
+                               55L),
+          elo_rating_away
+        ),
+        away_elo_wp = 1 - home_elo_wp
+      )
+  })
+  
+  output$elo_h2h <- renderReactable({
+    reactable(binded() %>% select(elo_rating, home_elo_wp, light, light_away, away_elo_wp, elo_rating_away),
+              columns = list(
+                elo_rating = colDef(name = "Home Elo"),
+                home_elo_wp = colDef(name = "Home Elo WP"),
+                light = colDef(name = "",
+                               cell = function(value, index) {
+                                 image <- htmltools::img(src = value, height = "100px", alt = "")
+                                 htmltools::tagList(
+                                   div(style = list(display = "flex", flexDirection = "row", justifyContent = "space-between",
+                                                    "align-items" = "center", gap = "0px 10px"),
+                                       div(image)
+                                   )
+                                 )
+                               }),
+                light_away = colDef(name = "",
+                                    cell = function(value, index) {
+                                      image <- htmltools::img(src = value, height = "100px", alt = "")
+                                      htmltools::tagList(
+                                        div(style = list(display = "flex", flexDirection = "row", justifyContent = "space-between",
+                                                         "align-items" = "center", gap = "0px 10px"),
+                                            div(image)
+                                        )
+                                      )
+                                    }),
+                away_elo_wp = colDef(name = "Away Elo WP"),
+                elo_rating_away = colDef(name = "Away Elo")
+              ))
+  })
   
   output$home_overtime_win <- renderUI({
     
