@@ -54,7 +54,7 @@ elo_ratings <- elo_ratings %>%
 # Calculate win probabilities this week
 calendar <- data.table::fread("https://raw.githubusercontent.com/kylebennison/staturdays/master/Data/calendar.csv")
 current_week <- calendar %>% 
-  filter(lastGameStart >= lubridate::today()) %>% 
+  filter(lastGameStart >= lubridate::now()) %>% 
   pull(week) %>% 
   min()
 current_year <- max(elo_ratings$season)
