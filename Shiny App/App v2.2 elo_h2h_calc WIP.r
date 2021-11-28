@@ -380,33 +380,6 @@ server <- function(input, output) {
                                      class = "number"))
   })
   
-  output$home_overtime_win <- renderUI({
-    
-    if(input$dist == "Home Team" | input$dist == "Away Team") {
-    
-    overtime_results <- overtime_sim(home_team=input$overtime_select_home, away_team = input$overtime_select_away,
-                                     start_with_ball = input$dist)
-    }
-    else{
-      overtime_results1 <- overtime_sim(home_team=input$overtime_select_home, away_team = input$overtime_select_away,
-                                        start_with_ball = "Home Team")
-      overtime_results2 <- overtime_sim(home_team=input$overtime_select_home, away_team = input$overtime_select_away,
-                                        start_with_ball = "Away Team")
-
-      overtime_results <- list(.5*as.numeric(overtime_results1[1])+.5*as.numeric(overtime_results2[1]),
-                               .5*as.numeric(overtime_results1[2])+.5*as.numeric(overtime_results2[2]),
-                               .5*as.numeric(overtime_results1[3])+.5*as.numeric(overtime_results2[3]),
-                               .5*as.numeric(overtime_results1[4])+.5*as.numeric(overtime_results2[4]))
-    
-      }
-    str1 <- paste0(input$overtime_select_home ," Win Probability: ", round(100*as.numeric(overtime_results[1]),2),"%")
-    str2 <- paste0(input$overtime_select_away," Win Probability: ", round(100*as.numeric(overtime_results[2]),2), "%")
-    str3 <- paste0("Probability of more than 1 overtime period: ", round(100*as.numeric(overtime_results[3]),2), "%")
-    str4 <- paste0("Probability of a 2-point attempt shootout: ", round(100*as.numeric(overtime_results[4]),2), "%")
-    HTML(paste(tags$b(str1), str3, str4, tags$b(str2), sep = '<br/>'))
-    
-  })
-  
   output$expected_values <- renderReactable(
     reactable(exp_val_rbind,
               columns = list(
@@ -618,6 +591,33 @@ server <- function(input, output) {
            y = "Elo Rating")
     }
     )
+  
+  output$home_overtime_win <- renderUI({
+    
+    if(input$dist == "Home Team" | input$dist == "Away Team") {
+      
+      overtime_results <- overtime_sim(home_team=input$overtime_select_home, away_team = input$overtime_select_away,
+                                       start_with_ball = input$dist)
+    }
+    else{
+      overtime_results1 <- overtime_sim(home_team=input$overtime_select_home, away_team = input$overtime_select_away,
+                                        start_with_ball = "Home Team")
+      overtime_results2 <- overtime_sim(home_team=input$overtime_select_home, away_team = input$overtime_select_away,
+                                        start_with_ball = "Away Team")
+      
+      overtime_results <- list(.5*as.numeric(overtime_results1[1])+.5*as.numeric(overtime_results2[1]),
+                               .5*as.numeric(overtime_results1[2])+.5*as.numeric(overtime_results2[2]),
+                               .5*as.numeric(overtime_results1[3])+.5*as.numeric(overtime_results2[3]),
+                               .5*as.numeric(overtime_results1[4])+.5*as.numeric(overtime_results2[4]))
+      
+    }
+    str1 <- paste0(input$overtime_select_home ," Win Probability: ", round(100*as.numeric(overtime_results[1]),2),"%")
+    str2 <- paste0(input$overtime_select_away," Win Probability: ", round(100*as.numeric(overtime_results[2]),2), "%")
+    str3 <- paste0("Probability of more than 1 overtime period: ", round(100*as.numeric(overtime_results[3]),2), "%")
+    str4 <- paste0("Probability of a 2-point attempt shootout: ", round(100*as.numeric(overtime_results[4]),2), "%")
+    HTML(paste(tags$b(str1), str3, str4, tags$b(str2), sep = '<br/>'))
+    
+  })
   
 }
 
