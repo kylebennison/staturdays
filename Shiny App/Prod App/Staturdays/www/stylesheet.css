@@ -1,7 +1,7 @@
-@import url('https://fonts.googleapis.com/css2?family=Roboto+Mono&display=fallback');
+@import url('https://fonts.googleapis.com/css2?family=Cousine&family=Roboto+Mono&display=fallback');
 
 .number {
-  font-family: "Roboto Mono", Consolas, Monaco, monospace;
+  font-family: "Cousine", "Roboto Mono", Consolas, Monaco, monospace;
 //  display: flex;
 //  align-items: center;
 //  justify-content: center;
@@ -12,9 +12,11 @@
 }
 
 h2 {
-  font-family: "Roboto Mono", Consolas, Monaco, monospace;
+  font-family: "Cousine", "Roboto Mono", Consolas, Monaco, monospace;
 }
 
 .header {
-  font-family: "Roboto Mono", Consolas, Monaco, monospace;
+  font-family: "Cousine", "Roboto Mono", Consolas, Monaco, monospace;
+  font-size: 12px;
+  white-space: pre;
 }
