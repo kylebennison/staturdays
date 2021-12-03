@@ -116,9 +116,9 @@ master %>% filter(!is.na(bucket), conference %in% c("SEC", "ACC", "Pac-12", "Big
   #           color="red") +
   #geom_text(aes(label=ifelse(above_league_average.x>.2 | above_league_average.x < -0.2,as.character(offense_play),'')),hjust=0,vjust=0) +
   #geom_label_repel(aes(label=ifelse(above_league_average.x>.2,as.character(offense_play),''))) +
-  labs(title = "Average distance to go on 3rd downs\nabove/below average vs.\n3rd down conversion rate by\ndistance above/below average",
-    x="3rd down conversion rate above/below league average at that bucket",
-       y="3rd down yards to go above/below league average at that bucket")
+  labs(title = "3rd down yards to go above/below\naverage at each bucket vs. 3rd down\nconversion rate above/below\naverage at each bucket",
+    x="3rd down conversion rate above/below average at this distance",
+       y="3rd down yards to go above/below average at this distance")
 
 ggsave("C:/Users/drewb/Desktop/mainplot.png", height = 15, width = 5)
 
