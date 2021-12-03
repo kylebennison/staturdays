@@ -18,5 +18,5 @@ h2 {
 .header {
   font-family: "Cousine", "Roboto Mono", Consolas, Monaco, monospace;
   font-size: 12px;
-  white-space: pre;
+  white-space: unset;
 }
