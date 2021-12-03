@@ -427,7 +427,7 @@ server <- function(input, output) {
                                    div(style = list(display = "flex", flexDirection = "row", justifyContent = "space-between",
                                                     "align-items" = "center", gap = "0px 10px"),
                                        div(image),
-                                       div(home_away, style = list("font-family" = "Roboto Mono"))
+                                       div(home_away, style = list("font-family" = "Cousine"))
                                    )
                                  )
                                }),
@@ -467,7 +467,10 @@ server <- function(input, output) {
                 id = colDef(show = FALSE)
               ),
               theme = reactableTheme(
-                style = list(fontFamily = "-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif, Roboto, Fira Mono, Chivo, serif/*rtl:Amiri, Georgia, Times New Roman, serif*/;"),
+                style = list(fontFamily = "-apple-system, BlinkMacSystemFont, 
+                             Segoe UI, Helvetica, Arial, sans-serif, 
+                             Roboto, Fira Mono, Chivo, serif/*rtl:Amiri, 
+                             Georgia, Times New Roman, serif*/;"),
                 headerStyle = list(
                   borderColor = "#000000",
                   "&:hover[aria-sort]" = list(background = "hsl(0, 0%, 96%)"),
@@ -541,7 +544,11 @@ server <- function(input, output) {
                 conference = colDef(name = "Conference")
               ),
               theme = reactableTheme(
-                style = list(fontFamily = "-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif, Roboto, Fira Mono, Chivo, serif/*rtl:Amiri, Georgia, Times New Roman, serif*/;")),
+              style = list(fontFamily = "-apple-system, BlinkMacSystemFont, 
+                             Segoe UI, Helvetica, Arial, sans-serif, 
+                             Roboto, Fira Mono, Chivo, serif/*rtl:Amiri, 
+                             Georgia, Times New Roman, serif*/;")
+              ),
               defaultSortOrder = "asc",
               defaultSorted = c("start_date"),
               defaultColDef = colDef(format = colFormat(digits = 1, percent = TRUE),
@@ -552,54 +559,76 @@ server <- function(input, output) {
               striped = TRUE,
               fullWidth = FALSE))
   
-  output$elo_ratings <- renderReactable(reactable(elo_ratings %>% select(-c(season, color)),
-                                                  columns = list(
-                                                    rank = colDef(name = "Rank",
-                                                                  width = 60),
-                                                    team = colDef(name = "Team"),
-                                                    light = colDef(name = "",
-                                                                   cell = function(value) {
-                                                                     image <- htmltools::img(src = value, height = "50px", alt = "")
-                                                                     htmltools::tagList(
-                                                                       htmltools::div(style = list(display = "inline-block", width = "25px"), 
-                                                                                      image)
-                                                                     )
-                                                                   }),
-                                                    conference = colDef(name = "Conference"),
-                                                    elo_rating = colDef(name = "Rating",
-                                                                        style = function(value) {
-                                                                          normalized <- (value - min(elo_ratings$elo_rating)) / (max(elo_ratings$elo_rating) - min(elo_ratings$elo_rating))
-                                                                          color <- any_pal(normalized, forest_palette)
-                                                                          list(background = color, "font-weight" = "bold",
-                                                                               color = if_else(normalized > .7, 
-                                                                                               "#ffffff", 
-                                                                                               "#000000"))
-                                                                        }),
-                                                    week = colDef(name = "Week"),
-                                                    date = colDef(name = "Date Updated",
-                                                                  format = colFormat(date = TRUE)),
-                                                    elo_change = colDef(name = "Δ Elo",
-                                                                        style = function(value) {
-                                                                          normalized <- (value - min(elo_ratings$elo_change)) / 
-                                                                            (max(elo_ratings$elo_change) - min(elo_ratings$elo_change))
-                                                                          color <- any_pal(normalized, green_red_pal)
-                                                                          list(background = color, "font-weight" = "bold")
-                                                                        }),
-                                                    rank_change = colDef(name = "Δ Rank"),
-                                                    result = colDef(name = "Last Game")
-                                                  ),
-                                                  theme = reactableTheme(
-                                                    style = list(fontFamily = "-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif, Roboto, Fira Mono, Chivo, serif/*rtl:Amiri, Georgia, Times New Roman, serif*/;")),
-                                                  defaultSortOrder = "desc",
-                                                  defaultSorted = c("elo_rating"),
-                                                  defaultColDef = colDef(format = colFormat(digits = 0),
-                                                                         headerClass = "header"),
-                                                  searchable = TRUE,
-                                                  defaultPageSize = 30,
-                                                  pagination = FALSE,
-                                                  striped = TRUE,
-                                                  fullWidth = FALSE
-  ))
+  output$elo_ratings <-
+    renderReactable(
+      reactable(
+        elo_ratings %>% select(-c(season, color)),
+        columns = list(
+          rank = colDef(name = "Rank",
+                        width = 60),
+          team = colDef(name = "Team"),
+          light = colDef(
+            name = "",
+            cell = function(value) {
+              image <- htmltools::img(src = value,
+                                      height = "50px",
+                                      alt = "")
+              htmltools::tagList(htmltools::div(style = list(display = "inline-block", width = "25px"),
+                                                image))
+            }
+          ),
+          conference = colDef(name = "Conference"),
+          elo_rating = colDef(
+            name = "Rating",
+            style = function(value) {
+              normalized <-
+                (value - min(elo_ratings$elo_rating)) / (max(elo_ratings$elo_rating) - min(elo_ratings$elo_rating))
+              color <-
+                any_pal(normalized, forest_palette)
+              list(
+                background = color,
+                "font-weight" = "bold",
+                color = if_else(normalized > .7,
+                                "#ffffff",
+                                "#000000")
+              )
+            }
+          ),
+          week = colDef(name = "Week"),
+          date = colDef(name = "Date Updated",
+                        format = colFormat(date = TRUE)),
+          elo_change = colDef(
+            name = "Δ Elo",
+            style = function(value) {
+              normalized <- (value - min(elo_ratings$elo_change)) /
+                (max(elo_ratings$elo_change) - min(elo_ratings$elo_change))
+              color <-
+                any_pal(normalized, green_red_pal)
+              list(background = color, "font-weight" = "bold")
+            }
+          ),
+          rank_change = colDef(name = "Δ Rank"),
+          result = colDef(name = "Last Game")
+        ),
+        theme = reactableTheme(
+          style = list(
+            fontFamily = "-apple-system, BlinkMacSystemFont,
+                             Segoe UI, Helvetica, Arial, sans-serif,
+                             Roboto, Fira Mono, Chivo, serif/*rtl:Amiri,
+                             Georgia, Times New Roman, serif*/;"
+          )
+        ),
+        defaultSortOrder = "desc",
+        defaultSorted = c("elo_rating"),
+        defaultColDef = colDef(format = colFormat(digits = 0),
+                               headerClass = "header"),
+        searchable = TRUE,
+        defaultPageSize = 30,
+        pagination = FALSE,
+        striped = TRUE,
+        fullWidth = FALSE
+      )
+    )
   
   elo_plot_data <- shiny::reactive({elo_master %>% 
       filter(team %in% input$elo_plot_teams)})
