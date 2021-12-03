@@ -492,6 +492,7 @@ list_of_conferences <- list_of_conferences[which(list_of_conferences != "NA")]
 for(i in 1:length(list_of_conferences)){
   
   conf_name <- list_of_conferences[i]
+  message("Doing ", conf_name)
   
 # Table of win probabilities for the week
 win_probabilities_this_week <- win_probs_w_lines %>%

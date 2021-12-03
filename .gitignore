@@ -4,3 +4,7 @@
 .Ruserdata
 R Plots/
 Data/plays_2014_2020.csv
+Data/games_done.csv
+Data/tweet_id.csv
+Shiny App/Prod App/Staturdays/.Renviron
+Shiny App/Prod App/Staturdays/rsconnect
