@@ -88,7 +88,8 @@ win_probs <- games_this_week %>%
                               paste0(away_conference, " @ ", home_conference)))
 
 # Get betting
-betting <- get_betting(current_year, current_year, current_week, current_week)
+betting <- readRDS(gzcon(url("https://github.com/kylebennison/staturdays/raw/master/Data/betting_2021.rds"))) %>% 
+  filter(week == current_week)
 
 # Join to win_probs
 win_probs <- win_probs %>% 
