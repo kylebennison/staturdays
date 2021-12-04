@@ -1,7 +1,7 @@
 
 # Weekly Update to Plays and Games RDS ------------------------------------
 
-source("Production/source_everything.r")
+source("https://raw.githubusercontent.com/kylebennison/staturdays/master/Production/source_everything.R")
 
 games_path <- "Data/games_2021.rds"
 
@@ -15,6 +15,8 @@ games <- get_games(2021, 2021)
 plays <- get_plays(1, 16, 2021, 2021)
 
 # Write to file
+
+setwd("C:/Users/Kyle/Documents/Kyle/Staturdays/Staturdays Github/Github/staturdays")
 
 saveRDS(games, file = games_path)
 
