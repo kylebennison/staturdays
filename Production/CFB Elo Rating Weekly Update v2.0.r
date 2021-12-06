@@ -131,8 +131,8 @@ elo_last_update <- data.table::fread("https://raw.githubusercontent.com/kylebenn
   unique()
 
 # Get all games after the latest datetime in Elo, then take earliest week
-games_update <- games.master %>% 
-  filter(start_date > elo_last_update$date,
+games_update <- games_to_rate %>% 
+  filter(date > elo_last_update$date,
          week == min(week))
 
 # If there are any games incomplete (home or away points == NA), do  not update)
