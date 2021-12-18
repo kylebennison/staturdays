@@ -57,6 +57,7 @@ current_week <- calendar %>%
   filter(lastGameStart >= lubridate::now()) %>% 
   pull(week) %>% 
   min()
+if(current_week == Inf){current_week <- 1}
 current_year <- max(elo_ratings$season)
 
 
@@ -66,6 +67,12 @@ games_rds <- readRDS(gzcon(url(games_url)))
 games_this_week <- games_rds %>% 
   filter(season == current_year,
          week == current_week)
+
+# Filter only postseason games if the regular season is over
+if(max(calendar$lastGameStart) <= lubridate::today()){
+  games_this_week <- games_this_week %>% 
+    filter(season_type == "postseason")
+}
 
 calc_expected_score <- function(team_rating, opp_team_rating){
   quotient_home <- 10^((team_rating)/400)
