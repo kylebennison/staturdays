@@ -50,7 +50,7 @@ get_betting <-
       for (j in start_year:end_year) {
           message("Getting betting data for ", j)
           betting_url <-
-            paste0("https://api.collegefootballdata.com/lines?year=",
+            paste0("https://api.collegefootballdata.com/lines?seasonType=both&year=",
                    j)
           full_url_betting_encoded <- URLencode(betting_url)
           betting <- cfbd_api(full_url_betting_encoded, my_key)
@@ -67,7 +67,7 @@ get_betting <-
         for (i in start_week:end_week) {
           message("Getting betting data for ", j, " Week ", i)
           betting_url <-
-            paste0("https://api.collegefootballdata.com/lines?year=",
+            paste0("https://api.collegefootballdata.com/lines?seasonType=both&year=",
                    j,
                    "&")
           full_url_betting <- paste0(betting_url, "week=", as.character(i))
@@ -89,7 +89,7 @@ get_betting <-
     
     # Do some stuff that needs to be done eventually anyway
     betting.master <- betting.master %>% 
-      group_by(id, homeTeam, awayTeam, season, week) %>% 
+      group_by(id, homeTeam, awayTeam, season, week, seasonType) %>% 
       summarise(spread = mean(as.double(spread), na.rm = TRUE),
                 spreadOpen = mean(as.double(spreadOpen), na.rm = TRUE),
                 overUnder = mean(as.double(overUnder), na.rm = TRUE),
