@@ -687,3 +687,6 @@ server <- function(input, output) {
 # Run ---------------------------------------------------------------------
 
 shiny::shinyApp(ui = ui, server = server)
+
+# To Deploy
+# rsconnect::deployApp(appDir = "Shiny App/Prod App/Staturdays")
