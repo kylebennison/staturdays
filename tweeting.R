@@ -3,32 +3,44 @@ library(rtweet)
 library(tidyr)
 library(tidytext)
 library(lubridate)
+library(httpuv)
+library(zoo)
 
-app_name <- "test app name4"
-consumer_key <- ""
-consumer_secret <- ""
-access_token <- ""
-access_secret <- ""
+#can make a request for 18,000 tweets in 15 minuetes
+#https://cran.r-project.org/web/packages/rtweet/vignettes/auth.html
 
-tok <- create_token(app=app_name,
-             consumer_key = consumer_key,
-             consumer_secret = consumer_secret,
-             access_token = access_token,
-             access_secret = access_secret)
+get_token()
 
-search_results <- search_tweets("Aqib Talib", n=5000, include_rts = FALSE,
-                                token = tok)
+#token <- create_token(
+#  app=app_name,
+#  consumer_key = consumer_k,
+#  consumer_secret = consumer_s,
+#  access_token = access_t,
+#  access_secret = access_s)
 
-search_results_refined <- search_results %>% 
-  select(status_id, created_at, text) %>% 
+x<-rate_limit(query = "search_tweets")
+
+general_game <- search_tweets("#CFBPlayoff", n=350, include_rts = FALSE)
+alabama <- search_tweets("#RollTide", n=350, include_rts = FALSE)
+georgia <- search_tweets("#GoDawgs", n=350, include_rts = FALSE)
+
+general_game$category <- "#CFBPlayoff"
+alabama$category <- "#RollTide"
+georgia$category <- "#GoDawgs"
+
+master_dt1 <- rbind(general_game, alabama)
+master_dt <- rbind(master_dt1, georgia)
+
+search_results_refined <- master_dt %>% 
+  select(status_id, created_at, text, category) %>% 
   mutate(created_at = as_datetime(created_at)) %>% 
-  filter(created_at > "2020-12-19")
+  filter(created_at > "2022-01-08")
 
 sent <- search_results_refined %>% 
   unnest_tokens(word, text) %>% 
   anti_join(stop_words) %>% 
   inner_join(get_sentiments("afinn")) %>% 
-  mutate(time_minute = round_time(created_at, n="hours", tz="EST"))
+  mutate(time_minute = round_time(created_at, n="5 minutes", tz="EST"))
 
 
 sent %>% 
@@ -36,7 +48,10 @@ sent %>%
   summarise(mean_sentiment = mean(value)) %>% 
   group_by(time_minute) %>% 
   summarise(mean_sentiment = mean(mean_sentiment)) %>% 
-  ggplot(aes(x=time_minute, y=mean_sentiment)) +geom_line()
+  ggplot(aes(x=time_minute, y=mean_sentiment)) +
+  #geom_line() +
+  geom_line(aes(y=rollmean(mean_sentiment, 6, na.pad=TRUE))) +
+  theme_bw()
 
 mean(sent$value)  
   
