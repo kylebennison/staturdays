@@ -31,6 +31,13 @@ georgia$category <- "#GoDawgs"
 master_dt1 <- rbind(general_game, alabama)
 master_dt <- rbind(master_dt1, georgia)
 
+#save data
+# completed <- rbind completed, master
+#frite completed
+#keeping saving throughoiut game
+
+#in new script bring in data, clean, and do all steps below to graph
+
 search_results_refined <- master_dt %>% 
   select(status_id, created_at, text, category) %>% 
   mutate(created_at = as_datetime(created_at)) %>% 
