@@ -3,12 +3,6 @@ import csv
 import pandas as pd
 import time
 
-# Twitter API credentials
-CONSUMER_KEY ="igpDkcsomnDOIcEsfyHPVNYyI"
-CONSUMER_SECRET = "PV25oiBkpZ8ytfewRuuya4PvWZZiR89zgPpNN0wlXxmHmrB8E9"   
-ACCESS_KEY = "404429205-oIB7wCREbOzVm4bGylCYaLK64c8RegNwjCfRkioz"    
-ACCESS_SECRET = "SK67e9sNL8v1Kuh8OesRC8hyNUFkNojs9VfnaAisUx421"
-
 # Create the api endpoint
 
 auth = tweepy.OAuthHandler(CONSUMER_KEY, CONSUMER_SECRET)
