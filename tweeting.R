@@ -20,21 +20,49 @@ get_token()
 
 x<-rate_limit(query = "search_tweets")
 
-general_game <- search_tweets("#CFBPlayoff", n=350, include_rts = FALSE)
-alabama <- search_tweets("#RollTide", n=350, include_rts = FALSE)
-georgia <- search_tweets("#GoDawgs", n=350, include_rts = FALSE)
 
-general_game$category <- "#CFBPlayoff"
+large_num <- 10000000000
+i <- 1
+
+
+completed <- tibble()
+
+
+while(i < large_num) {
+
+general_game <- search_tweets("#NationalChampionship", n=700, include_rts = FALSE)
+alabama <- search_tweets("#RollTide", n=700, include_rts = FALSE)
+georgia <- search_tweets("#GoDawgs", n=700, include_rts = FALSE)
+
+general_game$category <- "#NationalChampionship"
+general_game <- general_game %>% select(status_id, created_at, text, category) %>% 
+  mutate(created_at = as_datetime(created_at),
+         status_id=paste0("id", status_id)) 
+
 alabama$category <- "#RollTide"
+alabama <- alabama %>% select(status_id, created_at, text, category) %>% 
+  mutate(created_at = as_datetime(created_at),
+         status_id=paste0("id", status_id)) 
+
 georgia$category <- "#GoDawgs"
+georgia <- georgia %>% select(status_id, created_at, text, category) %>% 
+  mutate(created_at = as_datetime(created_at),
+         status_id=paste0("id", status_id)) 
 
 master_dt1 <- rbind(general_game, alabama)
 master_dt <- rbind(master_dt1, georgia)
 
-#save data
-# completed <- rbind completed, master
-#frite completed
-#keeping saving throughoiut game
+completed <- rbind(completed, master_dt)
+
+data.table::fwrite(completed, "C:/Users/drewb/Desktop/completed.csv")
+
+i <- i + 1
+
+message(paste0("Last data collected at: "), Sys.time())
+Sys.sleep(150)
+
+}
+  
 
 #in new script bring in data, clean, and do all steps below to graph
 
