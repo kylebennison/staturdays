@@ -1,6 +1,14 @@
+library(docstring)
+
 source("https://raw.githubusercontent.com/kylebennison/staturdays/master/Production/cfbd_api_key_function.R")
 
 get_anything <- function(url, start_year=2021, end_year=2021, start_week, end_week, key){
+  
+  #' Get data from any API endpoint on cfbdata.com
+  #' 
+  #' @param url string. The url of the API endpoint WITHOUT any parameters added onto the end.
+  #' If you have any parameters to add, please use the provided fields and we will add them
+  #' to the url for you.
   
   if(missing(key)){
     
