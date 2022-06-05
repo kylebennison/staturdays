@@ -22,123 +22,75 @@ source("https://raw.githubusercontent.com/kylebennison/staturdays/master/Product
 source("Production/source_everything.r")
 
 # Data --------------------------------------------------------------------
+train_start <- 2014
+train_end <- 2019
 
 # Get game results
-games <- get_games(2014, 2019)
+games <- get_games(train_start, train_end)
 
 # Get team records
-records <- tibble()
-for(yr in 2014:2019){
-  
-  record_url <- paste0("https://api.collegefootballdata.com/records?year=", as.character(yr), "&seasonType=both")
-  r1 <- cfbd_api(record_url, key = my_key)
-  records <- rbind(records, r1)
-  message("Done year ", yr)
-  
-}
+records <- get_anything(url = "https://api.collegefootballdata.com/records",
+                        start_year = train_start,
+                        end_year = train_end,
+                        key = my_key)
 
 # Get play-by-play
 plays <- fread("Data/plays_2014_2020.csv")
 
 # Get pre-game lines
-lines <- tibble()
-for(yr in 2014:2019){
-  
-  betting_url <- paste0("https://api.collegefootballdata.com/lines?year=", as.character(yr), "&seasonType=both")
-  b1 <- cfbd_api(betting_url, key = my_key)
-  b1 <- b1 %>% unnest(cols = lines)
-  lines <- rbind(lines, b1)
-  message("Done year ", yr)
-  
-}
+lines <- get_anything(url = "https://api.collegefootballdata.com/lines",
+                      start_year = train_start,
+                      end_year = train_end,
+                      key = my_key)
+
+lines <- lines %>% unnest(cols = lines)
 
 # Get talent ratings
-talent <- tibble()
-for(yr in 2014:2019){
-  
-  talent_url <- paste0("https://api.collegefootballdata.com/talent?year=", as.character(yr))
-  t1 <- cfbd_api(talent_url, key = my_key)
-  talent <- rbind(talent, t1)
-  message("Done year ", yr)
-  
-}
+talent <- get_anything(url = "https://api.collegefootballdata.com/talent",
+                       start_year = train_start,
+                       end_year = train_end,
+                       key = my_key)
 
 # Get AP rankings
-rankings <- tibble()
-for(yr in 2014:2019){
-  
-  rankings_url <- paste0("https://api.collegefootballdata.com/rankings?year=", as.character(yr))
-  r1 <- cfbd_api(rankings_url, key = my_key)
-  rankings <- rbind(rankings, r1)
-  message("Done year ", yr)
-  
-}
+rankings <- get_anything(url = "https://api.collegefootballdata.com/rankings",
+                         start_year = train_start,
+                         end_year = train_end,
+                         key = my_key)
 
 # Get returning starters
-returning <- tibble()
-for(yr in 2014:2019){
-  
-  returning_url <- paste0("https://api.collegefootballdata.com/player/returning?year=", as.character(yr))
-  r1 <- cfbd_api(returning_url, key = my_key)
-  r1 <- r1
-  returning <- rbind(returning, r1)
-  message("Done year ", yr)
-  
-}
+returning <- get_anything(url = "https://api.collegefootballdata.com/player/returning",
+                          start_year = train_start,
+                          end_year = train_end,
+                          key = my_key)
 
 # Get recruiting class rankings
-recruiting <- tibble()
-for(yr in 2014:2019){
-  
-  recruiting_url <- paste0("https://api.collegefootballdata.com/recruiting/teams?year=", as.character(yr))
-  r1 <- cfbd_api(recruiting_url, key = my_key)
-  r1 <- r1
-  recruiting <- rbind(recruiting, r1)
-  message("Done year ", yr)
-  
-}
-# ppa <- tibble()
-# for(yr in 2014:2019){
-#   
-#   ppa_url <- paste0("https://api.collegefootballdata.com/ppa/players/season?year=", as.character(yr))
-#   p1 <- cfbd_api(ppa_url, key = my_key)
-#   p1 <- p1
-#   ppa <- rbind(ppa, p1)
-#   message("Done year ", yr)
-#   
-# }
+recruiting <- get_anything(url = "https://api.collegefootballdata.com/recruiting/teams",
+                           start_year = train_start,
+                           end_year = train_end,
+                           key = my_key)
+
+# ppa <- get_anything(url = "https://api.collegefootballdata.com/ppa/players/season",
+# start_year = train_start,
+# end_year = train_end,
+# key = my_key)
 
 # Get advanced stats
-stats_advanced <- tibble()
-for(yr in 2014:2019){
-  
-  stats_url <- paste0("https://api.collegefootballdata.com/stats/season/advanced?year=", as.character(yr))
-  s1 <- cfbd_api(stats_url, key = my_key)
-  s1 <- s1
-  stats_advanced <- rbind(stats_advanced, s1)
-  message("Done year ", yr)
-  
-}
+stats_advanced <- get_anything(url = "https://api.collegefootballdata.com/stats/season/advanced",
+                               start_year = train_start,
+                               end_year = train_end,
+                               key = my_key)
 
 # Get coaching records
-coaching <- tibble()
-for(yr in 2014:2019){
-  
-  coaching_url <- paste0("https://api.collegefootballdata.com/coaches?year=", as.character(yr))
-  s1 <- cfbd_api(coaching_url, key = my_key)
-  coaching <- rbind(coaching, s1)
-  message("Done year ", yr)
-  
-}
+coaching <- get_anything(url = "https://api.collegefootballdata.com/coaches",
+                         start_year = train_start,
+                         end_year = train_end,
+                         key = my_key)
 
 # Get coaching data as far back as it goes
 coaching_history <- get_anything(url = "https://api.collegefootballdata.com/coaches",
                                  start_year = 1980,
                                  end_year = 2019,
                                  key = my_key)
-
-# Remove temporary dataframes
-rm(list = c("r1", "s1", "t1", "b1"))
 
 # Clean any data ----------------------------------------------------------
 
@@ -381,7 +333,7 @@ df_joined_9_tables_w_elo <- df_joined_9_tables %>%
          home_elo_wp = calc_expected_score(elo_rating_home + if_else(neutral_site == TRUE, 0, 55),
                                            elo_rating_away))
 
-rm(list = c(paste0("big_table", 1:6)))
+# TODO Join in coaching and coaching_history tables
 # Cross-validate xgboost model --------------------------------------------
 # Prep data
 prepped_table <- df_joined_9_tables_w_elo %>% 
