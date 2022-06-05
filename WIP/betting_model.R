@@ -21,7 +21,10 @@ source("Production/source_everything.r")
 
 # Data --------------------------------------------------------------------
 
+# Get game results
 games <- get_games(2014, 2019)
+
+# Get team records
 records <- tibble()
 for(yr in 2014:2019){
   
@@ -31,7 +34,11 @@ for(yr in 2014:2019){
   message("Done year ", yr)
   
 }
+
+# Get play-by-play
 plays <- fread("Data/plays_2014_2020.csv")
+
+# Get pre-game lines
 lines <- tibble()
 for(yr in 2014:2019){
   
@@ -42,6 +49,8 @@ for(yr in 2014:2019){
   message("Done year ", yr)
   
 }
+
+# Get talent ratings
 talent <- tibble()
 for(yr in 2014:2019){
   
@@ -51,6 +60,8 @@ for(yr in 2014:2019){
   message("Done year ", yr)
   
 }
+
+# Get AP rankings
 rankings <- tibble()
 for(yr in 2014:2019){
   
@@ -60,6 +71,8 @@ for(yr in 2014:2019){
   message("Done year ", yr)
   
 }
+
+# Get returning starters
 returning <- tibble()
 for(yr in 2014:2019){
   
@@ -70,6 +83,8 @@ for(yr in 2014:2019){
   message("Done year ", yr)
   
 }
+
+# Get recruiting class rankings
 recruiting <- tibble()
 for(yr in 2014:2019){
   
@@ -90,6 +105,8 @@ for(yr in 2014:2019){
 #   message("Done year ", yr)
 #   
 # }
+
+# Get advanced stats
 stats_advanced <- tibble()
 for(yr in 2014:2019){
   
@@ -101,6 +118,7 @@ for(yr in 2014:2019){
   
 }
 
+# Remove temporary dataframes
 rm(list = c("r1", "s1", "t1", "b1"))
 
 
@@ -144,10 +162,12 @@ stats_prep <- stats_advanced %>%
 #                      "Playoff Committee Rankings")) %>% 
 #   mutate(consensus_rank == mean(rank, na.rm = TRUE),
 #          join_week = week + 1L)
+# Update: I will know based on how good the fit is with that variable. If it's after,
+# there will be a near perfect correlation in the model.
 
 # Build a giant table -----------------------------------------------------
 
-big_table1 <- games %>% 
+games_lines <- games %>% 
   inner_join(lines, by = 
                c("id", 
                  "home_team" = "homeTeam", 
@@ -155,7 +175,7 @@ big_table1 <- games %>%
                  "home_points" = "homeScore",
                  "away_points" = "awayScore"))
 
-big_table2 <- big_table1 %>% 
+games_lines_stats <- games_lines %>% 
   left_join(stats_prep, by = c("home_team" = "team",
                                    "season.x" = "join_year")) %>% 
   left_join(stats_prep, by = c("away_team" = "team",
@@ -163,7 +183,7 @@ big_table2 <- big_table1 %>%
             suffix = c("_home", "_away"))
 
 #### PPA is by player, not team. Omit.
-big_table3 <- big_table2 %>% 
+games_lines_stats_records <- games_lines_stats %>% 
   left_join(records_prep, by = c("home_team" = "team",
                                  "season.x" = "join_year")) %>% 
   left_join(records_prep, by = c("away_team" = "team",
@@ -171,7 +191,7 @@ big_table3 <- big_table2 %>%
             suffix = c("_home", "_away"))
 
 # These three can join with the same season as games
-big_table4 <- big_table3 %>% 
+df_joined_7_tables <- games_lines_stats_records %>% 
   left_join(recruiting, by = c("home_team" = "team",
                                "season.x" = "year")) %>% 
   left_join(recruiting, by = c("away_team" = "team",
@@ -291,7 +311,7 @@ p4 <- p3 %>%
 
 rm(list = c("p2", "p3"))
 
-big_table5 <- big_table4 %>% 
+df_joined_8_tables <- df_joined_7_tables %>% 
   mutate(id = as.character(id)) %>% 
   left_join(p4, by = c("home_team" = "offense",
                        "id" = "game_id")) %>% 
@@ -307,7 +327,7 @@ elo <- elo %>%
   group_by(team) %>% 
   mutate(join_date = lead(date, n = 1L, order_by = date)) # get next week's game date.
 
-big_table6 <- big_table5 %>% 
+df_joined_9_tables <- df_joined_8_tables %>% 
   mutate(start_date = lubridate::as_datetime(start_date)) %>% 
   left_join(elo, by = c("home_team" = "team",
                         "start_date" = "join_date",
@@ -323,7 +343,7 @@ calc_expected_score <- function(team_rating, opp_team_rating){
   return(expected_score_home <- quotient_home / (quotient_home + quotient_away))
 }
 
-big_table7 <- big_table6 %>% 
+df_joined_9_tables_w_elo <- df_joined_9_tables %>% 
   mutate(home_elo_adv = elo_rating_home + if_else(neutral_site == TRUE, 0, 55) - elo_rating_away,
          home_elo_wp = calc_expected_score(elo_rating_home + if_else(neutral_site == TRUE, 0, 55),
                                            elo_rating_away))
@@ -331,7 +351,7 @@ big_table7 <- big_table6 %>%
 rm(list = c(paste0("big_table", 1:6)))
 # Cross-validate xgboost model --------------------------------------------
 # Prep data
-prepped_table <- big_table7 %>% 
+prepped_table <- df_joined_9_tables_w_elo %>% 
   filter(season.x != 2014) %>% # remove 2014 since it doesn't have 2013 data
   ungroup() %>% 
   mutate(response_home_win = if_else(home_points > away_points, 1, 0),
