@@ -120,14 +120,32 @@ for(yr in 2014:2019){
   
 }
 
+# Get coaching records
+coaching <- tibble()
+for(yr in 2014:2019){
+  
+  coaching_url <- paste0("https://api.collegefootballdata.com/coaches?year=", as.character(yr))
+  s1 <- cfbd_api(coaching_url, key = my_key)
+  coaching <- rbind(coaching, s1)
+  message("Done year ", yr)
+  
+}
+
 # Remove temporary dataframes
 rm(list = c("r1", "s1", "t1", "b1"))
-
 
 # Clean any data ----------------------------------------------------------
 
 # Unnest columns
 # rankings <- rankings %>% unnest(cols = polls) %>% unnest(cols = ranks)
+
+# Unnest coaching
+coaching <- coaching %>% 
+  unnest(cols = seasons)
+
+# Mutate years with team
+coaching <- coaching %>% 
+  mutate(yrs_with_team = year - lubridate::year(hire_date))
 
 # Summarise a single line per game
 lines_tmp <- lines %>% 
