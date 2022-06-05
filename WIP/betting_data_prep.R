@@ -131,6 +131,12 @@ for(yr in 2014:2019){
   
 }
 
+# Get coaching data as far back as it goes
+coaching_history <- get_anything(url = "https://api.collegefootballdata.com/coaches",
+                                 start_year = 1980,
+                                 end_year = 2019,
+                                 key = my_key)
+
 # Remove temporary dataframes
 rm(list = c("r1", "s1", "t1", "b1"))
 
@@ -145,7 +151,14 @@ coaching <- coaching %>%
 
 # Mutate years with team
 coaching <- coaching %>% 
-  mutate(yrs_with_team = year - lubridate::year(hire_date))
+  mutate(yrs_with_team = year - lubridate::year(hire_date),
+         join_year = year + 1L)
+
+# group by coach and get years experience
+coaching_history <- coaching_history %>% 
+  mutate(coach = paste(first_name, last_name)) %>% 
+  group_by(coach) %>% 
+  summarise(n_total_seasons = n())
 
 # Summarise a single line per game
 lines_tmp <- lines %>% 
