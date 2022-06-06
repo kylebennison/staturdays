@@ -152,7 +152,7 @@ stats_prep <- stats_advanced %>%
 
 # Build a giant table -----------------------------------------------------
 
-games_lines <- games %>% 
+df_joined <- games %>% 
   inner_join(lines, by = 
                c("id", 
                  "home_team" = "homeTeam", 
@@ -160,7 +160,7 @@ games_lines <- games %>%
                  "home_points" = "homeScore",
                  "away_points" = "awayScore"))
 
-games_lines_stats <- games_lines %>% 
+df_joined <- df_joined %>% 
   left_join(stats_prep, by = c("home_team" = "team",
                                "season.x" = "join_year")) %>% 
   left_join(stats_prep, by = c("away_team" = "team",
@@ -168,7 +168,7 @@ games_lines_stats <- games_lines %>%
             suffix = c("_home", "_away"))
 
 #### PPA is by player, not team. Omit.
-games_lines_stats_records <- games_lines_stats %>% 
+df_joined <- df_joined %>% 
   left_join(records_prep, by = c("home_team" = "team",
                                  "season.x" = "join_year")) %>% 
   left_join(records_prep, by = c("away_team" = "team",
@@ -176,7 +176,7 @@ games_lines_stats_records <- games_lines_stats %>%
             suffix = c("_home", "_away"))
 
 # These three can join with the same season as games
-df_joined_7_tables <- games_lines_stats_records %>% 
+df_joined <- df_joined %>% 
   left_join(recruiting, by = c("home_team" = "team",
                                "season.x" = "year")) %>% 
   left_join(recruiting, by = c("away_team" = "team",
@@ -296,7 +296,7 @@ p4 <- p3 %>%
 
 rm(list = c("p2", "p3"))
 
-df_joined_8_tables <- df_joined_7_tables %>% 
+df_joined <- df_joined %>% 
   mutate(id = as.character(id)) %>% 
   left_join(p4, by = c("home_team" = "offense",
                        "id" = "game_id")) %>% 
@@ -312,7 +312,7 @@ elo <- elo %>%
   group_by(team) %>% 
   mutate(join_date = lead(date, n = 1L, order_by = date)) # get next week's game date.
 
-df_joined_9_tables <- df_joined_8_tables %>% 
+df_joined <- df_joined %>% 
   mutate(start_date = lubridate::as_datetime(start_date)) %>% 
   left_join(elo, by = c("home_team" = "team",
                         "start_date" = "join_date",
@@ -328,13 +328,13 @@ calc_expected_score <- function(team_rating, opp_team_rating){
   return(expected_score_home <- quotient_home / (quotient_home + quotient_away))
 }
 
-df_joined_9_tables_w_elo <- df_joined_9_tables %>% 
+df_joined <- df_joined %>% 
   mutate(home_elo_adv = elo_rating_home + if_else(neutral_site == TRUE, 0, 55) - elo_rating_away,
          home_elo_wp = calc_expected_score(elo_rating_home + if_else(neutral_site == TRUE, 0, 55),
                                            elo_rating_away))
 
 # Join in coaching and coaching_history tables
-df_joined <- df_joined_9_tables_w_elo %>% 
+df_joined <- df_joined %>% 
   left_join(coaching, by = c("season.x" = "join_year",
                              "home_team" = "school")) %>% 
   left_join(coaching, by = c("season.x" = "join_year",
