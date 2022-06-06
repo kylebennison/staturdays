@@ -6,12 +6,9 @@
 
 library(scales)
 library(tidyverse)
-library(RCurl)
-library(XML)
 library(jsonlite)
 library(stringr)
 library(lubridate)
-library(gt)
 library(data.table)
 
 # API wrapper
@@ -104,13 +101,16 @@ coaching <- coaching %>%
 # Mutate years with team
 coaching <- coaching %>% 
   mutate(yrs_with_team = year - lubridate::year(hire_date),
-         join_year = year + 1L)
+         join_year = year + 1L,
+         coach = paste(first_name, last_name))
 
 # group by coach and get years experience
 coaching_history <- coaching_history %>% 
+  unnest(cols = seasons) %>% 
   mutate(coach = paste(first_name, last_name)) %>% 
   group_by(coach) %>% 
-  summarise(n_total_seasons = n())
+  mutate(n_total_seasons = year - min(year)) %>% 
+  select(coach, year, n_total_seasons)
 
 # Summarise a single line per game
 lines_tmp <- lines %>% 
@@ -333,10 +333,22 @@ df_joined_9_tables_w_elo <- df_joined_9_tables %>%
          home_elo_wp = calc_expected_score(elo_rating_home + if_else(neutral_site == TRUE, 0, 55),
                                            elo_rating_away))
 
-# TODO Join in coaching and coaching_history tables
+# Join in coaching and coaching_history tables
+df_joined <- df_joined_9_tables_w_elo %>% 
+  left_join(coaching, by = c("season.x" = "join_year",
+                             "home_team" = "school")) %>% 
+  left_join(coaching, by = c("season.x" = "join_year",
+                             "away_team" = "school"),
+            suffix = c("_home", "_away")) %>% 
+  left_join(coaching_history, by = c("coach_home" = "coach",
+                                     "season.x" = "year")) %>% 
+  left_join(coaching_history, by = c("coach_away" = "coach",
+                                     "season.x" = "year"),
+            suffix = c("_home", "_away"))
+
 # Cross-validate xgboost model --------------------------------------------
 # Prep data
-prepped_table <- df_joined_9_tables_w_elo %>% 
+prepped_table <- df_joined %>% 
   filter(season.x != 2014) %>% # remove 2014 since it doesn't have 2013 data
   ungroup() %>% 
   mutate(response_home_win = if_else(home_points > away_points, 1, 0),
