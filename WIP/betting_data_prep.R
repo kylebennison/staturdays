@@ -104,9 +104,17 @@ coaching <- coaching %>%
          join_year = year + 1L,
          coach = paste(first_name, last_name))
 
+# Fix coaching datatype discrepency
+coaching_history <- coaching_history %>%
+  mutate(seasons = map(seasons,
+                       ~ mutate(.x,
+                                sp_overall = as.double(sp_overall),
+                                sp_defense = as.double(sp_defense),
+                                sp_offense = as.double(sp_offense)))) %>% 
+  unnest(cols = seasons)
+
 # group by coach and get years experience
 coaching_history <- coaching_history %>% 
-  unnest(cols = seasons) %>% 
   mutate(coach = paste(first_name, last_name)) %>% 
   group_by(coach) %>% 
   mutate(n_total_seasons = year - min(year)) %>% 
@@ -357,3 +365,5 @@ prepped_table <- df_joined %>%
 
 # NOTE: right now including pre-game line and spread as predictors, but in the
 # future may want to omit
+
+saveRDS(prepped_table, "Data/betting_prepped.rds")
