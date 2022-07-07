@@ -115,6 +115,17 @@ bet_df <- bet_df %>%
     year_away_away
   ))
 
+# Pull out responses
+response_home_win <- bet_df %>% 
+  pull(response_home_win)
+response_home_spread <- bet_df %>% 
+  pull(response_home_spread)
+response_total_points <- bet_df %>% 
+  pull(response_total_points)
+
+bet_df <- bet_df %>% 
+  select(!contains("response"))
+
 # Impute medians
 impute_median <- function(column){
   
@@ -148,3 +159,12 @@ bet_df <- bet_df %>%
 # Bagging
 
 # Lasso/Ridge Regression
+library(glmnet)
+
+x <- matrix(bet_df)
+y <- response_home_spread
+
+model_glm <- glmnet(x = x,
+                    y = y,
+                    family = "gaussian",
+                    alpha = 1)
