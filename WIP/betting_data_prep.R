@@ -166,39 +166,41 @@ df_joined <- games %>%
                  "home_team" = "homeTeam", 
                  "away_team" = "awayTeam",
                  "home_points" = "homeScore",
-                 "away_points" = "awayScore"))
+                 "away_points" = "awayScore",
+                 "season",
+                 "week"))
 
 df_joined <- df_joined %>% 
   left_join(stats_prep, by = c("home_team" = "team",
-                               "season.x" = "join_year")) %>% 
+                               "season" = "join_year")) %>% 
   left_join(stats_prep, by = c("away_team" = "team",
-                               "season.x" = "join_year"),
+                               "season" = "join_year"),
             suffix = c("_home", "_away"))
 
 #### PPA is by player, not team. Omit.
 df_joined <- df_joined %>% 
   left_join(records_prep, by = c("home_team" = "team",
-                                 "season.x" = "join_year")) %>% 
+                                 "season" = "join_year")) %>% 
   left_join(records_prep, by = c("away_team" = "team",
-                                 "season.x" = "join_year"),
+                                 "season" = "join_year"),
             suffix = c("_home", "_away"))
 
 # These three can join with the same season as games
 df_joined <- df_joined %>% 
   left_join(recruiting, by = c("home_team" = "team",
-                               "season.x" = "year")) %>% 
+                               "season" = "year")) %>% 
   left_join(recruiting, by = c("away_team" = "team",
-                               "season.x" = "year"),
+                               "season" = "year"),
             suffix = c("_home", "_away")) %>% 
   left_join(returning, by = c("home_team" = "team",
-                              "season.x" = "season")) %>% 
+                              "season" = "season")) %>% 
   left_join(returning, by = c("away_team" = "team",
-                              "season.x" = "season"),
+                              "season" = "season"),
             suffix = c("_home", "_away")) %>% 
   left_join(talent, by = c("home_team" = "school",
-                           "season.x" = "year")) %>% 
+                           "season" = "year")) %>% 
   left_join(talent, by = c("away_team" = "school",
-                           "season.x" = "year"),
+                           "season" = "year"),
             suffix = c("_home", "_away"))
 
 # Summarise plays into success rate, ppa/game over rolling past 4 games and join
@@ -302,7 +304,7 @@ p4 <- p3 %>%
                 .names = "{.col}_ma_4")) %>% 
   select(offense, game_id, contains("_ma_4")) # Filter out stats from the current game since that should be hidden from the model
 
-rm(list = c("p2", "p3"))
+rm(list = c("p3"))
 
 df_joined <- df_joined %>% 
   mutate(id = as.character(id)) %>% 
@@ -324,10 +326,10 @@ df_joined <- df_joined %>%
   mutate(start_date = lubridate::as_datetime(start_date)) %>% 
   left_join(elo, by = c("home_team" = "team",
                         "start_date" = "join_date",
-                        "season.x" = "season")) %>% 
+                        "season" = "season")) %>% 
   left_join(elo, by = c("away_team" = "team",
                         "start_date" = "join_date",
-                        "season.x" = "season"),
+                        "season" = "season"),
             suffix = c("_home", "_away"))
 
 calc_expected_score <- function(team_rating, opp_team_rating){
@@ -343,21 +345,21 @@ df_joined <- df_joined %>%
 
 # Join in coaching and coaching_history tables
 df_joined <- df_joined %>% 
-  left_join(coaching, by = c("season.x" = "join_year",
+  left_join(coaching, by = c("season" = "join_year",
                              "home_team" = "school")) %>% 
-  left_join(coaching, by = c("season.x" = "join_year",
+  left_join(coaching, by = c("season" = "join_year",
                              "away_team" = "school"),
             suffix = c("_home", "_away")) %>% 
   left_join(coaching_history, by = c("coach_home" = "coach",
-                                     "season.x" = "year")) %>% 
+                                     "season" = "year")) %>% 
   left_join(coaching_history, by = c("coach_away" = "coach",
-                                     "season.x" = "year"),
+                                     "season" = "year"),
             suffix = c("_home", "_away"))
 
 # Cross-validate xgboost model --------------------------------------------
 # Prep data
 prepped_table <- df_joined %>% 
-  filter(season.x != 2014) %>% # remove 2014 since it doesn't have 2013 data
+  filter(season != 2014) %>% # remove 2014 since it doesn't have 2013 data
   ungroup() %>% 
   mutate(response_home_win = if_else(home_points > away_points, 1, 0),
          response_total_points = home_points + away_points,
