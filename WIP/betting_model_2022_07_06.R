@@ -186,11 +186,11 @@ param_grid <- expand.grid(eta = c(.1),
                           max_depth = c(3),
                           subsample = c(1),
                           colsample_bytree = c(1),
-                          min_child_weight = c(8,9,10),
+                          min_child_weight = c(9),
                           eval_metric = c("logloss"),
-                          gamma = c(0,.1,.2),
-                          alpha = c(.01,.1,.2),
-                          lambda = c(1.1,1.2,1.5)) %>% 
+                          gamma = c(.1),
+                          alpha = c(.1),
+                          lambda = c(1,1.1,1.15)) %>% 
   unique()
 pb = txtProgressBar(min = 0, max = nrow(param_grid), initial = 0)
 
@@ -255,11 +255,9 @@ if(exists("best_results")) {
   )
   
   if (min(results$best_test_loss) < best_results$best_test_loss) {
-    cat("Improved so using new parameters", results)
+    cat("Improved so using new parameters")
   } else {
     cat("No improvement so keeping existing parameters")
-    no_improvement_rounds <- no_improvement_rounds + 1
-    cat("\nNo improvement in ", no_improvement_rounds, " rounds\n")
   }
   
   # Only save new results if they are better than the previous best results
@@ -280,11 +278,60 @@ if(exists("best_results")) {
 #' subsample = 1
 #' n_rounds = 87
 #' eta = .1
-#' gamma = 0 (TBD)
-#' alpha = 0 (TBD)
-#' lambda = 1 (TBD)
+#' gamma = 0.1
+#' alpha = 0.1
+#' lambda = 1.1
 #' max_depth = 3
 #' min_child_weight = 6
+#' 
+#' structure(list(round = 14L, best_test_loss = 0.450318989033082, 
+# best_test_n_trees = 97L, params.booster = "gbtree", params.objective = "binary:logistic", 
+# params.eval_metric = structure(1L, levels = "logloss", class = "factor"), 
+# params.eta = 0.1, params.gamma = 0.1, params.subsample = 1, 
+# params.colsample_bytree = 1, params.max_depth = 3, params.min_child_weight = 9, 
+# params.alpha = 0.1, params.lambda = 1.1), row.names = 14L, class = "data.frame")
+
+# CV Using Best Params To Get An Idea of Performance on Validation Set
+set.seed(1)
+res <- data.frame()
+for(i in 1:50){
+  cat("CV ", i, "/50\n")
+  cv_results <- xgb.cv(params = list(
+    eta = c(.1), 
+    nrounds = c(100),
+    max_depth = c(3),
+    subsample = c(1),
+    colsample_bytree = c(1),
+    min_child_weight = c(9),
+    eval_metric = c("logloss"),
+    gamma = c(.1),
+    alpha = c(.1),
+    lambda = 1.1
+  ),
+  data = x_train_xgb,
+  nrounds = 100,
+  verbose = 0,
+  nfold = 5)
+  
+  best_n_trees <- which(cv_results$evaluation_log$test_logloss_mean == min(cv_results$evaluation_log$test_logloss_mean))
+  train_loss <- cv_results$evaluation_log$train_logloss_mean[best_n_trees]
+  test_loss <- cv_results$evaluation_log$test_logloss_mean[best_n_trees]
+  
+  res <- rbind(res, data.frame(best_n_trees = best_n_trees,
+                               train_loss = train_loss,
+                               test_loss = test_loss))
+}
+
+best_ind <- which(res$test_loss == min(res$test_loss))
+cat(paste0("Avg. Test Loss: ", mean(res$test_loss), "\n",
+    "Best Result: \n",
+    "Train Loss = ", res$train_loss[best_ind], ", Test Loss = ", res$test_loss[best_ind], "\n",
+    "N Trees = ", res$best_n_trees[best_ind]))
+
+#' Avg. Test Loss: 0.459867468915811
+#' Best Result: 
+#' Train Loss = 0.372699530170448, Test Loss = 0.452333694980981
+#' N Trees = 49
 
 # Random Forest
 
