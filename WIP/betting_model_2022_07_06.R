@@ -292,22 +292,25 @@ if(exists("best_results")) {
 # params.alpha = 0.1, params.lambda = 1.1), row.names = 14L, class = "data.frame")
 
 # CV Using Best Params To Get An Idea of Performance on Validation Set
+best_params <- list(
+  booster = "gbtree",
+  objective = "binary:logistic",
+  eta = c(.1), 
+  nrounds = c(100),
+  max_depth = c(3),
+  subsample = c(1),
+  colsample_bytree = c(1),
+  min_child_weight = c(9),
+  eval_metric = c("logloss"),
+  gamma = c(.1),
+  alpha = c(.1),
+  lambda = 1.1)
+
 set.seed(1)
 res <- data.frame()
 for(i in 1:50){
   cat("CV ", i, "/50\n")
-  cv_results <- xgb.cv(params = list(
-    eta = c(.1), 
-    nrounds = c(100),
-    max_depth = c(3),
-    subsample = c(1),
-    colsample_bytree = c(1),
-    min_child_weight = c(9),
-    eval_metric = c("logloss"),
-    gamma = c(.1),
-    alpha = c(.1),
-    lambda = 1.1
-  ),
+  cv_results <- xgb.cv(params = best_params,
   data = x_train_xgb,
   nrounds = 100,
   verbose = 0,
@@ -332,6 +335,45 @@ cat(paste0("Avg. Test Loss: ", mean(res$test_loss), "\n",
 #' Best Result: 
 #' Train Loss = 0.372699530170448, Test Loss = 0.452333694980981
 #' N Trees = 49
+
+# Make Predictions --------------------------------------------------------
+xgb_model <- xgboost(
+  data = x_train_xgb,
+  params = best_params,
+  nrounds = 50,
+  early_stopping_rounds = 5,
+  verbose = 1
+)
+
+importance_matrix <- xgb.importance(model = xgb_model)
+
+preds_test <- predict(xgb_model, newdata = as.matrix(x_test), type = "response")
+
+# Metrics
+# MSE
+mean((y_test - preds_test)^2)
+
+# MAE
+mean(abs(y_test-preds_test))
+
+# Accuracy
+raw_pred <- if_else(preds_test >= .5, 1, 0)
+mean(raw_pred == y_test)
+
+# Plot
+library(ggplot2)
+tibble(x = y_test, y = preds_test) %>% 
+  mutate(pred_bucket = round(y, 2)) %>% 
+  group_by(pred_bucket) %>% 
+  summarise(actual = mean(x)) %>% 
+  ggplot(aes(x = actual, y = pred_bucket)) +
+  geom_point() +
+  geom_abline()
+
+# Investigate games
+# TODO will need unstandardized input table with the original team names and everything
+games_w_preds <- cbind(x_test, preds_test)
+
 
 # Random Forest
 
