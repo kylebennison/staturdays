@@ -37,6 +37,10 @@ current_week <- calendar %>%
   pull(week) %>% 
   min()
 current_year <- max(elo$season)
+current_season_type <- calendar %>% 
+  filter(lastGameStart >= lubridate::today()) %>% 
+  pull(seasonType) %>% 
+  unique()
 plays <- get_plays(current_week, current_week, current_year, current_year)
 plays <- plays %>% add_success()
 games <- get_games(current_year, current_year, current_week, current_week)
@@ -53,6 +57,14 @@ games_done <- data.table::fread("Data/games_done.csv") # Read in games that have
 games_done <- games_done %>% mutate(games_done = stringr::str_sub(games_done, start = 4L))
 
 game_ids <- plays$game_id %>% unique() # Get all game ids from today
+
+if(current_season_type == "postseason"){
+  postseason_games <- games %>% 
+    filter(season_type == "postseason") %>% 
+    pull(id)
+  
+  game_ids <- game_ids[which(game_ids %in% postseason_games)]
+}
 
 qbs <- plays$pass_player %>% unique()
 

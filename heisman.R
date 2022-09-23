@@ -221,7 +221,7 @@ ep_test %>%
   staturdays_theme +
   labs(x = "TDs per Game",
        y = "Heisman Odds",
-       title = "Way too early Heisman watch",
+       title = "2021 Heisman Watch",
        subtitle = "Independent Heisman probabilities through five weeks") +
   scale_y_continuous(labels = scales::percent) +
   theme(legend.position = "none")
@@ -316,6 +316,34 @@ ggsave(filename = "total_tds_heisman_prob_v2.png",
        units = "mm",
        dpi = 300)
 
+# Only this year's frontrunners
+ep_test %>% 
+  ggplot(aes(x = total_TDs)) +
+  geom_point(aes(y = heisman_prob, colour = if_else(total_TDs >= 40, "blue", "red")), alpha = 0.5) +
+  ggrepel::geom_text_repel(aes(x = total_TDs, 
+                               y = heisman_prob, 
+                               label = player), 
+                           data = {ep_test %>% 
+                               filter(total_TDs >= 40 & year == 2021)},
+                           force = 1,
+                           min.segment.length = .25) +
+  staturdays_theme +
+  scale_color_identity() +
+  labs(title = "Total TDs (Regular Season)",
+       subtitle = "Total TDs are the most predictive stat",
+       x = "Total TDs (Regular Season)",
+       y = "Heisman Probability") +
+  scale_y_continuous(label = percent_format(accuracy = 1)) +
+  theme(legend.position = "none")
+
+ggsave(filename = paste0(today(), "_total_tds_heisman_prob_v2.png"), 
+       path = "C:/Users/Kyle/Documents/Kyle/Staturdays/R Plots",
+       plot = last_plot(),
+       width = 400,
+       height = 200,
+       units = "mm",
+       dpi = 300)
+
 # Coulda/shoulda won
 heisman_final %>% 
   ggplot(aes(x = total_TDs)) +
@@ -353,12 +381,12 @@ ggsave(filename = "heisman_top_prob_by_yr.png",
        dpi = 300)
 
 # Just 2020 Top 10 Odds - Total TDs/Game -> Heisman Prob
-heisman_final %>% filter(year == 2020) %>% ungroup() %>% slice_max(heisman_prob, n = 10) %>% 
+heisman_final %>% filter(year == 2021) %>% ungroup() %>% slice_max(heisman_prob, n = 10) %>% 
   ggplot(aes(x = total_TDsperGame)) +
   geom_point(aes(y = heisman_prob, size = rush_yds_z, fill = winPerc), shape = 21, alpha = 0.9) +
-  ggrepel::geom_text_repel(aes(y = heisman_prob, label = player), data = {heisman_final %>% ungroup() %>% filter(year == 2020) %>% slice_max(heisman_prob, n = 10)}) +
+  ggrepel::geom_text_repel(aes(y = heisman_prob, label = player), data = {heisman_final %>% ungroup() %>% filter(year == 2021) %>% slice_max(heisman_prob, n = 10)}) +
   staturdays_theme +
-  labs(title = "2020 Heisman Frontrunners",
+  labs(title = "2021 Heisman Frontrunners",
        subtitle = "Looking at the most predictive stats",
        x = "Total TDs Per Game",
        y = "Heisman Probability",
@@ -367,7 +395,7 @@ heisman_final %>% filter(year == 2020) %>% ungroup() %>% slice_max(heisman_prob,
   scale_y_continuous(label = percent_format(accuracy = 1)) +
   scale_fill_gradient(label = percent_format(accuracy = 1), high = staturdays_colors("orange"), low = staturdays_colors("lightest_blue"))
 
-ggsave(filename = paste0("2020_heisman_frontrunners", str_replace_all(now(), ":", "."), ".png"), 
+ggsave(filename = paste0("2021_heisman_frontrunners", str_replace_all(now(), ":", "."), ".png"), 
        path = "C:/Users/Kyle/Documents/Kyle/Staturdays/R Plots",
        plot = last_plot(),
        width = 200,
@@ -418,14 +446,14 @@ heisman_final %>%
 
 heisman_final %>% 
   ggplot(aes(x = total_TDs, y = INT)) +
-  geom_point(aes(colour = as.factor(heisman_winner)), alpha = 0.5) +
-  ggrepel::geom_text_repel(aes(x = total_TDs, label = player), data = {heisman_final %>% filter(heisman_winner == 1 & position == "QB")}) +
-  scale_color_manual(values = c("red", "blue")) +
+  geom_point(aes(colour = if_else(year == 2021 & heisman_prob > .1 & position == "QB", "blue", "red")), alpha = 0.5) +
+  ggrepel::geom_text_repel(aes(x = total_TDs, label = player), data = {heisman_final %>% filter(year == 2021 & heisman_prob > .1 & position == "QB")}) +
+  scale_color_identity() +
   labs(title = "Total TDs vs. INTs")
 
 # See top 5 in terms of heisman prob each year
 heisman_final %>% group_by(year) %>% slice_max(heisman_prob, n = 5)
-heisman_final %>% filter(year == 2020) %>% ungroup() %>%  slice_max(heisman_prob, n = 5) %>% select(player, heisman_prob, total_TDs, total_TDsperGame, YDS_rushperGame, rush_yds_z, winPerc)
+heisman_final %>% filter(year == 2021) %>% ungroup() %>%  slice_max(heisman_prob, n = 5) %>% select(player, heisman_prob, total_TDs, total_TDsperGame, YDS_rushperGame, rush_yds_z, winPerc)
 
 ep_test_cumulative <- sum(ep_test$heisman_prob)
 
