@@ -35,7 +35,7 @@ games <- readRDS("Data/games_raw_2001-2021")
 records <- readRDS("Data/records_raw_2001-2021")
 
 # Plays
-plays <- get_plays(1, 15, 2000, 2021)
+plays <- get_plays(1, 15, train_start, train_end)
 
 # Get AP rankings
 # rankings <- get_anything(url = "https://api.collegefootballdata.com/rankings",
@@ -263,6 +263,8 @@ p4 <- p3 %>%
                                         fill = NA),
                 .names = "{.col}_ma_4")) %>% 
   select(offense, game_id, contains("_ma_4")) # Filter out stats from the current game since that should be hidden from the model
+
+# TODO Join in result of previous meeting with that team (score margin, win/loss result, total points, yards, etc.)
 
 rm(list = c("p3"))
 

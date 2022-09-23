@@ -1,0 +1,11 @@
+name: staturdays
+title:
+username:
+account: kylebennison
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 5184752
+bundleId: 5390897
+url: https://kylebennison.shinyapps.io/staturdays/
+when: 1639936960.90851
+lastSyncTime: 1639936960.9095
