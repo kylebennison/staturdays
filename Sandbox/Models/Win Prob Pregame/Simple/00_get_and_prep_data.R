@@ -37,6 +37,8 @@ records <- readRDS("Data/records_raw_2001-2021")
 # Plays
 plays <- get_plays(1, 15, train_start, train_end)
 
+# TODO: Save plays data as an RDS file, add to gitignore if it's too large for github
+
 # Get AP rankings
 # rankings <- get_anything(url = "https://api.collegefootballdata.com/rankings",
                          start_year = train_start,
@@ -169,42 +171,18 @@ df_joined <- df_joined %>%
 p2 <- plays %>% 
   add_success()
 
-# Add elo so we can get moving average elo of opponent
-elo <- get_elo(train_start, train_end)
-
-# Mutate week for joining so it's pre-game elo
-elo <- elo %>% 
-  group_by(team) %>% 
-  mutate(join_date = lead(date, n = 1L, order_by = date)) # get next week's game date.
-
-games2 <- games %>% 
+games <- games %>% 
   mutate(id = as.character(id))
 
 p2_5 <- p2 %>%
   mutate(game_id = as.character(str_sub(game_id, start = 4L))) %>% 
-  left_join(games2, by = c("game_id" = "id")) %>%  # Get game start_time info for joining to elo
-  mutate(start_date = lubridate::as_datetime(start_date)) %>%
-  left_join(elo,
-            by = c(
-              "home_team" = "team",
-              "start_date" = "join_date",
-              "season" = "season"
-            )) %>%
-  left_join(
-    elo,
-    by = c(
-      "away_team" = "team",
-      "start_date" = "join_date",
-      "season" = "season"
-    ),
-    suffix = c("_home", "_away")
-  ) %>%
-  mutate(
-    offense_elo = if_else(offense == home_team, elo_rating_home, elo_rating_away),
-    defense_elo = if_else(defense == home_team, elo_rating_home, elo_rating_away)
-  )
+  left_join(games, by = c("game_id" = "id")) %>%  # Get game start_time info for joining to elo
+  mutate(start_date = lubridate::as_datetime(start_date))
 
 ### across(everything(), .fns = sum)
+
+# TODO: Just sum up stats, don't calculate rates, and then calculate rates from moving-averages 
+# in the next step.
 
 p3 <- p2_5 %>%
   group_by(game_id, offense) %>%
@@ -251,18 +229,25 @@ p3 <- p2_5 %>%
 
 rm("p2", "p2_5")
 
-# Get moving average of 4 previous games (note, this currently takes averages of averages on completion rate and other stats)
-p4 <- p3 %>% 
-  arrange(game_id) %>% 
-  group_by(offense) %>% 
-  mutate(across(.cols = -game_id, 
-                .fns = ~ zoo::rollapply(.x,
-                                        width = list(c(-4, -3, -2, -1)),
-                                        FUN = mean,
-                                        na.rm = TRUE,
-                                        fill = NA),
-                .names = "{.col}_ma_4")) %>% 
-  select(offense, game_id, contains("_ma_4")) # Filter out stats from the current game since that should be hidden from the model
+# Get moving average of last 2, 4, 6, and 8 previous games (note, this currently takes averages of averages on completion rate and other stats)
+for (lookback in c(2,4,6,8)){
+  p3 <- p3 %>% 
+    arrange(game_id) %>% 
+    group_by(offense) %>% 
+    mutate(across(.cols = -game_id,
+                  .fns = ~ zoo::rollapply(.x,
+                                          width = list(c(seq(-lookback, -1, 1))),
+                                          FUN = mean,
+                                          na.rm = TRUE,
+                                          fill = NA
+                                          ),
+                  .names = "{.col}_ma_{lookback}gms"
+                  )
+           ) %>% 
+    select(offense, game_id, contains("_ma_"))
+}
+
+p4 <- p3
 
 # TODO Join in result of previous meeting with that team (score margin, win/loss result, total points, yards, etc.)
 
