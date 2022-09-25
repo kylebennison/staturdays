@@ -150,20 +150,20 @@ df_joined <- df_joined %>%
 
 # Summarise plays into success rate, ppa/game over rolling past 4 games and join
 # Note, currently grouping by offense
-p2 <- plays %>% 
-  add_success()
+plays <- plays %>% 
+  add_success() # TODO: statRdays package should use internal data, not get it from gh.com
 
-games <- games %>% 
-  mutate(id = as.character(id))
-
-p2_5 <- p2 %>%
-  mutate(game_id = as.character(str_sub(game_id, start = 4L))) %>% 
+plays <- plays %>%
   left_join(games, by = c("game_id" = "id")) %>%  # Get game start_time info for joining to elo
   mutate(start_date = lubridate::as_datetime(start_date))
 
 ### across(everything(), .fns = sum)
 
-p3 <- p2_5 %>%
+plays <- plays %>%
+  mutate(offense_total_points = case_when(offense == home_team ~ home_points,
+                                          TRUE ~ away_points),
+         defense_total_points = case_when(offense == home_team ~ away_points,
+                                          TRUE ~ home_points)) %>% 
   group_by(game_id, offense) %>%
   summarise(
     completions = sum(pass_completion, na.rm = TRUE),
@@ -189,63 +189,66 @@ p3 <- p2_5 %>%
     total_ppa = sum(ppa, na.rm = TRUE),
     avg_ppa = mean(ppa, na.rm = TRUE),
     n_plays = n(),
-    points_for = max(offense_score),
-    points_against = max(defense_score), # TODO If the other team scores on the last play then the defense score will never contain their actual final score, get max home and away scores from games table and match them up to offense/defense each play
+    points_for = max(offense_total_points),
+    points_against = max(defense_total_points),
     home_spread = points_for - points_against,
-    won_game = if_else(max(offense_score) > max(defense_score), 1, 0), # TODO same as above
+    won_game = if_else(points_for > points_against, 1, 0),
     opponent_elo = max(defense_elo)
   )
 
-rm("p2", "p2_5")
-
 # Get moving average of last 2, 4, 6, and 8 previous games (note, this currently takes averages of averages on completion rate and other stats)
+#TODO: Confirm this works
 for (lookback in c(2,4,6,8)){
-  p3 <- p3 %>% 
+  message("Working on lookback ", lookback)
+  
+  plays <- plays %>% 
     arrange(game_id) %>% 
     group_by(offense) %>% 
-    mutate(across(.cols = -game_id,
+    select(game_id, where(is.numeric)) %>%
+    mutate(across(.cols = -c(game_id),
                   .fns = ~ zoo::rollapply(.x,
                                           width = list(c(seq(-lookback, -1, 1))),
                                           FUN = mean,
                                           na.rm = TRUE,
                                           fill = NA
-                                          ),
+                  ),
                   .names = "{.col}_ma_{lookback}gms"
-                  )
-           ) %>% 
+    )
+    ) %>% 
     select(offense, game_id, contains("_ma_"))
+  
 }
 
-p4 <- p3
+# Get points and result of their last matchup 
+# TODO: can expand upon this to get more stats eventually, yards, ppa, etc.
+games <- games %>% 
+  group_by(id) %>% 
+  mutate(matchup = paste(min(home_team, away_team), max(home_team, away_team))) %>% # Team names in alpha-order
+  group_by(matchup) %>% 
+  mutate(previous_home = lag(home_team, n = 1L, order_by = start_date),
+         previous_away = lag(away_team, n = 1L, order_by = start_date),
+         previous_home_points = lag(home_points, n = 1L, order_by = start_date),
+         previous_away_points = lag(away_points, n = 1L, order_by = start_date),
+         home_last_meeting_points = if_else(home_team == previous_home, 
+                                            previous_home_points,
+                                            previous_away_points),
+         away_last_meeting_points = if_else(home_team == previous_home, 
+                                            previous_away_points,
+                                            previous_home_points),
+         home_last_meeting_margin = home_last_meeting_points - away_last_meeting_points,
+         home_last_meeting_won = if_else(home_last_meeting_margin > 0, 1, 0),
+         last_meeting_total_points = home_last_meeting_points + away_last_meeting_points
+         ) %>% 
+  select(-c(previous_home_points, previous_away_points, previous_home, previous_away))
 
-# TODO Join in result of previous meeting with that team (score margin, win/loss result, total points, yards, etc.)
-
-rm(list = c("p3"))
+# Join everything together
 
 df_joined <- df_joined %>% 
   mutate(id = as.character(id)) %>% 
-  left_join(p4, by = c("home_team" = "offense",
+  left_join(plays, by = c("home_team" = "offense",
                        "id" = "game_id")) %>% 
-  left_join(p4, by = c("away_team" = "offense",
+  left_join(plays, by = c("away_team" = "offense",
                        "id" = "game_id"),
-            suffix = c("_home", "_away"))
-
-# May want to add elo to give some idea of the quality of their opponents in wins/losses
-elo <- get_elo(2014,2019)
-
-# Mutate week for joining so it's pre-game elo
-elo <- elo %>% 
-  group_by(team) %>% 
-  mutate(join_date = lead(date, n = 1L, order_by = date)) # get next week's game date.
-
-df_joined <- df_joined %>% 
-  mutate(start_date = lubridate::as_datetime(start_date)) %>% 
-  left_join(elo, by = c("home_team" = "team",
-                        "start_date" = "join_date",
-                        "season" = "season")) %>% 
-  left_join(elo, by = c("away_team" = "team",
-                        "start_date" = "join_date",
-                        "season" = "season"),
             suffix = c("_home", "_away"))
 
 calc_expected_score <- function(team_rating, opp_team_rating){
@@ -255,9 +258,9 @@ calc_expected_score <- function(team_rating, opp_team_rating){
 }
 
 df_joined <- df_joined %>% 
-  mutate(home_elo_adv = elo_rating_home + if_else(neutral_site == TRUE, 0, 55) - elo_rating_away,
-         home_elo_wp = calc_expected_score(elo_rating_home + if_else(neutral_site == TRUE, 0, 55),
-                                           elo_rating_away))
+  mutate(home_elo_adv = home_pregame_elo + if_else(neutral_site == TRUE, 0, 55) - away_pregame_elo,
+         home_elo_wp = calc_expected_score(home_pregame_elo + if_else(neutral_site == TRUE, 0, 55),
+                                           away_pregame_elo))
 
 # Join in coaching and coaching_history tables
 df_joined <- df_joined %>% 
@@ -265,17 +268,12 @@ df_joined <- df_joined %>%
                              "home_team" = "school")) %>% 
   left_join(coaching, by = c("season" = "join_year",
                              "away_team" = "school"),
-            suffix = c("_home", "_away")) %>% 
-  left_join(coaching_history, by = c("coach_home" = "coach",
-                                     "season" = "year")) %>% 
-  left_join(coaching_history, by = c("coach_away" = "coach",
-                                     "season" = "year"),
             suffix = c("_home", "_away"))
 
 # Cross-validate xgboost model --------------------------------------------
 # Prep data
 prepped_table <- df_joined %>% 
-  filter(season != 2014) %>% # remove 2014 since it doesn't have 2013 data
+  filter(season != train_start) %>% # remove first year since it doesn't have lookback data
   ungroup() %>% 
   mutate(response_home_win = if_else(home_points > away_points, 1, 0),
          response_total_points = home_points + away_points,
