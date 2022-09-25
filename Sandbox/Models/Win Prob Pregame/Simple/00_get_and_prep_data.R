@@ -35,25 +35,28 @@ games <- readRDS("Data/games_raw_2001-2021")
 records <- readRDS("Data/records_raw_2001-2021")
 
 # Plays
-plays <- get_plays(1, 15, train_start, train_end)
+# plays <- get_plays(1, 15, train_start, train_end)
+# 
+# saveRDS(plays, "Data/plays_raw_2001-2021")
 
-# TODO: Save plays data as an RDS file, add to gitignore if it's too large for github
+plays <- readRDS("Data/plays_raw_2001-2021")
+
 
 # Get AP rankings
 # rankings <- get_anything(url = "https://api.collegefootballdata.com/rankings",
-                         start_year = train_start,
-                         end_year = train_end)
-
+#                         start_year = train_start,
+#                         end_year = train_end)
+# 
 # saveRDS(rankings, "Data/rankings_raw_2001-2021")
 
 rankings <- readRDS("Data/rankings_raw_2001-2021")
 
 # Get recruiting class rankings
-recruiting <- get_anything(url = "https://api.collegefootballdata.com/recruiting/teams",
-                           start_year = train_start,
-                           end_year = train_end,
-                           key = my_key())
-
+# recruiting <- get_anything(url = "https://api.collegefootballdata.com/recruiting/teams",
+#                            start_year = train_start,
+#                            end_year = train_end,
+#                            key = my_key())
+# 
 # saveRDS(recruiting, "Data/recruiting_raw_2001-2021")
 
 recruiting <- readRDS("Data/recruiting_raw_2001-2021")
@@ -75,23 +78,13 @@ stats_advanced <- readRDS("Data/stats_advanced_raw_2001-2021")
 
 # Get coaching records
 # coaching <- get_anything(url = "https://api.collegefootballdata.com/coaches",
-#                          start_year = train_start,
-#                          end_year = train_end,
-#                          key = my_key())
-
-# saveRDS(coaching, "Data/coaching_raw_2001-2021")
-
-coaching <- readRDS("Data/coaching_raw_2001-2021")
-
-# Get coaching data as far back as it goes
-# coaching_history <- get_anything(url = "https://api.collegefootballdata.com/coaches",
-#                                  start_year = 1980,
-#                                  end_year = train_end,
-#                                  key = my_key())
+#                         start_year = 1980,
+#                         end_year = train_end,
+#                         key = my_key())
 # 
-# saveRDS(coaching_history, "Data/coaching_history_raw_1980-2021")
+# saveRDS(coaching, "Data/coaching_raw_1980-2021")
 
-coaching_history <- readRDS("Data/coaching_history_raw_1980-2021")
+coaching <- readRDS("Data/coaching_raw_1980-2021")
 
 # Clean any data ----------------------------------------------------------
 
@@ -109,25 +102,14 @@ coaching <- coaching %>%
 
 # Mutate years with team
 coaching <- coaching %>% 
+  group_by(first_name, last_name, school) %>% 
+  mutate(hire_date = as_datetime(hire_date)) %>% 
+  mutate(hire_date = if_else(is.na(hire_date), as_datetime(glue::glue(min(year), "-01-01")), hire_date)) %>% 
   mutate(yrs_with_team = year - lubridate::year(hire_date),
          join_year = year + 1L,
-         coach = paste(first_name, last_name))
-
-# Fix coaching datatype discrepency
-coaching_history <- coaching_history %>%
-  mutate(seasons = map(seasons,
-                       ~ mutate(.x,
-                                sp_overall = as.double(sp_overall),
-                                sp_defense = as.double(sp_defense),
-                                sp_offense = as.double(sp_offense)))) %>% 
-  unnest(cols = seasons)
-
-# group by coach and get years experience
-coaching_history <- coaching_history %>% 
-  mutate(coach = paste(first_name, last_name)) %>% 
+         coach = paste(first_name, last_name)) %>% 
   group_by(coach) %>% 
-  mutate(n_total_seasons = year - min(year)) %>% 
-  select(coach, year, n_total_seasons)
+  mutate(n_total_seasons = year - min(year))
 
 # Prep for joining ---------
 
@@ -181,49 +163,36 @@ p2_5 <- p2 %>%
 
 ### across(everything(), .fns = sum)
 
-# TODO: Just sum up stats, don't calculate rates, and then calculate rates from moving-averages 
-# in the next step.
-
 p3 <- p2_5 %>%
   group_by(game_id, offense) %>%
   summarise(
-    completion_rate = sum(pass_completion, na.rm = TRUE) / sum(pass_attempt, na.rm = TRUE),
-    pass_touchdown_rate = sum(pass_touchdown, na.rm = TRUE) /
-      sum(pass_attempt, na.rm = TRUE),
-    interception_rate = sum(pass_intercepted, na.rm = TRUE) /
-      sum(pass_attempt, na.rm = TRUE),
-    sack_rate = sum(passer_sacked, na.rm = TRUE) / n(),
+    completions = sum(pass_completion, na.rm = TRUE),
+    pass_attempts = sum(pass_attempt, na.rm = TRUE),
+    pass_touchdowns = sum(pass_touchdown, na.rm = TRUE),
+    interceptions = sum(pass_intercepted, na.rm = TRUE),
+    sacks = sum(passer_sacked, na.rm = TRUE),
+    success_plays = sum(success, na.rm = TRUE),
     success_rate = sum(success, na.rm = TRUE) / n(),
+    rush_attempts = sum(rush_attempt, na.rm = TRUE),
     pass_rate = sum(pass_attempt, na.rm = TRUE) / sum(
       sum(pass_attempt, na.rm = TRUE),
       sum(rush_attempt, na.rm = TRUE),
       na.rm = TRUE
     ),
-    rush_touchdown_rate = sum(rush_touchdown, na.rm = TRUE) /
-      sum(rush_attempt, na.rm = TRUE),
-    rush_rate = sum(rush_attempt, na.rm = TRUE) / sum(
-      sum(pass_attempt, na.rm = TRUE),
-      sum(rush_attempt, na.rm = TRUE),
-      na.rm = TRUE
-    ),
-    pass_fumble_rate = sum(pass_fumbled, na.rm = TRUE) /
-      sum(
-        sum(pass_attempt, na.rm = TRUE),
-        sum(passer_sacked, na.rm = TRUE),
-        na.rm = TRUE
-      ),
-    rush_fumble_rate = sum(rush_fumbled, na.rm = TRUE) /
-      sum(rush_attempt, na.rm = TRUE),
+    rush_touchdowns = sum(rush_touchdown, na.rm = TRUE),
+    pass_fumbles = sum(pass_fumbled, na.rm = TRUE),
+    rush_fumbles = sum(rush_fumbled, na.rm = TRUE),
     total_touchdown_rate = sum(
       sum(pass_touchdown, na.rm = TRUE),
       sum(rush_touchdown, na.rm = TRUE)
     ) / sum(pass_attempt, rush_attempt, na.rm = TRUE),
+    total_ppa = sum(ppa, na.rm = TRUE),
     avg_ppa = mean(ppa, na.rm = TRUE),
-    n = n(),
+    n_plays = n(),
     points_for = max(offense_score),
-    points_against = max(defense_score),
+    points_against = max(defense_score), # TODO If the other team scores on the last play then the defense score will never contain their actual final score, get max home and away scores from games table and match them up to offense/defense each play
     home_spread = points_for - points_against,
-    won_game = if_else(max(offense_score) > max(defense_score), 1, 0),
+    won_game = if_else(max(offense_score) > max(defense_score), 1, 0), # TODO same as above
     opponent_elo = max(defense_elo)
   )
 
