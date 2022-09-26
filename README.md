@@ -1,4 +1,5 @@
-# staturdays
+# staturdays 0.1.0
+
 Code for plotting, modeling and predicting college football data.
 
 This repo uses the [collegefootballdata.com](www.collegefootballdata.com) API to pull in play by play data, betting data, and more advanced stats to analyze it and make predictions.

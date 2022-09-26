@@ -151,7 +151,7 @@ df_joined <- df_joined %>%
 # Summarise plays into success rate, ppa/game over rolling past 4 games and join
 # Note, currently grouping by offense
 plays <- plays %>% 
-  add_success() # TODO: statRdays package should use internal data, not get it from gh.com
+  add_success()
 
 plays <- plays %>%
   left_join(games, by = c("game_id" = "id")) %>%  # Get game start_time info for joining to elo
