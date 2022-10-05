@@ -154,6 +154,7 @@ plays <- plays %>%
   add_success()
 
 plays <- plays %>%
+  mutate(game_id = as.integer(game_id)) %>% 
   left_join(games, by = c("game_id" = "id")) %>%  # Get game start_time info for joining to elo
   mutate(start_date = lubridate::as_datetime(start_date))
 
@@ -163,7 +164,10 @@ plays <- plays %>%
   mutate(offense_total_points = case_when(offense == home_team ~ home_points,
                                           TRUE ~ away_points),
          defense_total_points = case_when(offense == home_team ~ away_points,
-                                          TRUE ~ home_points)) %>% 
+                                          TRUE ~ home_points),
+         ppa = as.double(ppa),
+         defense_elo = case_when(offense == home_team ~ away_pregame_elo,
+                                 TRUE ~ home_pregame_elo)) %>% 
   group_by(game_id, offense) %>%
   summarise(
     completions = sum(pass_completion, na.rm = TRUE),
@@ -205,22 +209,26 @@ for (lookback in c(2,4,6,8)){
     arrange(game_id) %>% 
     group_by(offense) %>% 
     select(game_id, where(is.numeric)) %>%
-    mutate(across(.cols = -c(game_id),
+    mutate(across(.cols = -c(game_id, contains("_ma_")), # make sure not to calculate moving average on top of existing moving averages
                   .fns = ~ zoo::rollapply(.x,
                                           width = list(c(seq(-lookback, -1, 1))),
-                                          FUN = mean,
+                                          FUN = mean, # TODO: should I average stats or sum them? Or maybe some should be added while others should be averaged?
                                           na.rm = TRUE,
                                           fill = NA
                   ),
                   .names = "{.col}_ma_{lookback}gms"
     )
-    ) %>% 
-    select(offense, game_id, contains("_ma_"))
+    )
+  
+  # TODO: Copy the code above and sum stats as well
   
 }
 
-# Get points and result of their last matchup 
-# TODO: can expand upon this to get more stats eventually, yards, ppa, etc.
+plays <- plays %>% 
+  select(offense, game_id, contains("_ma_"))
+
+# Get points and result of their last matchup between the two teams
+# TODO: can expand upon this to get more stats from previous matchups eventually, yards, ppa, etc.
 games <- games %>% 
   group_by(id) %>% 
   mutate(matchup = paste(min(home_team, away_team), max(home_team, away_team))) %>% # Team names in alpha-order
@@ -244,7 +252,6 @@ games <- games %>%
 # Join everything together
 
 df_joined <- df_joined %>% 
-  mutate(id = as.character(id)) %>% 
   left_join(plays, by = c("home_team" = "offense",
                        "id" = "game_id")) %>% 
   left_join(plays, by = c("away_team" = "offense",
