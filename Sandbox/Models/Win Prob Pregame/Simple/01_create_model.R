@@ -1,4 +1,5 @@
 library(dplyr)
+library(tidyr)
 
 bet_df <- readRDS("Data/betting_prepped.rds")
 
@@ -102,6 +103,11 @@ bet_df <- bet_df %>%
     year_away_away
   ))
 
+# Drop any rows where response is missing
+
+bet_df <- bet_df %>% 
+  drop_na(contains("response"))
+
 # Pull out responses
 response_home_win <- bet_df %>% 
   pull(response_home_win)
@@ -156,9 +162,34 @@ x_test <- bet_df[-train_ind,]
 
 y_test <- response_home_win[-train_ind]
 
-x_train_xgb <- xgb.DMatrix(as.matrix(x_train), label=y_train, missing = NA)
+dtrain_xgb <- xgb.DMatrix(as.matrix(x_train), label=y_train, missing = NA)
+dtest_xgb <- xgb.DMatrix(as.matrix(x_test), label = y_test, missing = NA)
 
 
+# Start simple - no CV.
+
+watchlist <- list(train = dtrain_xgb, test = dtest_xgb)
+params <- list(
+  booster = "gbtree",
+  objective = "binary:logistic",
+  eval_metric = c("logloss"),
+  eval_metric = c("auc"),
+  eval_metric = c("mae"),
+  eval_metric = c("rmse"),
+  eval_metric = c("error"),
+  eta = c(.1), 
+  nrounds = c(100),
+  max_depth = c(3),
+  subsample = c(1),
+  colsample_bytree = c(1),
+  min_child_weight = c(9),
+  gamma = c(.1),
+  alpha = c(.1),
+  lambda = c(1) # Higher is more conservative
+)
+
+xgb_res <- xgb.train(params = params, data = dtrain_xgb, nrounds = 100, watchlist = watchlist,
+          verbose = 1, early_stopping_rounds = 25, print_every_n = 5)
 
 # Start CV Hyperparam Tuning ----------------------------------------------
 
@@ -167,29 +198,35 @@ x_train_xgb <- xgb.DMatrix(as.matrix(x_train), label=y_train, missing = NA)
 results <- data.frame()
 param_grid <- expand.grid(eta = c(.1), 
                           nrounds = c(100),
-                          max_depth = c(3),
-                          subsample = c(1),
-                          colsample_bytree = c(1),
+                          max_depth = c(3, 6),
+                          subsample = c(.5, 1),
+                          colsample_bytree = c(.1, 1),
                           min_child_weight = c(9),
-                          eval_metric = c("logloss"),
-                          gamma = c(.1),
+                          gamma = c(0, .1),
                           alpha = c(.1),
-                          lambda = c(1,1.1,1.15)) %>% 
+                          lambda = c(1,1.5)) %>% 
   unique()
-pb = txtProgressBar(min = 0, max = nrow(param_grid), initial = 0)
 
 set.seed(1)
+details <- tibble()
+best_params <- list()
+prev_best <- Inf
 for(i in 1:nrow(param_grid)){
   if(i == 1){
     time_start <- lubridate::now()
     cat("\nStarting Tuning at ", format.Date(time_start), "\n")
   }
+  cat("Param combo ", i, " of ", nrow(param_grid), "\n")
   nrounds <- param_grid$nrounds[i]
   params <-
     list(
       booster = "gbtree",
       objective = "binary:logistic",
-      eval_metric = param_grid$eval_metric[i],
+      eval_metric = c("logloss"),
+      eval_metric = c("auc"),
+      eval_metric = c("mae"),
+      eval_metric = c("rmse"),
+      eval_metric = c("error"),
       eta = param_grid$eta[i], # higher = less conservative
       gamma = param_grid$gamma[i], # higher = more conservative (amount of loss required to make a split)
       subsample = param_grid$subsample[i], # most conservative is 0.5
@@ -202,23 +239,36 @@ for(i in 1:nrow(param_grid)){
   
   cv_results <- xgb.cv(
     params = params,
-    data = x_train_xgb,
+    data = dtrain_xgb,
     nrounds = nrounds,
     verbose = 0,
-    nfold = 5
+    nfold = 5,
+    watchlist = watchlist,
+    early_stopping_rounds = 25
   )
-  metric_name = as.name(paste0("test_", param_grid$eval_metric[i], "_mean"))
+  
+  # Add which param list round led to these scores
+  cv_results$evaluation_log$param_round <- i
+  details <- rbind(details, cv_results$evaluation_log)
+  metric_name = as.name(paste0("test_", "logloss", "_mean"))
   best_test_loss <- cv_results$evaluation_log %>% pull(metric_name) %>% min()
   
   best_test_ind <- which(cv_results$evaluation_log %>% pull(metric_name) == best_test_loss)
   
-  results <- rbind(results, data.frame(round = i, 
+  # Update list of best params if improved
+  if (best_test_loss < prev_best){
+    best_result <- list("params" = params, "param_round" = i,
+                        "best_test_loss" = best_test_loss,
+                        "best_test_n_rounds" = best_test_ind,
+                        "details" = {details %>% filter(param_round == i, iter == best_test_ind)})
+    prev_best <- best_test_loss
+  }
+  
+  results <- rbind(results, data.frame(param_row = i,
                                        best_test_loss = best_test_loss,
                                        best_test_n_trees = best_test_ind,
                                        params = params))
   
-  setTxtProgressBar(pb,i)
-  close(pb)
   if(i == nrow(param_grid)){
     time_end <- lubridate::now()
     cat("\nFinished Tuning at ", format.Date(time_end), "\n")
@@ -226,6 +276,9 @@ for(i in 1:nrow(param_grid)){
         "seconds\n")
   }
 }
+
+# dir.create("Data/model_results/pregame_wp/", recursive = TRUE)
+saveRDS(results, "Data/model_results/pregame_wp/cv_results.rds")
 
 # Save best param results so far
 if(exists("best_results")) {
@@ -295,7 +348,7 @@ res <- data.frame()
 for(i in 1:50){
   cat("CV ", i, "/50\n")
   cv_results <- xgb.cv(params = best_params,
-                       data = x_train_xgb,
+                       data = dtrain_xgb,
                        nrounds = 100,
                        verbose = 0,
                        nfold = 5)
@@ -322,7 +375,7 @@ cat(paste0("Avg. Test Loss: ", mean(res$test_loss), "\n",
 
 # Make Predictions --------------------------------------------------------
 xgb_model <- xgboost(
-  data = x_train_xgb,
+  data = dtrain_xgb,
   params = best_params,
   nrounds = 50,
   early_stopping_rounds = 5,
@@ -557,7 +610,7 @@ x_test <- bet_df[-train_ind,]
 
 y_test <- response_home_win[-train_ind]
 
-x_train_xgb <- xgb.DMatrix(as.matrix(x_train), label=y_train, missing = NA)
+dtrain_xgb <- xgb.DMatrix(as.matrix(x_train), label=y_train, missing = NA)
 
 
 
@@ -603,7 +656,7 @@ for(i in 1:nrow(param_grid)){
   
   cv_results <- xgb.cv(
     params = params,
-    data = x_train_xgb,
+    data = dtrain_xgb,
     nrounds = nrounds,
     verbose = 0,
     nfold = 5
@@ -696,7 +749,7 @@ res <- data.frame()
 for(i in 1:50){
   cat("CV ", i, "/50\n")
   cv_results <- xgb.cv(params = best_params,
-                       data = x_train_xgb,
+                       data = dtrain_xgb,
                        nrounds = 100,
                        verbose = 0,
                        nfold = 5)
@@ -723,7 +776,7 @@ cat(paste0("Avg. Test Loss: ", mean(res$test_loss), "\n",
 
 # Make Predictions --------------------------------------------------------
 xgb_model <- xgboost(
-  data = x_train_xgb,
+  data = dtrain_xgb,
   params = best_params,
   nrounds = 50,
   early_stopping_rounds = 5,
