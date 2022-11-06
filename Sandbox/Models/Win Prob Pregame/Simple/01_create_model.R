@@ -152,15 +152,25 @@ bet_df <- bet_df %>%
 library(xgboost)
 
 set.seed(1)
-train_ind <- sample(nrow(bet_df), nrow(bet_df) * .8)
+spec = c(train = .6, test = .2, validate = .2)
 
-x_train <- bet_df[train_ind,]
+g = sample(cut(
+  seq(nrow(bet_df)), 
+  nrow(bet_df)*cumsum(c(0,spec)),
+  labels = names(spec)
+))
 
-y_train <- response_home_win[train_ind]
+df = split(bet_df, g)
 
-x_test <- bet_df[-train_ind,]
+res = split(response_home_win, g)
 
-y_test <- response_home_win[-train_ind]
+x_train <- df$train
+
+y_train <- res$train
+
+x_test <- df$test
+
+y_test <- res$test
 
 dtrain_xgb <- xgb.DMatrix(as.matrix(x_train), label=y_train, missing = NA)
 dtest_xgb <- xgb.DMatrix(as.matrix(x_test), label = y_test, missing = NA)
@@ -188,8 +198,9 @@ params <- list(
   lambda = c(1) # Higher is more conservative
 )
 
-xgb_res <- xgb.train(params = params, data = dtrain_xgb, nrounds = 100, watchlist = watchlist,
-          verbose = 1, early_stopping_rounds = 25, print_every_n = 5)
+# SKIP
+# xgb_res <- xgb.train(params = params, data = dtrain_xgb, nrounds = 100, watchlist = watchlist,
+#           verbose = 1, early_stopping_rounds = 25, print_every_n = 5)
 
 # Start CV Hyperparam Tuning ----------------------------------------------
 
@@ -197,14 +208,14 @@ xgb_res <- xgb.train(params = params, data = dtrain_xgb, nrounds = 100, watchlis
 # Define model params
 results <- data.frame()
 param_grid <- expand.grid(eta = c(.1), 
-                          nrounds = c(100),
-                          max_depth = c(3, 6),
-                          subsample = c(.5, 1),
-                          colsample_bytree = c(.1, 1),
+                          nrounds = c(100, 150),
+                          max_depth = c(9),
+                          subsample = c(.75, 1),
+                          colsample_bytree = c(.5, .75),
                           min_child_weight = c(9),
-                          gamma = c(0, .1),
+                          gamma = c(.1),
                           alpha = c(.1),
-                          lambda = c(1,1.5)) %>% 
+                          lambda = c(3)) %>% 
   unique()
 
 set.seed(1)
@@ -262,6 +273,7 @@ for(i in 1:nrow(param_grid)){
                         "best_test_n_rounds" = best_test_ind,
                         "details" = {details %>% filter(param_round == i, iter == best_test_ind)})
     prev_best <- best_test_loss
+    best_params <- params
   }
   
   results <- rbind(results, data.frame(param_row = i,
@@ -277,8 +289,116 @@ for(i in 1:nrow(param_grid)){
   }
 }
 
+# Get latest file number and increment by one so we have a history of params
+library(stringr)
+
+# Get numbers of previous saved file and increment by one
+old_suffix <-
+  max(as.integer(str_extract(str_remove(
+    dir("Data/model_results/pregame_wp/", pattern = "best_result_params"),
+    ".rds"
+  ),
+  "[0-9]+$")))
+
+old_padded <- str_pad(old_suffix, 5, "left", "0")
+
+# Pad with 0s
+new_suffix <- str_pad(old_suffix + 1L, 5, "left", "0")
+
 # dir.create("Data/model_results/pregame_wp/", recursive = TRUE)
-saveRDS(results, "Data/model_results/pregame_wp/cv_results.rds")
+prev_best <-
+  readRDS(
+    glue::glue(
+      "Data/model_results/pregame_wp/best_result_params_{old_padded}.rds"
+    )
+  )
+
+cat(paste0("Previous best test loss: ", prev_best$best_test_loss, "\n",
+       "Latest run best test loss: ", best_result$best_test_loss))
+
+
+# If results are better, save them.
+if(best_result$best_test_loss < prev_best$best_test_loss){
+
+  cat("Saving new best results")
+  saveRDS(results, 
+          glue::glue("Data/model_results/pregame_wp/cv_results_{new_suffix}.rds"))
+  saveRDS(best_result, 
+          glue::glue("Data/model_results/pregame_wp/best_result_params_{new_suffix}.rds"))
+  
+}
+
+
+params <- best_result$params
+
+boost_obj <- xgb.train(params = params, data = dtrain_xgb, nrounds = best_result$best_test_n_rounds, watchlist = watchlist,
+                       verbose = 1, early_stopping_rounds = 25, print_every_n = 5)
+
+boost_obj$evaluation_log$test_logloss %>% min() # 0.5568783, 0.549302, 0.5475479
+boost_obj$evaluation_log$test_error %>% min() # 0.3090879, 0.3076542, 0.3046849
+
+# Feat Imp.
+importance <- xgb.importance(feature_names = colnames(dtrain_xgb), model = boost_obj)
+importance[1:20, c(1,2)]
+dput(importance$Feature[1:20]) # list of top features to test using for training
+
+# Save Model if improvement
+if(best_result$best_test_loss < prev_best$best_test_loss){
+  model_name <- "pregame_wp"
+  if(!
+    identical(
+      dir("Production/Model Objects/", 
+          pattern = "pregame_wp"), 
+      character(0))){
+    # Get previous model version and increment
+    version_str <- str_extract(dir("Production/Model Objects/", 
+                                   pattern = "pregame_wp"), 
+                               "[0-9]+.[0-9]+.[0-9]+")
+    
+    major <- str_split(version_str, "\\.", simplify = TRUE)[1]
+    patch <- str_split(version_str, "\\.", simplify = TRUE)[3]
+    
+    # Update minor version
+    new_minor <-
+      as.character(as.numeric(str_split(version_str, "\\.", simplify = TRUE)[2]) + 1)
+    
+    new_version <- paste(major, new_minor, patch, sep = ".")
+    
+    
+  }
+  saveRDS(boost_obj, 
+          file = glue::glue("Production/Model Objects/pregame_wp_v{new_version}"))
+  
+}
+
+# Model Eval
+
+# Apply best model to validation set for final evaluation
+preds <- predict(boost_obj, xgb.DMatrix(as.matrix(df$validate), missing = NA))
+actual <- res$validate
+
+mean(as.numeric(preds > .5) != actual) 
+# we're wrong 31.35% of the time. This would be avg. to
+# below average in the CFB prediction contest. Likely need to include spread.
+
+cbind(preds, actual) %>% 
+  as_tibble() %>% 
+  mutate(preds = round(preds, 2)) %>% 
+  group_by(preds) %>% 
+  summarise(actual = mean(actual)) %>% 
+  ggplot2::ggplot(ggplot2::aes(x = preds, y = actual)) + 
+  ggplot2::geom_point() +
+  ggplot2::geom_abline()
+
+cbind(preds, actual) %>% 
+  as_tibble() %>% 
+  ggplot2::ggplot(ggplot2::aes(x = preds, y = actual)) + 
+  ggplot2::geom_smooth() +
+  ggplot2::geom_abline()
+
+
+# Stop --------------------------------------------------------------------
+
 
 # Save best param results so far
 if(exists("best_results")) {
