@@ -9,3 +9,5 @@ Data/tweet_id.csv
 Shiny App/Prod App/Staturdays/.Renviron
 Shiny App/Prod App/Staturdays/rsconnect
 .venv
+.Renviron
+*/.Renviron
