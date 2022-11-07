@@ -347,6 +347,10 @@ cbind(preds, actual) %>%
             n_wins = sum(n_wins),
             n_games = sum(n_games))
 
+# .103 calibration error, and for some reason many more prediction at the .86 confidence
+# than any other prediction, and nothing higher and nothing lower than .16
+# TODO: need to fix that - iters or depth
+
 
 # Stop --------------------------------------------------------------------
 
