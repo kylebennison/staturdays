@@ -1,0 +1,910 @@
+library(dplyr)
+library(tidyr)
+
+bet_df <- readRDS("Production/Models/Win Prob Pregame/Complex/00_output_df_prepped.rds")
+
+# Drop any rows where response is missing
+
+bet_df <- bet_df %>% 
+  drop_na(contains("response"))
+
+# Pull out responses
+response_home_win <- bet_df %>% 
+  pull(response_home_win)
+response_home_spread <- bet_df %>% 
+  pull(response_home_spread)
+response_total_points <- bet_df %>% 
+  pull(response_total_points)
+
+bet_df <- bet_df %>% 
+  select(!contains("response"))
+
+# Impute medians
+impute_median <- function(column){
+  
+  column[is.na(column)] <- median(column, na.rm = TRUE)
+  
+  return(column)
+}
+
+bet_df <- bet_df %>% 
+  mutate(across(.cols = everything(),
+                .fns = ~ impute_median(.x)))
+
+# Normalize all columns
+normalize_columns <- function(column){
+  
+  return((column - min(column)) / (max(column) - min(column)))
+  
+}
+
+bet_df <- bet_df %>% 
+  mutate(across(.cols = everything(),
+                .fns = normalize_columns))
+
+bet_df <- bet_df %>% 
+  select(!where(~all(is.nan(.x))))
+
+# Predict Home Win --------------------------------------------------------
+
+# Boosted Tree
+library(xgboost)
+
+set.seed(1)
+spec = c(train = .6, test = .2, validate = .2)
+
+g = sample(cut(
+  seq(nrow(bet_df)), 
+  nrow(bet_df)*cumsum(c(0,spec)),
+  labels = names(spec)
+))
+
+df = split(bet_df, g)
+
+res = split(response_home_win, g)
+
+x_train <- df$train
+
+y_train <- res$train
+
+x_test <- df$test
+
+y_test <- res$test
+
+dtrain_xgb <- xgb.DMatrix(as.matrix(x_train), label=y_train, missing = NA)
+dtest_xgb <- xgb.DMatrix(as.matrix(x_test), label = y_test, missing = NA)
+
+
+# Start simple - no CV.
+
+watchlist <- list(train = dtrain_xgb, test = dtest_xgb)
+params <- list(
+  booster = "gbtree",
+  objective = "binary:logistic",
+  eval_metric = c("logloss"),
+  eval_metric = c("auc"),
+  eval_metric = c("mae"),
+  eval_metric = c("rmse"),
+  eval_metric = c("error"),
+  eta = c(.1), 
+  nrounds = c(100),
+  max_depth = c(3),
+  subsample = c(1),
+  colsample_bytree = c(1),
+  min_child_weight = c(9),
+  gamma = c(.1),
+  alpha = c(.1),
+  lambda = c(1) # Higher is more conservative
+)
+
+# SKIP
+# xgb_res <- xgb.train(params = params, data = dtrain_xgb, nrounds = 100, watchlist = watchlist,
+#           verbose = 1, early_stopping_rounds = 25, print_every_n = 5)
+
+# Start CV Hyperparam Tuning ----------------------------------------------
+
+
+# Define model params
+results <- data.frame()
+param_grid <- expand.grid(eta = c(.1), 
+                          nrounds = c(100, 150),
+                          max_depth = c(9),
+                          subsample = c(.75, 1),
+                          colsample_bytree = c(.5, .75),
+                          min_child_weight = c(9),
+                          gamma = c(.1),
+                          alpha = c(.1),
+                          lambda = c(3)) %>% 
+  unique()
+
+set.seed(1)
+details <- tibble()
+best_params <- list()
+prev_best <- Inf
+for(i in 1:nrow(param_grid)){
+  if(i == 1){
+    time_start <- lubridate::now()
+    cat("\nStarting Tuning at ", format.Date(time_start), "\n")
+  }
+  cat("Param combo ", i, " of ", nrow(param_grid), "\n")
+  nrounds <- param_grid$nrounds[i]
+  params <-
+    list(
+      booster = "gbtree",
+      objective = "binary:logistic",
+      eval_metric = c("logloss"),
+      eval_metric = c("auc"),
+      eval_metric = c("mae"),
+      eval_metric = c("rmse"),
+      eval_metric = c("error"),
+      eta = param_grid$eta[i], # higher = less conservative
+      gamma = param_grid$gamma[i], # higher = more conservative (amount of loss required to make a split)
+      subsample = param_grid$subsample[i], # most conservative is 0.5
+      colsample_bytree = param_grid$colsample_bytree[i], # most conservative is 0.5
+      max_depth = param_grid$max_depth[i], # higher = less conservative
+      min_child_weight = param_grid$min_child_weight[i], # higher = more conservative,
+      alpha = param_grid$alpha[i], # Higher is more conservative
+      lambda = param_grid$lambda[i] # Higher is more conservative
+    )
+  
+  cv_results <- xgb.cv(
+    params = params,
+    data = dtrain_xgb,
+    nrounds = nrounds,
+    verbose = 0,
+    nfold = 5,
+    watchlist = watchlist,
+    early_stopping_rounds = 25
+  )
+  
+  # Add which param list round led to these scores
+  cv_results$evaluation_log$param_round <- i
+  details <- rbind(details, cv_results$evaluation_log)
+  metric_name = as.name(paste0("test_", "logloss", "_mean"))
+  best_test_loss <- cv_results$evaluation_log %>% pull(metric_name) %>% min()
+  
+  best_test_ind <- which(cv_results$evaluation_log %>% pull(metric_name) == best_test_loss)
+  
+  # Update list of best params if improved
+  if (best_test_loss < prev_best){
+    best_result <- list("params" = params, "param_round" = i,
+                        "best_test_loss" = best_test_loss,
+                        "best_test_n_rounds" = best_test_ind,
+                        "details" = {details %>% filter(param_round == i, iter == best_test_ind)})
+    prev_best <- best_test_loss
+    best_params <- params
+  }
+  
+  results <- rbind(results, data.frame(param_row = i,
+                                       best_test_loss = best_test_loss,
+                                       best_test_n_trees = best_test_ind,
+                                       params = params))
+  
+  if(i == nrow(param_grid)){
+    time_end <- lubridate::now()
+    cat("\nFinished Tuning at ", format.Date(time_end), "\n")
+    cat("CV Tuning Took ", round(abs(as.numeric(time_end - time_start, units = "secs")), 1),
+        "seconds\n")
+  }
+}
+
+# Get latest file number and increment by one so we have a history of params
+library(stringr)
+
+# If There's already a file for this model, increment the number in the new file,
+# otherwise create the file
+if(!
+   identical(
+     dir("Data/model_results/pregame_wp/complex/", 
+         pattern = "best_result_params"), 
+     character(0))){
+  
+  # Get numbers of previous saved file and increment by one
+  old_suffix <-
+    max(as.integer(str_extract(str_remove(
+      dir("Data/model_results/pregame_wp/complex/", pattern = "best_result_params"),
+      ".rds"
+    ),
+    "[0-9]+$")))
+  
+  old_padded <- str_pad(old_suffix, 5, "left", "0")
+  
+  # Pad with 0s
+  new_suffix <- str_pad(old_suffix + 1L, 5, "left", "0")
+  
+  # dir.create("Data/model_results/pregame_wp/complex", recursive = TRUE)
+  prev_best <-
+    readRDS(
+      glue::glue(
+        "Data/model_results/pregame_wp/complex/best_result_params_{old_padded}.rds"
+      )
+    )
+  
+  cat(paste0("Previous best test loss: ", prev_best$best_test_loss, "\n",
+             "Latest run best test loss: ", best_result$best_test_loss))
+  
+  
+  # If results are better, save them.
+  if(best_result$best_test_loss < prev_best$best_test_loss){
+    
+    cat("Saving new best results")
+    saveRDS(results, 
+            glue::glue("Data/model_results/pregame_wp/complex/cv_results_{new_suffix}.rds"))
+    saveRDS(best_result, 
+            glue::glue("Data/model_results/pregame_wp/complex/best_result_params_{new_suffix}.rds"))
+    
+  }
+  
+} else {
+  
+  cat("Saving best results")
+  saveRDS(results, 
+          glue::glue("Data/model_results/pregame_wp/complex/cv_results_00001.rds"))
+  saveRDS(best_result, 
+          glue::glue("Data/model_results/pregame_wp/complex/best_result_params_00001.rds"))
+  
+}
+
+
+params <- best_result$params
+
+boost_obj <- xgb.train(params = params, data = dtrain_xgb, nrounds = best_result$best_test_n_rounds, watchlist = watchlist,
+                       verbose = 1, early_stopping_rounds = 25, print_every_n = 5)
+
+boost_obj$evaluation_log$test_logloss %>% min() 
+# Simple: 0.5568783, 0.549302, 0.5475479, 
+# Complex: 0.4743272
+boost_obj$evaluation_log$test_error %>% min() 
+# Simple: 0.3090879, 0.3076542, 0.3046849
+# Complex: 0.2120166
+
+# Feat Imp.
+importance <- xgb.importance(feature_names = colnames(dtrain_xgb), model = boost_obj)
+importance[1:20, c(1,2)]
+dput(importance$Feature[1:20]) # list of top features to test using for training
+
+  # Check if a model exists
+if(!
+   identical(
+     dir("Production/Model Objects/", 
+         pattern = "pregame_wp_complex"), 
+     character(0))){
+  
+  print("Previous model found...")
+    
+  # Save Model if improvement
+  if(best_result$best_test_loss < prev_best$best_test_loss){
+    
+    print(glue::glue("Model improved from \n{prev_best$best_test_loss} \n
+                     to\n
+                     {best_result$best_test_loss}"))
+    
+    model_name <- "pregame_wp"
+    # Get previous model version and increment
+    version_str <- str_extract(dir("Production/Model Objects/", 
+                                   pattern = "pregame_wp_complex"), 
+                               "[0-9]+.[0-9]+.[0-9]+")
+    
+    major <- str_split(version_str, "\\.", simplify = TRUE)[1]
+    patch <- str_split(version_str, "\\.", simplify = TRUE)[3]
+    
+    # Update minor version
+    new_minor <-
+      as.character(as.numeric(str_split(version_str, "\\.", simplify = TRUE)[2]) + 1)
+    
+    new_version <- paste(major, new_minor, patch, sep = ".")
+  
+    saveRDS(boost_obj, 
+            file = glue::glue("Production/Model Objects/pregame_wp_complex_v{new_version}"))
+  
+  } else {
+      print("Previous model had better test loss.")
+    }
+  
+} else {
+  print("No model found. Saving new model.")
+  saveRDS(boost_obj, 
+          file = glue::glue("Production/Model Objects/pregame_wp_complex_v0.1.0"))
+}
+
+# Model Eval
+
+# Apply best model to validation set for final evaluation
+preds <- predict(boost_obj, xgb.DMatrix(as.matrix(df$validate), missing = NA))
+actual <- res$validate
+
+mean(as.numeric(preds > .5) != actual) 
+# Wrong 24% of the time, correct 76% of the time. Slightly above average in CFB prediction
+# contest.
+
+cbind(preds, actual) %>% 
+  as_tibble() %>% 
+  mutate(preds = round(preds, 2)) %>% 
+  group_by(preds) %>% 
+  summarise(actual = mean(actual)) %>% 
+  ggplot2::ggplot(ggplot2::aes(x = preds, y = actual)) + 
+  ggplot2::geom_point() +
+  ggplot2::geom_abline()
+
+cbind(preds, actual) %>% 
+  as_tibble() %>% 
+  ggplot2::ggplot(ggplot2::aes(x = preds, y = actual)) + 
+  ggplot2::geom_smooth() +
+  ggplot2::geom_abline()
+
+# TODO: Calculate weighted calibration error
+
+cbind(preds, actual) %>% 
+  as_tibble() %>% 
+  mutate(preds = round(preds, 2)) %>% 
+  group_by(preds) %>% 
+  summarise(n_wins = sum(actual),
+            actual = mean(actual), 
+            n_games = n()) %>% 
+  mutate(diff = abs(preds - actual)) %>% 
+  ungroup() %>% 
+  summarise(weighted_cal_error = weighted.mean(diff, n_games, na.rm = TRUE),
+            n_wins = sum(n_wins),
+            n_games = sum(n_games))
+
+
+# Stop --------------------------------------------------------------------
+
+
+# Save best param results so far
+if(exists("best_results")) {
+  cat(
+    "Best test loss is :",
+    min(results$best_test_loss),
+    "\n",
+    "Previous best is :",
+    best_results$best_test_loss,
+    "\n"
+  )
+  
+  if (min(results$best_test_loss) < best_results$best_test_loss) {
+    cat("Improved so using new parameters")
+  } else {
+    cat("No improvement so keeping existing parameters")
+  }
+  
+  # Only save new results if they are better than the previous best results
+  if (min(best_results$best_test_loss) > min(results$best_test_loss)) {
+    best_results <-
+      results[which(results$best_test_loss == min(results$best_test_loss)), ]
+  }
+} else {
+  cat("First run complete. Saving best params to best_results object")
+  best_results <-
+    results[which(results$best_test_loss == min(results$best_test_loss)), ]
+  
+}
+
+
+# Best params
+#' colsample = 1
+#' subsample = 1
+#' n_rounds = 87
+#' eta = .1
+#' gamma = 0.1
+#' alpha = 0.1
+#' lambda = 1.1
+#' max_depth = 3
+#' min_child_weight = 6
+#' 
+#' structure(list(round = 14L, best_test_loss = 0.450318989033082, 
+# best_test_n_trees = 97L, params.booster = "gbtree", params.objective = "binary:logistic", 
+# params.eval_metric = structure(1L, levels = "logloss", class = "factor"), 
+# params.eta = 0.1, params.gamma = 0.1, params.subsample = 1, 
+# params.colsample_bytree = 1, params.max_depth = 3, params.min_child_weight = 9, 
+# params.alpha = 0.1, params.lambda = 1.1), row.names = 14L, class = "data.frame")
+
+# CV Using Best Params To Get An Idea of Performance on Validation Set
+best_params <- list(
+  booster = "gbtree",
+  objective = "binary:logistic",
+  eta = c(.1), 
+  nrounds = c(100),
+  max_depth = c(3),
+  subsample = c(1),
+  colsample_bytree = c(1),
+  min_child_weight = c(9),
+  eval_metric = c("logloss"),
+  gamma = c(.1),
+  alpha = c(.1),
+  lambda = 1.1)
+
+set.seed(1)
+res <- data.frame()
+for(i in 1:50){
+  cat("CV ", i, "/50\n")
+  cv_results <- xgb.cv(params = best_params,
+                       data = dtrain_xgb,
+                       nrounds = 100,
+                       verbose = 0,
+                       nfold = 5)
+  
+  best_n_trees <- which(cv_results$evaluation_log$test_logloss_mean == min(cv_results$evaluation_log$test_logloss_mean))
+  train_loss <- cv_results$evaluation_log$train_logloss_mean[best_n_trees]
+  test_loss <- cv_results$evaluation_log$test_logloss_mean[best_n_trees]
+  
+  res <- rbind(res, data.frame(best_n_trees = best_n_trees,
+                               train_loss = train_loss,
+                               test_loss = test_loss))
+}
+
+best_ind <- which(res$test_loss == min(res$test_loss))
+cat(paste0("Avg. Test Loss: ", mean(res$test_loss), "\n",
+           "Best Result: \n",
+           "Train Loss = ", res$train_loss[best_ind], ", Test Loss = ", res$test_loss[best_ind], "\n",
+           "N Trees = ", res$best_n_trees[best_ind]))
+
+#' Avg. Test Loss: 0.459867468915811
+#' Best Result: 
+#' Train Loss = 0.372699530170448, Test Loss = 0.452333694980981
+#' N Trees = 49
+
+# Make Predictions --------------------------------------------------------
+xgb_model <- xgboost(
+  data = dtrain_xgb,
+  params = best_params,
+  nrounds = 50,
+  early_stopping_rounds = 5,
+  verbose = 1
+)
+
+importance_matrix <- xgb.importance(model = xgb_model)
+
+preds_test <- predict(xgb_model, newdata = as.matrix(x_test), type = "response")
+
+# Metrics
+# MSE
+mean((y_test - preds_test)^2)
+
+# MAE
+mean(abs(y_test-preds_test))
+
+# Accuracy
+raw_pred <- if_else(preds_test >= .5, 1, 0)
+mean(raw_pred == y_test)
+
+# Plot
+library(ggplot2)
+tibble(x = y_test, y = preds_test) %>% 
+  mutate(pred_bucket = round(y, 2)) %>% 
+  group_by(pred_bucket) %>% 
+  summarise(actual = mean(x)) %>% 
+  ggplot(aes(x = actual, y = pred_bucket)) +
+  geom_point() +
+  geom_abline()
+
+# Investigate games
+# TODO will need unstandardized input table with the original team names and everything
+games_w_preds <- cbind(x_test, preds_test)
+
+
+# Random Forest
+
+# Bagging
+
+# Lasso/Ridge Regression
+library(glmnet)
+
+x <- as.matrix(bet_df)
+y <- response_home_spread
+
+model_glm <- glmnet(x = x,
+                    y = y,
+                    family = "gaussian",
+                    alpha = 1)
+
+summary(model_glm)
+
+model_glm
+
+plot(model_glm)
+
+coefs <- coef(model_glm, s = 0, exact = FALSE)
+
+max(coefs)
+library(dplyr)
+
+bet_df <- readRDS("Data/betting_prepped.rds")
+
+
+# drop any forward-looking or non-useful columns
+
+bet_df <- bet_df %>%
+  select(
+    !c(
+      "id",
+      "start_date",
+      "start_time_tbd",
+      "venue",
+      "home_team",
+      "home_line_scores",
+      "home_post_win_prob",
+      "away_team",
+      "away_line_scores",
+      "away_post_win_prob",
+      "excitement_index",
+      "highlights",
+      "notes",
+      "seasonType",
+      "conference_home",
+      "conference_away",
+      "conference_home_home",
+      "division_home",
+      "conference_away_away",
+      "division_away",
+      "conference_home_home_home",
+      "conference_away_away_away",
+      "conference_home_home_home_home",
+      "date_home",
+      "conference_away_away_away_away",
+      "date_away",
+      "first_name_home",
+      "last_name_home",
+      "hire_date_home",
+      "coach_home",
+      "first_name_away",
+      "last_name_away",
+      "hire_date_away",
+      "coach_away"
+    )
+  )
+
+# One-hot encode
+library(mltools)
+library(data.table)
+bet_df <- as.data.table(bet_df %>% 
+                          mutate(across(.cols = c("season_type",
+                                                  "neutral_site",
+                                                  "conference_game",
+                                                  "home_conference",
+                                                  "home_division",
+                                                  "away_conference",
+                                                  "away_division"),
+                                        .fns = as.factor)))
+
+bet_df <- one_hot(bet_df, cols = c(
+  "season_type",
+  "neutral_site",
+  "conference_game",
+  "home_conference",
+  "home_division",
+  "away_conference",
+  "away_division"
+),
+sparsifyNAs = TRUE,
+dropCols = TRUE) %>% 
+  select(!contains("FALSE"))
+
+
+# Convert to numeric
+bet_df <- bet_df %>%
+  mutate(across(
+    .cols = c(
+      "points_home",
+      "points_away",
+      "talent_home",
+      "talent_away",
+      "srs_home",
+      "sp_overall_home",
+      "sp_offense_home",
+      "sp_defense_home",
+      "srs_away",
+      "sp_overall_away",
+      "sp_offense_away",
+      "sp_defense_away"
+    ),
+    .fns = as.numeric
+  ))
+
+# Clean column names
+names(bet_df) <- janitor::make_clean_names(names(bet_df))
+
+# Remove more forward-looking columns
+bet_df <- bet_df %>% 
+  select(!c(
+    season,
+    attendance,
+    venue_id,
+    home_id,
+    home_postgame_elo,
+    home_points,
+    away_points,
+    away_postgame_elo,
+    away_id,
+    season_y,
+    week_x,
+    week_y,
+    season_y,
+    season_away,
+    year_home,
+    year_away,
+    year_home_home,
+    year_away_away
+  ))
+
+# Pull out responses
+response_home_win <- bet_df %>% 
+  pull(response_home_win)
+response_home_spread <- bet_df %>% 
+  pull(response_home_spread)
+response_total_points <- bet_df %>% 
+  pull(response_total_points)
+
+bet_df <- bet_df %>% 
+  select(!contains("response"))
+
+# Impute medians
+impute_median <- function(column){
+  
+  column[is.na(column)] <- median(column, na.rm = TRUE)
+  
+  return(column)
+}
+
+bet_df <- bet_df %>% 
+  mutate(across(.cols = everything(),
+                .fns = ~ impute_median(.x)))
+
+# Normalize all columns
+normalize_columns <- function(column){
+  
+  return((column - min(column)) / (max(column) - min(column)))
+  
+}
+
+bet_df <- bet_df %>% 
+  mutate(across(.cols = everything(),
+                .fns = normalize_columns))
+
+bet_df <- bet_df %>% 
+  select(!where(~all(is.nan(.x))))
+
+
+# Predict Home Win --------------------------------------------------------
+
+# Boosted Tree
+library(xgboost)
+
+set.seed(1)
+train_ind <- sample(nrow(bet_df), nrow(bet_df) * .8)
+
+x_train <- bet_df[train_ind,]
+
+y_train <- response_home_win[train_ind]
+
+x_test <- bet_df[-train_ind,]
+
+y_test <- response_home_win[-train_ind]
+
+dtrain_xgb <- xgb.DMatrix(as.matrix(x_train), label=y_train, missing = NA)
+
+
+
+# Start CV Hyperparam Tuning ----------------------------------------------
+
+
+# Define model params
+results <- data.frame()
+param_grid <- expand.grid(eta = c(.1), 
+                          nrounds = c(100),
+                          max_depth = c(3),
+                          subsample = c(1),
+                          colsample_bytree = c(1),
+                          min_child_weight = c(9),
+                          eval_metric = c("logloss"),
+                          gamma = c(.1),
+                          alpha = c(.1),
+                          lambda = c(1,1.1,1.15)) %>% 
+  unique()
+pb = txtProgressBar(min = 0, max = nrow(param_grid), initial = 0)
+
+set.seed(1)
+for(i in 1:nrow(param_grid)){
+  if(i == 1){
+    time_start <- lubridate::now()
+    cat("\nStarting Tuning at ", format.Date(time_start), "\n")
+  }
+  nrounds <- param_grid$nrounds[i]
+  params <-
+    list(
+      booster = "gbtree",
+      objective = "binary:logistic",
+      eval_metric = param_grid$eval_metric[i],
+      eta = param_grid$eta[i], # higher = less conservative
+      gamma = param_grid$gamma[i], # higher = more conservative (amount of loss required to make a split)
+      subsample = param_grid$subsample[i], # most conservative is 0.5
+      colsample_bytree = param_grid$colsample_bytree[i], # most conservative is 0.5
+      max_depth = param_grid$max_depth[i], # higher = less conservative
+      min_child_weight = param_grid$min_child_weight[i], # higher = more conservative,
+      alpha = param_grid$alpha[i], # Higher is more conservative
+      lambda = param_grid$lambda[i] # Higher is more conservative
+    )
+  
+  cv_results <- xgb.cv(
+    params = params,
+    data = dtrain_xgb,
+    nrounds = nrounds,
+    verbose = 0,
+    nfold = 5
+  )
+  metric_name = as.name(paste0("test_", param_grid$eval_metric[i], "_mean"))
+  best_test_loss <- cv_results$evaluation_log %>% pull(metric_name) %>% min()
+  
+  best_test_ind <- which(cv_results$evaluation_log %>% pull(metric_name) == best_test_loss)
+  
+  results <- rbind(results, data.frame(round = i, 
+                                       best_test_loss = best_test_loss,
+                                       best_test_n_trees = best_test_ind,
+                                       params = params))
+  
+  setTxtProgressBar(pb,i)
+  close(pb)
+  if(i == nrow(param_grid)){
+    time_end <- lubridate::now()
+    cat("\nFinished Tuning at ", format.Date(time_end), "\n")
+    cat("CV Tuning Took ", round(abs(as.numeric(time_end - time_start, units = "secs")), 1),
+        "seconds\n")
+  }
+}
+
+# Save best param results so far
+if(exists("best_results")) {
+  cat(
+    "Best test loss is :",
+    min(results$best_test_loss),
+    "\n",
+    "Previous best is :",
+    best_results$best_test_loss,
+    "\n"
+  )
+  
+  if (min(results$best_test_loss) < best_results$best_test_loss) {
+    cat("Improved so using new parameters")
+  } else {
+    cat("No improvement so keeping existing parameters")
+  }
+  
+  # Only save new results if they are better than the previous best results
+  if (min(best_results$best_test_loss) > min(results$best_test_loss)) {
+    best_results <-
+      results[which(results$best_test_loss == min(results$best_test_loss)), ]
+  }
+} else {
+  cat("First run complete. Saving best params to best_results object")
+  best_results <-
+    results[which(results$best_test_loss == min(results$best_test_loss)), ]
+  
+}
+
+
+# Best params
+#' colsample = 1
+#' subsample = 1
+#' n_rounds = 87
+#' eta = .1
+#' gamma = 0.1
+#' alpha = 0.1
+#' lambda = 1.1
+#' max_depth = 3
+#' min_child_weight = 6
+#' 
+#' structure(list(round = 14L, best_test_loss = 0.450318989033082, 
+# best_test_n_trees = 97L, params.booster = "gbtree", params.objective = "binary:logistic", 
+# params.eval_metric = structure(1L, levels = "logloss", class = "factor"), 
+# params.eta = 0.1, params.gamma = 0.1, params.subsample = 1, 
+# params.colsample_bytree = 1, params.max_depth = 3, params.min_child_weight = 9, 
+# params.alpha = 0.1, params.lambda = 1.1), row.names = 14L, class = "data.frame")
+
+# CV Using Best Params To Get An Idea of Performance on Validation Set
+best_params <- list(
+  booster = "gbtree",
+  objective = "binary:logistic",
+  eta = c(.1), 
+  nrounds = c(100),
+  max_depth = c(3),
+  subsample = c(1),
+  colsample_bytree = c(1),
+  min_child_weight = c(9),
+  eval_metric = c("logloss"),
+  gamma = c(.1),
+  alpha = c(.1),
+  lambda = 1.1)
+
+set.seed(1)
+res <- data.frame()
+for(i in 1:50){
+  cat("CV ", i, "/50\n")
+  cv_results <- xgb.cv(params = best_params,
+                       data = dtrain_xgb,
+                       nrounds = 100,
+                       verbose = 0,
+                       nfold = 5)
+  
+  best_n_trees <- which(cv_results$evaluation_log$test_logloss_mean == min(cv_results$evaluation_log$test_logloss_mean))
+  train_loss <- cv_results$evaluation_log$train_logloss_mean[best_n_trees]
+  test_loss <- cv_results$evaluation_log$test_logloss_mean[best_n_trees]
+  
+  res <- rbind(res, data.frame(best_n_trees = best_n_trees,
+                               train_loss = train_loss,
+                               test_loss = test_loss))
+}
+
+best_ind <- which(res$test_loss == min(res$test_loss))
+cat(paste0("Avg. Test Loss: ", mean(res$test_loss), "\n",
+           "Best Result: \n",
+           "Train Loss = ", res$train_loss[best_ind], ", Test Loss = ", res$test_loss[best_ind], "\n",
+           "N Trees = ", res$best_n_trees[best_ind]))
+
+#' Avg. Test Loss: 0.459867468915811
+#' Best Result: 
+#' Train Loss = 0.372699530170448, Test Loss = 0.452333694980981
+#' N Trees = 49
+
+# Make Predictions --------------------------------------------------------
+xgb_model <- xgboost(
+  data = dtrain_xgb,
+  params = best_params,
+  nrounds = 50,
+  early_stopping_rounds = 5,
+  verbose = 1
+)
+
+importance_matrix <- xgb.importance(model = xgb_model)
+
+preds_test <- predict(xgb_model, newdata = as.matrix(x_test), type = "response")
+
+# Metrics
+# MSE
+mean((y_test - preds_test)^2)
+
+# MAE
+mean(abs(y_test-preds_test))
+
+# Accuracy
+raw_pred <- if_else(preds_test >= .5, 1, 0)
+mean(raw_pred == y_test)
+
+# Plot
+library(ggplot2)
+tibble(x = y_test, y = preds_test) %>% 
+  mutate(pred_bucket = round(y, 2)) %>% 
+  group_by(pred_bucket) %>% 
+  summarise(actual = mean(x)) %>% 
+  ggplot(aes(x = actual, y = pred_bucket)) +
+  geom_point() +
+  geom_abline()
+
+# Investigate games
+# TODO will need unstandardized input table with the original team names and everything
+games_w_preds <- cbind(x_test, preds_test)
+
+
+# Random Forest
+
+# Bagging
+
+# Lasso/Ridge Regression
+library(glmnet)
+
+x <- as.matrix(bet_df)
+y <- response_home_spread
+
+model_glm <- glmnet(x = x,
+                    y = y,
+                    family = "gaussian",
+                    alpha = 1)
+
+summary(model_glm)
+
+model_glm
+
+plot(model_glm)
+
+coefs <- coef(model_glm, s = 0, exact = FALSE)
+
+max(coefs)
