@@ -5,13 +5,37 @@ library(statRdaysCFB)
 
 games <- readRDS("Data/games_raw_2001-2021")
 
-betting <- get_betting(2010, 2021, 1, 15)
+betting <- get_betting(2013, 2021, 1, 15)
+
+team_info <- get_colors()
+
+team_zones <- team_info %>% 
+  select(school, location.timezone)
+
+games <- games %>%
+  left_join(team_zones, by = c("home_team" = "school"))
+
+games <- games %>% 
+  mutate(location.timezone = case_when(
+    location.timezone == "America/Las_Angeles" ~ "America/Los_Angeles",
+    is.na(location.timezone) ~ "America/New_York",
+    TRUE ~ location.timezone
+  )
+)
+
+# TODO: Get below code to work
+
+games <- 
+  games %>% 
+  mutate(start_date = as_datetime(start_date),
+         local_start = with_tz(start_date, tzone = location.timezone))
 
 
 # Straight WP
 clean_kick_times <- function(games_data){
   games <- games_data %>% 
-    mutate(start_date = with_tz(as_datetime(start_date)), "America/New_York") %>% # change timezone to system TZ
+    mutate(start_date = with_tz(time = as_datetime(start_date), 
+                                tzone = location.timezone)) %>% # change timezone to system TZ
     mutate(kick_time = lubridate::hour(start_date),
            kick_time = if_else(kick_time == 0L, 24L, kick_time),
            display_time = if_else(kick_time > 12, kick_time - 12L, kick_time),
