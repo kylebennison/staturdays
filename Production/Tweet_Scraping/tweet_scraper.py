@@ -18,4 +18,5 @@ for tweet in tweets:
 	dt.append(dt2)
 
 dt = pd.concat(dt)
-dt.to_csv("C:/Users/drewb/OneDrive/Documents/Staturdays/Archive/Articles/College Gameday Sentiment/gameday_tweets.csv")
+dt.to_csv("C:/Users/drewb/OneDrive/Documents/Staturdays/Archive/Articles/College Gameday Sentiment/gameday_tweets.csv",
+index = False)
