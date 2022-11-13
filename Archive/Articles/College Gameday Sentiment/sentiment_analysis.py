@@ -28,7 +28,7 @@ dt['neg'] = [analyzer.polarity_scores(x)['neg'] for x in dt['Tweet']]
 dt['neu'] = [analyzer.polarity_scores(x)['neu'] for x in dt['Tweet']]
 dt['pos'] = [analyzer.polarity_scores(x)['pos'] for x in dt['Tweet']]
 print(dt.head())
-print(dt['compound'].mean())
+print(dt.groupby('Host')['pos'].mean())
 
 '''
 for i in tweets:

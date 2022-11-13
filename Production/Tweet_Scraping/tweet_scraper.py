@@ -10,7 +10,7 @@ token = os.environ.get('tweepy_auth')
 auth = tweepy.OAuth2BearerHandler(token)
 api = tweepy.API(auth)
 
-n_hours = 1
+n_hours = 3.5
 n_increments = n_hours * 4
 increments = 0
 dt = []
