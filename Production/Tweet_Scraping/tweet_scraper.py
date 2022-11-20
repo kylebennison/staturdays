@@ -1,36 +1,51 @@
 import tweepy
-import csv
 import pandas as pd
+import os
 import time
 
-# Create the api endpoint
+# Read in OAuth token from environment variable
+token = os.environ.get('tweepy_auth')
 
-auth = tweepy.OAuthHandler(CONSUMER_KEY, CONSUMER_SECRET)
+# Authentication
+auth = tweepy.OAuth2BearerHandler(token)
 api = tweepy.API(auth)
 
-# Mention the maximum number of tweets that you want to be extracted.
+n_hours = 3.5
+n_increments = n_hours * 4
+increments = 0
+dt = []
 
-num_tweets = int(input('Tweets per 5 minutes: '))
+while increments < n_increments:
 
-# Mention the hashtag that you want to look out for
+	# Store and scrape tweets
+	tweets = tweepy.Cursor(api.search_tweets, q="#CollegeGameday -filter:retweets Pat -Kirk -Lee -Rece", lang="en", tweet_mode='extended').items(100)
+	for tweet in tweets:
+		dt2 = pd.DataFrame(data={"Tweet": [tweet._json['full_text']],
+								"Host": ["Pat"]})
+		dt.append(dt2)
 
-hashtag = input('hastag: ')
+	tweets = tweepy.Cursor(api.search_tweets, q="#CollegeGameday -filter:retweets -Pat Kirk -Lee -Rece", lang="en", tweet_mode='extended').items(100)
+	for tweet in tweets:
+		dt2 = pd.DataFrame(data={"Tweet": [tweet._json['full_text']],
+								"Host": ["Kirk"]})
+		dt.append(dt2)
 
-df = pd.DataFrame({"tweets":[], "created_at":[]})
+	tweets = tweepy.Cursor(api.search_tweets, q="#CollegeGameday -filter:retweets -Pat -Kirk Lee -Rece", lang="en", tweet_mode='extended').items(100)
+	for tweet in tweets:
+		dt2 = pd.DataFrame(data={"Tweet": [tweet._json['full_text']],
+								"Host": ["Lee"]})
+		dt.append(dt2)
 
-three_hours = 0
+	tweets = tweepy.Cursor(api.search_tweets, q="#CollegeGameday -filter:retweets -Pat -Kirk -Lee Rece", lang="en", tweet_mode='extended').items(100)
+	for tweet in tweets:
+		dt2 = pd.DataFrame(data={"Tweet": [tweet._json['full_text']],
+								"Host": ["Rece"]})
+		dt.append(dt2)
 
-while three_hours < 45:
-	x = tweepy.Cursor(api.search, q='#' + hashtag,rpp=100,since = "2019-04-25",).items(num_tweets)
-	print("Gathered tweets")
-	for tweet in x:
-			df2 = pd.DataFrame({"tweets":[str(tweet.text.encode('utf-8'))], "created_at":[tweet.created_at]})
-			df = df.append(df2, ignore_index=True)
-	print("Appended")
-	print("About to sleep")
-	time.sleep(300)
-	print("Woke up")
-	three_hours +=1
+	print("Completed increment {}".format(increments+1))
+	increments += 1
+	time.sleep(15*60)
 
-print("Done")
-df.to_csv("tweets.csv")
+dt = pd.concat(dt)
+dt.to_csv("C:/Users/drewb/OneDrive/Documents/Staturdays/Archive/Articles/College Gameday Sentiment/gameday_tweets.csv",
+index = False)

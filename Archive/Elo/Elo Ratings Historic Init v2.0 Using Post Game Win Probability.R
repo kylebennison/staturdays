@@ -9,7 +9,9 @@ library(stringr)
 library(lubridate)
 library(gt)
 library(data.table)
-source("Production/source_everything.R")
+library(statRdaysCFB)
+
+my_key = Sys.getenv("cfbd_staturdays_key")
 
 # Pull in Games Data ------------------------------------------------------
 
@@ -20,15 +22,16 @@ group_of_5 <- c("American Athletic", "Conference USA", "Mid-American", "Mountain
 
 base_url_games <- "https://api.collegefootballdata.com/games?" # Base URL for games data
 
-games.master = get_games(start_year = 2000, end_year = 2021, start_week = 1, end_week = 20)
+games.master = get_games(start_year = 2000, end_year = 2022, start_week = 1, end_week = 20)
+
 
 # Pull in conference data for each year for all teams (FBS only)
-conference_url <- "https://api.collegefootballdata.com/teams/fbs?year="
+conference_url <- "https://api.collegefootballdata.com/teams/"
 conference.master = data.frame()
-for (j in 2000:2021) {
+for (j in 2000:2022) {
   cat('Loading Conferences ', j, '\n')
   full_url_conf <- paste0(conference_url, as.character(j))
-  conf <- cfbd_api(full_url_conf, my_key)
+  conf = get_anything(conference_url, start_year = j, end_year = j, key = my_key)
   conf <- conf %>% mutate(year = j)
   conference.master = rbind(conference.master, conf)
 }
@@ -118,7 +121,7 @@ for(yr in min(cfb_games$season):max(cfb_games$season)) {
   if(is_empty(postseason_start_epiweek) == F){
     ### Adjust postseason games to correct week
     cfb_games_temp <- cfb_games_temp %>%
-      mutate(week = if_else(season_type == "postseason", as.integer(postseason_start_week + difftime(date, postseason_start_date, units = "weeks") %>% floor() %>% as.integer()), as.integer(week))) 
+      mutate(week = if_else(season_type == "postseason", floor(as.integer(postseason_start_week + difftime(date, postseason_start_date, units = "weeks"))), as.integer(week))) 
   }
   cfb_games_final <- rbind(cfb_games_final, cfb_games_temp)
 }
@@ -153,7 +156,7 @@ cfb_games <- cfb_games %>% mutate(conference_game =
 #### updated for loop to speed up process ####
 elo_ratings <- teams_elo_initial
 
-for(yr in c(2000:2020)){
+for(yr in c(2000:2022)){
   message(paste0("Calculating elo ratings for year: "),yr, " D3: ", d3, " G5: ", g5)
   #regress Elo ratings before the first season of the year
   if(yr != min(cfb_games$season)){
