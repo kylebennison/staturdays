@@ -2,7 +2,11 @@ library(nflfastR)
 library(nflreadr)
 library(dplyr)
 library(stringr)
-
+# TODO: Get 5 year tEPA and make that the response variable
+# So use 5 years of college data to predict 5 years of NFL tEPA
+# note I think NA NFL data (didn't get drafted) needs to be imputed as
+# 0 because otherwise I'm only training on guys that made it which limits the
+# model usefulness to known/presumed draftees and not the entire CFB population.
 season <- 2021
 
 nfl_stats_season <- nflreadr::load_player_stats(seasons = season)
