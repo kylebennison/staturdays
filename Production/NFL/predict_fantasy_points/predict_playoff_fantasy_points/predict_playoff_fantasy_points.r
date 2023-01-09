@@ -7,6 +7,7 @@ library(stringr)
 library(xgboost)
 library(mltools)
 library(data.table)
+library(ggplot2)
 
 seasons <- c(seq(2010, 2021))
 POSITIONS <- c("QB", "WR", "TE", "RB", "FB", "K", "HB")
@@ -122,21 +123,22 @@ y_train <- y %>% filter(ttv == "train") %>% ungroup() %>% pull("postseason_ppr")
 
 X_gb <- xgboost::xgb.DMatrix(as.matrix(X_train), label = y_train)
 
-nrounds <- 100
+nrounds <- 200
 
 params <- list(
   "objective" = "reg:squarederror", # default
-  "booster" = "gbtree",
-  "eta" = .1,
+  "booster" = "gblinear", # performing better than a tree
+  "eta" = .5, # best
   "gamma" = 0,
-  "max_depth" = 1,
-  "min_child_weight" = 0,
-  "subsample" = 0.5,
-  "colsample_bytree" = 0.8,
-  "lambda" = 1,
-  "alpha" = 0
+  "max_depth" = 3, # best
+  "min_child_weight" = 0, # best
+  "subsample" = .75, # best
+  "colsample_bytree" = .5, # best
+  "lambda" = 1, # best
+  "alpha" = 0 # best
 )
 
+set.seed(0)
 cv <- xgb.cv(
   params = params,
   data = X_gb,
@@ -149,8 +151,14 @@ cv <- xgb.cv(
 
 # cv$evaluation_log
 cv$best_iteration
-paste0("Best mean test rmse: ", cv$evaluation_log$test_rmse_mean %>% min())
-paste0("Best sd test rmse: ", cv$evaluation_log$test_rmse_std[cv$best_iteration])
+cat(paste0("Best mean test rmse: ", cv$evaluation_log$test_rmse_mean %>% min(),
+       "\nVs. Previous: ", cv$evaluation_log$test_rmse_mean %>% min() - prev_best))
+cat(paste0("Best sd test rmse: ", cv$evaluation_log$test_rmse_std[cv$best_iteration],
+       "\nVs. Previous ", cv$evaluation_log$test_rmse_std[cv$best_iteration] - prev_best_sd))
+
+prev_best <- cv$evaluation_log$test_rmse_mean %>% min()
+prev_best_sd <- cv$evaluation_log$test_rmse_std[cv$best_iteration]
+best_params <- params
 
 X_test <- X %>% filter(ttv == "test") %>% select(!ttv)
 y_test <- y %>% filter(ttv == "test") %>% ungroup() %>% pull("postseason_ppr")
@@ -175,6 +183,13 @@ X_test$pred <- y_preds
 X_test$act <- y_test
 
 X_test <- cbind(X_test, extra_x %>% filter(ttv == "test"))
+
+mean(abs(X_test$act - X_test$pred))
+
+X_test %>% 
+  ggplot(aes(x = act, y = pred)) +
+  geom_point() +
+  geom_abline()
 
 # Predict on validation
 
