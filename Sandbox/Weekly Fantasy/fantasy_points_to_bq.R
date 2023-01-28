@@ -24,7 +24,21 @@ if(current_week > max_week){
   df <- df %>% 
     select(player_id, player_display_name, position, recent_team, season, week, fantasy_points_ppr) %>% 
     filter(position %in% POSITIONS,
-           week == max(week))
+           week == max(week)) %>% 
+    rename(player_name = player_display_name,
+           team = recent_team,
+           fantasy_points = fantasy_points_ppr)
+  
+  kicking <- load_player_stats(stat_type = "kicking")
+  
+  kicking <- kicking %>% 
+    select(player_id, player_name, team, season, week, fg_made, pat_made) %>% 
+    filter(week == max(week)) %>% 
+    mutate(position = "K",
+           fantasy_points = fg_made * 3 + pat_made) %>% 
+    select(!c(fg_made,))
+  
+  df <- df %>% rbind(kicking)
   
   # Write to BQ
   table <- bq_table(project = PROJECT, DATASET = DATASET, table = "player_points")
