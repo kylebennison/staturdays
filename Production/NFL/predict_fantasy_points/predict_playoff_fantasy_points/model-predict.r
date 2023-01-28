@@ -1,3 +1,5 @@
+# Make predictions
+
 # Predict postseason fantasy points using reguLA season fantasy points
 
 library(nflfastR)
@@ -9,7 +11,7 @@ library(mltools)
 library(data.table)
 library(ggplot2)
 
-seasons <- c(seq(2010, 2021))
+seasons <- c(seq(2010, 2022))
 POSITIONS <- c("QB", "WR", "TE", "RB", "FB", "K", "HB")
 
 # Playoff teams
@@ -25,9 +27,10 @@ teams_2018 <- c("KC", "NE", "HOU", "BAL", "LAC", "IND", "NO", "LA", "CHI", "DAL"
 teams_2019 <- c("BAL", "KC", "NE", "HOU", "BUF", "TEN", "SF", "GB", "NO", "SEA", "MIN", "PHI")
 teams_2020 <- c("KC", "BUF", "PIT", "TEN", "IND", "CLE", "GB", "NO", "SEA", "WAS", "TB", "LA", "BAL", "CHI") # missing BAL, CHI, 
 teams_2021 <- c("BUF", "NE", "CIN", "PIT", "TEN", "KC", "LV", "DAL", "PHI", "GB", "TB", "LA", "ARI", "SF")
+teams_2022 <- c("BUF", "MIA", "CIN", "BAL", "JAX", "KC", "LAC", "PHI", "DAL", "NYG", "MIN", "TB", "SF", "SEA")
 
 # Test season
-# TODO: since we will know which players/teams make the playoffs, let's train only
+# since we will know which players/teams make the playoffs, let's train only
 # on players who make the playoffs. Need to get playoff T/F for each player's team
 # and filter for T
 
@@ -47,8 +50,9 @@ nfl_stats_season <- nflreadr::load_player_stats(seasons = seasons) %>%
       season == 2019 ~ if_else(recent_team %in% teams_2019, TRUE, FALSE),
       season == 2020 ~ if_else(recent_team %in% teams_2020, TRUE, FALSE),
       season == 2021 ~ if_else(recent_team %in% teams_2021, TRUE, FALSE),
+      season == 2022 ~ if_else(recent_team %in% teams_2022, TRUE, FALSE),
       TRUE ~ FALSE
-  )) %>% 
+    )) %>% 
   filter(made_playoffs == TRUE)
 
 # Add NFL team records
@@ -119,12 +123,10 @@ df <- x %>%
 
 # Split train and validation
 
-train_test_valid <- function(df, split = c(.7, .2, .1)){
+train_test_valid <- function(df){
   
-  df$ttv <- sample(c("train", "test", "validation"), 
-                       size = nrow(df), 
-                       replace = TRUE, 
-                       prob = c(.7, .2, .1))
+  df <- df %>% 
+    mutate(ttv = if_else(season_reg == 2022, "test", "train"))
   
   return(df)
 }
@@ -133,11 +135,13 @@ set.seed(0)
 
 df <- df %>% train_test_valid()
 
+extra_x <- df %>% select(player_id, player_display_name, season_reg, ttv, recent_team, position)
+
+# Modeling ----------------------------------------------------------------
 df$position <- as.factor(df$position)
 
 df <- mltools::one_hot(as.data.table(df))
 
-# Modeling ----------------------------------------------------------------
 X <- as.data.table(df %>% 
                      ungroup() %>% 
                      select(!c("player_id", 
@@ -148,8 +152,6 @@ X <- as.data.table(df %>%
                                "season_reg",
                                "recent_team"
                      )))
-
-extra_x <- df %>% select(player_id, player_display_name, season_reg, ttv, recent_team)
 
 y <- df %>% select(postseason_ppr, ttv)
 y <- replace(y, is.na(y), 0)
@@ -188,9 +190,9 @@ cv <- xgb.cv(
 # cv$evaluation_log
 cv$best_iteration
 cat(paste0("Best mean test rmse: ", cv$evaluation_log$test_rmse_mean %>% min(),
-       "\nVs. Previous: ", cv$evaluation_log$test_rmse_mean %>% min() - prev_best))
+           "\nVs. Previous: ", cv$evaluation_log$test_rmse_mean %>% min() - prev_best))
 cat(paste0("Best sd test rmse: ", cv$evaluation_log$test_rmse_std[cv$best_iteration],
-       "\nVs. Previous ", cv$evaluation_log$test_rmse_std[cv$best_iteration] - prev_best_sd))
+           "\nVs. Previous ", cv$evaluation_log$test_rmse_std[cv$best_iteration] - prev_best_sd))
 
 prev_best <- cv$evaluation_log$test_rmse_mean %>% min()
 prev_best_sd <- cv$evaluation_log$test_rmse_std[cv$best_iteration]
@@ -199,39 +201,54 @@ best_params <- params
 X_test <- X %>% filter(ttv == "test") %>% select(!ttv)
 y_test <- y %>% filter(ttv == "test") %>% ungroup() %>% pull("postseason_ppr")
 
-dtest <- xgboost::xgb.DMatrix(as.matrix(X_test), label = y_test)
-
-watchlist <- list(train=X_gb, test=dtest)
+dtest <- xgboost::xgb.DMatrix(as.matrix(X_test))
 
 xgbmodel <- xgb.train(
   params = params,
   data = X_gb,
-  nrounds = cv$best_iteration,
-  early_stopping_rounds = 25,
-  watchlist = watchlist
+  nrounds = cv$best_iteration
 )
 
-saveRDS(xgbmodel, "Production/NFL/predict_fantasy_points/predict_playoff_fantasy_points/playoff_fantasy_model")
+saveRDS(xgbmodel, glue::glue("Production/NFL/predict_fantasy_points/predict_playoff_fantasy_points/playoff_fantasy_model_{format(lubridate::now(), '%Y-%m-%d %H:%M:%S')}"))
 
 # Predict on test
 y_preds <- predict(xgbmodel, newdata = dtest)
 
 X_test$pred <- y_preds
 
-X_test$act <- y_test
-
 X_test <- cbind(X_test, extra_x %>% filter(ttv == "test"))
 
-mean(abs(X_test$act - X_test$pred))
-
 X_test %>% 
-  ggplot(aes(x = act, y = pred)) +
-  geom_point() +
-  geom_abline()
+  select(player_display_name, position, recent_team, pred) %>% 
+  arrange(desc(pred)) %>% 
+  fwrite(glue::glue("Production/NFL/predict_fantasy_points/predict_playoff_fantasy_points/preds_{format(lubridate::now(), '%Y-%m-%d %H%M%S')}.csv"))
 
 # Predict on validation
 
 # Select team based on predicted points (high to low, one team each and position limits)
+
+# Select top players
+# Confirm one per team
+# Confirm right positions
+# If not, find player with the min dropoff to the replacement player and swap in
+# Repeat until n_teams = 14 and n_qb's = 2, rbs = 3, wr's = 3, te = 2, K = 1
+
+team <- X_test %>% 
+  slice_max(order_by = pred, n = 100) %>% 
+  select(player_display_name, position, recent_team, pred) %>% 
+  group_by(position) %>% 
+  mutate(value_over_next_best = pred - lag(pred, n = 1L, order_by = pred))
+
+team %>% 
+  fwrite(glue::glue("Production/NFL/predict_fantasy_points/predict_playoff_fantasy_points/vorp_{format(lubridate::now(), '%Y-%m-%d %H%M%S')}.csv"))
+
+n_teams <- team$recent_team %>% unique() %>% length()
+
+n_qbs <- sum(team$position == "QB")
+
+while(n_teams < 14 & n_qbs != 3){
+  
+}
 
 # Compare predicted best team to actual best team
 
