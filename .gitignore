@@ -11,3 +11,4 @@ Shiny App/Prod App/Staturdays/rsconnect
 .venv
 .Renviron
 */.Renviron
+.vscode
