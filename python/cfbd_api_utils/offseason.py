@@ -4,6 +4,7 @@ import os
 from sklearn.decomposition import TruncatedSVD
 from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import make_pipeline
+import logging
 
 configuration = cfbd.Configuration()
 configuration.api_key["Authorization"] = os.getenv("CFBD_API")
@@ -11,6 +12,10 @@ configuration.api_key_prefix["Authorization"] = "Bearer"
 
 api_config = cfbd.ApiClient(configuration)
 player_api = cfbd.PlayersApi(api_config)
+
+logging.basicConfig()
+logger = logging.getLogger(name="offseason")
+logger.setLevel(logging.INFO)
 
 
 def get_portal(year: int):
@@ -71,8 +76,17 @@ def get_portal(year: int):
     return talent_df
 
 
-def get_returning(year: int, apply_svd: bool = True):
-    returning = player_api.get_returning_production(year=year)
+def get_returning(years: int, apply_svd: bool = True):
+    res_list = []
+
+    if type(years) is int:
+        years = [years]
+
+    for year in years:
+        logger.info(f"Getting returning players for year {year}")
+        response = player_api.get_returning_production(year=year)
+        res_list = [*res_list, *response]
+
     returning_list = [
         dict(
             team=g.team,
@@ -89,7 +103,7 @@ def get_returning(year: int, apply_svd: bool = True):
             total_receiving_ppa=g.total_receiving_ppa,
             total_rushing_ppa=g.total_rushing_ppa,
         )
-        for g in returning
+        for g in res_list
     ]
     returning_df = pd.DataFrame.from_records(returning_list)
     returning_df = returning_df.fillna(returning_df.mean(numeric_only=True))

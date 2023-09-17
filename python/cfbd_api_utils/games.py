@@ -21,6 +21,7 @@ configuration.api_key_prefix["Authorization"] = "Bearer"
 api_config = cfbd.ApiClient(configuration)
 games_api = cfbd.GamesApi(api_config)
 betting_api = cfbd.BettingApi(api_config)
+metrics_api = cfbd.MetricsApi(api_config)
 
 FBS_CONFS = [
     "FBS Independents",
@@ -44,7 +45,7 @@ def get_games(years: Union[int, Iterable], fbs_only: bool = True):
         years = [years]
 
     for year in years:
-        logger.info(f"Getting year {year}")
+        logger.info(f"Getting games for year {year}")
         response = games_api.get_games(year=year)
         games = [*games, *response]
 
@@ -101,7 +102,7 @@ def get_lines(years: Union[int, Iterable]):
         years = [years]
 
     for year in years:
-        logger.info(f"Getting year {year}")
+        logger.info(f"Getting lines for year {year}")
         response = betting_api.get_lines(year=year)
         lines = [*lines, *response]
 
@@ -170,3 +171,31 @@ def get_lines(years: Union[int, Iterable]):
     )
 
     return df[keep_rows]
+
+
+def get_pregame_wp(years: Union[int, Iterable]):
+    wp = []
+
+    if type(years) is int:
+        years = [years]
+
+    for year in years:
+        logger.info(f"Getting pregame wp for year {year}")
+        response = metrics_api.get_pregame_win_probabilities(year=year)
+        wp = [*wp, *response]
+
+    dict_wp = [
+        dict(
+            year=x.season,
+            week=x.week,
+            id=x.game_id,
+            home_wp_pregame=x.home_win_prob,
+            home_team=x.home_team,
+            away_team=x.away_team,
+        )
+        for x in wp
+    ]
+
+    df = pd.DataFrame.from_records(dict_wp)
+
+    return df
