@@ -32,6 +32,88 @@ betting_api = cfbd.BettingApi(api_config)
 player_api = cfbd.PlayersApi(api_config)
 
 
+def calc_rolling_results(df: pd.DataFrame) -> pd.DataFrame:
+    # TODO: Add args for window, weighting function to use
+    # Pivot home and away games
+    logger.info("Starting rolling calculations.")
+    schedule = df.melt(
+        id_vars=[
+            "id",
+            "week",
+            "year",
+            "start_date",
+            "home_points",
+            "away_points",
+            "home_elo",
+            "away_elo",
+        ],
+        var_name="home_away",
+        value_vars=["home_team", "away_team"],
+        value_name="team",
+    ).sort_values("id")
+
+    # Cumsum wins
+    schedule["win"] = np.where(
+        (
+            (schedule["home_points"] > schedule["away_points"])
+            & (schedule["home_away"] == "home_team")
+        )
+        | (
+            (schedule["home_points"] < schedule["away_points"])
+            & (schedule["home_away"] == "away_team")
+        ),
+        1,
+        0,
+    )
+    schedule["total_wins"] = schedule.groupby(["team", "year"])["win"].cumsum()
+    schedule["total_wins"] = schedule.groupby(["team", "year"])["total_wins"].shift(
+        1, fill_value=0
+    )
+    schedule["points"] = np.where(
+        schedule["home_away"] == "home_team",
+        schedule["home_points"],
+        schedule["away_points"],
+    )
+    schedule["opp_points"] = np.where(
+        schedule["home_away"] == "home_team",
+        schedule["away_points"],
+        schedule["home_points"],
+    )
+    schedule["opp_elo"] = np.where(
+        schedule["home_away"] == "home_team", schedule["away_elo"], schedule["home_elo"]
+    )
+    # Calc rolling mean for points, opponent points, and opponent elo for previous 12 games
+    # TODO: Could specify a function to win_type to weight more recent games more
+    roll = (
+        schedule.groupby(["team"], as_index=False)[["points", "opp_points", "opp_elo"]]
+        .rolling(window=12, min_periods=1)
+        .mean()
+        .drop(columns="team")
+        .rename(
+            columns={
+                "points": "avg_points",
+                "opp_points": "opp_avg_points",
+                "opp_elo": "opp_avg_elo",
+            }
+        )
+    )
+    schedule = schedule.drop(columns=["points", "opp_points", "opp_elo"]).merge(
+        roll, how="left", left_index=True, right_index=True
+    )
+    schedule[["avg_points", "opp_avg_points", "opp_avg_elo"]] = schedule.groupby(
+        "team"
+    )[["avg_points", "opp_avg_points", "opp_avg_elo"]].shift(1, fill_value=0)
+
+    # Keep only the columns we want
+    schedule = schedule[
+        ["id", "team", "total_wins", "avg_points", "opp_avg_points", "opp_avg_elo"]
+    ]
+
+    logger.info("Finished rolling calculations.")
+
+    return schedule
+
+
 def main(
     run_type: str,
     train_start_year: int = 2015,
@@ -66,18 +148,9 @@ def main(
     logger.debug(f"{cont_features = }")
     target = ["margin"]
 
-    power_5 = ["Big Ten", "ACC", "SEC", "Big 12", "Pac-12"]
+    # power_5 = ["Big Ten", "ACC", "SEC", "Big 12", "Pac-12"]
 
-    df["home_conference"] = np.where(
-        df["home_conference"].isin(power_5), df["home_conference"], "Other"
-    )
-    df["away_conference"] = np.where(
-        df["away_conference"].isin(power_5), df["away_conference"], "Other"
-    )
-    # Clean up features
-    cat_df = pd.get_dummies(df[cat_features], drop_first=True)
-    df = pd.concat([df, cat_df], axis=1)
-    df = df.drop(columns=cat_features)
+    df[cat_features] = df[cat_features].astype("category")
 
     # Feature: Returning players
     returning_df = offseason.get_returning(YEARS)
@@ -165,15 +238,25 @@ def main(
     # Feature: Pregame WP
     wp = games.get_pregame_wp(years=YEARS)
 
-    logger.info(f"{df.id.head() = }")
-    logger.info(f"{wp.id.head() = }")
-    logger.info(f"{df.dtypes = }")
-    logger.info(f"{wp.dtypes = }")
     df = pd.merge(
         df, wp, how="left", on=["id", "home_team", "away_team", "year", "week"]
     )
 
-    logger.info(f"{df.home_wp_pregame.head() = }")
+    # Feature: Past game results
+    schedule = calc_rolling_results(df)
+
+    # Join to games
+    df = df.merge(
+        schedule.rename(columns={"team": "home_team"}),
+        how="left",
+        on=["id", "home_team"],
+    )
+    df = df.merge(
+        schedule.rename(columns={"team": "away_team"}),
+        how="left",
+        on=["id", "away_team"],
+        suffixes=["_home", "_away"],
+    )
 
     # Clean column names
     df.columns = [c.lower().replace(" ", "_").replace("-", "_") for c in df.columns]

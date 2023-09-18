@@ -12,3 +12,8 @@ Shiny App/Prod App/Staturdays/rsconnect
 .Renviron
 */.Renviron
 .vscode
+*.pyc
+*.parquet
+model*.txt
+model*.pickle
+eval*.txt
