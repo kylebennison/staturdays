@@ -17,7 +17,6 @@ import numpy as np
 import pandas as pd
 import os
 import sys
-from sklearn.model_selection import train_test_split
 import logging
 from typing import Union
 
@@ -310,18 +309,11 @@ def main(
     logger.info("Done.")
 
     if run_type == "train":
-        # Split train and valid
-        # TODO: Split train and valid on year as well instead of randomly
-        X_train, X_valid, y_train, y_valid = train_test_split(
-            X_train, y_train, test_size=0.2, random_state=0
-        )
         X_train.to_parquet(path="./X_train.parquet")
-        X_valid.to_parquet(path="./X_valid.parquet")
         y_train.to_parquet(path="./y_train.parquet")
-        y_valid.to_parquet(path="./y_valid.parquet")
         X_test.to_parquet(path="./X_test.parquet")
         y_test.to_parquet(path="./y_test.parquet")
-        return (X_train, X_valid, y_train, y_valid, X_test, y_test)
+        return (X_train, y_train, X_test, y_test)
     elif run_type == "predict":
         X_test.to_parquet(path="./X_predict.parquet")
         return X_test

@@ -12,3 +12,6 @@ Predict a team's win probability pregame.
 ## Models
 - how good of a model can we make without spread?
 - neural network
+- cross validate train, ensure not overfitting to validation set
+  - for a set of hyperparams, fit 5x and take average MAE.
+  - Then, choose the hyperparams that have the lowest avg. MAE across validation sets.
