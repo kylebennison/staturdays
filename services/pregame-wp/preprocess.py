@@ -2,6 +2,15 @@
 
 Ref: https://blog.collegefootballdata.com/talking-tech-building-an-artifical-neural-network-to/
 
+TODO:
+
+- QB games experience
+- QB injured/benched (check if more than 1 QB played in previous game AND it wasn't because it was a blowout)
+- Head coach games experience with team
+- multiple rolling windows (4, 8, 12)
+- increase training data size
+- add standard deviation of scoring wherever possible
+
 """
 import cfbd
 import numpy as np
@@ -10,6 +19,7 @@ import os
 import sys
 from sklearn.model_selection import train_test_split
 import logging
+from typing import Union
 
 sys.path.append("../../")
 
@@ -32,8 +42,8 @@ betting_api = cfbd.BettingApi(api_config)
 player_api = cfbd.PlayersApi(api_config)
 
 
-def calc_rolling_results(df: pd.DataFrame) -> pd.DataFrame:
-    # TODO: Add args for window, weighting function to use
+def calc_rolling_results(df: pd.DataFrame, windows: Union[int, list]) -> pd.DataFrame:
+    # TODO: Add arg weighting function to use
     # Pivot home and away games
     logger.info("Starting rolling calculations.")
     schedule = df.melt(
@@ -82,41 +92,58 @@ def calc_rolling_results(df: pd.DataFrame) -> pd.DataFrame:
     schedule["opp_elo"] = np.where(
         schedule["home_away"] == "home_team", schedule["away_elo"], schedule["home_elo"]
     )
+
     # Calc rolling mean for points, opponent points, and opponent elo for previous 12 games
     # TODO: Could specify a function to win_type to weight more recent games more
-    roll = (
-        schedule.groupby(["team"], as_index=False)[["points", "opp_points", "opp_elo"]]
-        .rolling(window=12, min_periods=1)
-        .mean()
-        .drop(columns="team")
-        .rename(
-            columns={
-                "points": "avg_points",
-                "opp_points": "opp_avg_points",
-                "opp_elo": "opp_avg_elo",
-            }
+    final = pd.DataFrame()
+    if type(windows) is int:
+        windows = [windows]
+    for window in windows:
+        roll = (
+            schedule.groupby("team", as_index=False)[
+                ["points", "opp_points", "opp_elo"]
+            ]
+            .rolling(window=window, min_periods=1)
+            .agg(["mean", "std"])
+            .droplevel(0, axis=0)
         )
-    )
-    schedule = schedule.drop(columns=["points", "opp_points", "opp_elo"]).merge(
-        roll, how="left", left_index=True, right_index=True
-    )
-    schedule[["avg_points", "opp_avg_points", "opp_avg_elo"]] = schedule.groupby(
-        "team"
-    )[["avg_points", "opp_avg_points", "opp_avg_elo"]].shift(1, fill_value=0)
+        roll.columns = roll.columns.map("_".join)
 
-    # Keep only the columns we want
-    schedule = schedule[
-        ["id", "team", "total_wins", "avg_points", "opp_avg_points", "opp_avg_elo"]
-    ]
+        roll = schedule.merge(roll, how="left", left_index=True, right_index=True)
+
+        roll_cols = [x for x in roll.columns if "_mean" in x or "_std" in x]
+
+        new_names = [
+            x + f"_{window}" for x in roll.columns if "_mean" in x or "_std" in x
+        ]
+
+        # rename col with window
+        roll[new_names] = roll[roll_cols].add_suffix(f"_{window}")
+
+        roll = roll.drop(columns=roll_cols)
+
+        roll[new_names] = roll.groupby("team")[new_names].shift(1, fill_value=0)
+
+        # Concat with final DF
+        final = pd.concat([final, roll], axis=1)
+
+    # Redefine list of columns we want
+    final_names = [x for x in final.columns if "_mean" in x or "_std" in x]
+
+    # Keep only relevant columns
+    final = final[["id", "team", "total_wins"] + final_names]
+
+    # Drop dupe ID and team names
+    final = final.loc[:, ~final.columns.duplicated()]
 
     logger.info("Finished rolling calculations.")
 
-    return schedule
+    return final
 
 
 def main(
     run_type: str,
-    train_start_year: int = 2015,
+    train_start_year: int = 2014,
     predict_year: int = 2023,
 ):
     logger.info("Starting main.")
@@ -216,24 +243,28 @@ def main(
     )
 
     # Feature: Prev-season SRS
-    srs = ratings.get_srs(years=YEARS)
+    # NOTE: Excluding for now as 2023 srs is not available
+    # srs = ratings.get_srs(years=YEARS)
 
-    # for 2022 games we want the 2021 srs, so increment srs year by 1 for joining
-    srs["year"] = srs["year"] + 1
+    # # for 2022 games we want the 2021 srs, so increment srs year by 1 for joining
+    # srs["year"] = srs["year"] + 1
 
-    df = pd.merge(
-        df,
-        srs.rename(columns={"team": "home_team"}),
-        how="left",
-        on=["year", "home_team"],
-    )
-    df = pd.merge(
-        df,
-        srs.rename(columns={"team": "away_team"}),
-        how="left",
-        on=["year", "away_team"],
-        suffixes=["_home", "_away"],
-    )
+    # df = pd.merge(
+    #     df,
+    #     srs.rename(columns={"team": "home_team"}),
+    #     how="left",
+    #     on=["year", "home_team"],
+    # )
+    # df = pd.merge(
+    #     df,
+    #     srs.rename(columns={"team": "away_team"}),
+    #     how="left",
+    #     on=["year", "away_team"],
+    #     suffixes=["_home", "_away"],
+    # )
+
+    # Feature: Previous week's poll ranking
+    # TODO
 
     # Feature: Pregame WP
     wp = games.get_pregame_wp(years=YEARS)
@@ -243,7 +274,7 @@ def main(
     )
 
     # Feature: Past game results
-    schedule = calc_rolling_results(df)
+    schedule = calc_rolling_results(df, [4, 8, 12])
 
     # Join to games
     df = df.merge(
@@ -302,7 +333,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--run_type", type=str, default="predict")
-    parser.add_argument("--train_start_year", type=int, default=2015)
+    parser.add_argument("--train_start_year", type=int, default=2014)
     parser.add_argument("--predict_year", type=int, default=2023)
 
     args = parser.parse_args()
