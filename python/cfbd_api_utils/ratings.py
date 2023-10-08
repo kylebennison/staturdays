@@ -11,6 +11,7 @@ configuration.api_key_prefix["Authorization"] = "Bearer"
 api_config = cfbd.ApiClient(configuration)
 ratings_api = cfbd.RatingsApi(api_config)
 metrics_api = cfbd.MetricsApi(api_config)
+rankings_api = cfbd.RankingsApi(api_config)
 
 logging.basicConfig()
 logger = logging.getLogger(name="ratings")
@@ -53,7 +54,7 @@ def get_srs(years: Union[int, list]):
         years = [years]
 
     for year in years:
-        logger.info(f"Getting sp+ for year {year}")
+        logger.info(f"Getting srs for year {year}")
         response = ratings_api.get_srs_ratings(year=year)
         srs = [*srs, *response]
 
@@ -97,4 +98,37 @@ def get_ppa_season(years: Union[int, list]):
         for x in res_list
     ]
     df = pd.DataFrame.from_records(res_dict)
+    return df
+
+
+def get_polls(years: Union[int, list]):
+    res_list = []
+
+    if type(years) is int:
+        years = [years]
+
+    for year in years:
+        logger.info(f"Getting polls for year {year}")
+        response = rankings_api.get_rankings(year=year)
+        res_list = [*res_list, *response]
+
+    data = []
+    for team in res_list:
+        for poll in team.polls:
+            dat = [
+                dict(
+                    team=t.school,
+                    poll=poll.poll,
+                    rank=t.rank,
+                    points=t.points,
+                    votes=t.first_place_votes,
+                    year=team.season,
+                    week=team.week,
+                    season_type=team.season_type,
+                )
+                for t in poll.ranks
+            ]
+
+            data = [*data, *dat]
+    df = pd.DataFrame.from_records(data)
     return df

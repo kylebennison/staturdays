@@ -5,6 +5,7 @@ from sklearn.decomposition import TruncatedSVD
 from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import make_pipeline
 import logging
+from typing import Union
 
 configuration = cfbd.Configuration()
 configuration.api_key["Authorization"] = os.getenv("CFBD_API")
@@ -18,8 +19,17 @@ logger = logging.getLogger(name="offseason")
 logger.setLevel(logging.INFO)
 
 
-def get_portal(year: int):
-    portal = player_api.get_transfer_portal(year=year)
+def get_portal(years: Union[int, list]):
+    res_list = []
+
+    if type(years) is int:
+        years = [years]
+
+    for year in years:
+        logger.info(f"Getting transfer portal for year {year}")
+        response = player_api.get_transfer_portal(year=year)
+        res_list = [*res_list, *response]
+
     portal_list = [
         dict(
             old_team=g.origin,
@@ -30,11 +40,14 @@ def get_portal(year: int):
             stars=g.stars,
             date=g.transfer_date,
         )
-        for g in portal
+        for g in res_list
     ]
     portal_df = pd.DataFrame.from_records(portal_list)
     incoming_talent = pd.DataFrame(
-        {"incoming_count": portal_df.groupby("new_team")["old_team"].count()}
+        {
+            "year": portal_df.year,
+            "incoming_count": portal_df.groupby("new_team")["old_team"].count(),
+        }
     )
     incoming_talent = pd.concat(
         [
@@ -44,7 +57,10 @@ def get_portal(year: int):
         axis=1,
     ).reset_index()
     outgoing_talent = pd.DataFrame(
-        {"outgoing_count": portal_df.groupby("old_team")["old_team"].count()}
+        {
+            "year": portal_df.year,
+            "outgoing_count": portal_df.groupby("old_team")["old_team"].count(),
+        }
     )
     outgoing_talent = pd.concat(
         [
@@ -57,26 +73,27 @@ def get_portal(year: int):
     outgoing_talent = outgoing_talent.fillna(outgoing_talent.mean(numeric_only=True))
     incoming_talent.columns = [
         "team",
+        "year",
         "incoming_count",
         "incoming_rating",
         "incoming_stars",
     ]
     outgoing_talent.columns = [
         "team",
+        "year",
         "outgoing_count",
         "outgoing_rating",
         "outgoing_stars",
     ]
     talent_df = pd.merge(
-        left=incoming_talent, right=outgoing_talent, how="outer", on="team"
+        left=incoming_talent, right=outgoing_talent, how="outer", on=["team", "year"]
     )
     talent_df = talent_df.fillna(0)
-    talent_df["season"] = year
 
     return talent_df
 
 
-def get_returning(years: int, apply_svd: bool = True):
+def get_returning(years: Union[int, list], apply_svd: bool = True):
     res_list = []
 
     if type(years) is int:
