@@ -11,6 +11,8 @@ from typing import Union, Iterable
 
 import logging
 
+import requests
+
 logging.basicConfig()
 logger = logging.getLogger(name="preprocess")
 logger.setLevel(logging.INFO)
@@ -21,6 +23,10 @@ configuration.api_key_prefix["Authorization"] = "Bearer"
 
 api_config = cfbd.ApiClient(configuration)
 plays_api = cfbd.PlaysApi(api_config)
+
+API_KEY = os.getenv("CFBD_API")
+PREFIX = "Bearer"
+URL_PREFIX = "https://api.collegefootballdata.com/plays?"
 
 
 PLAY_TYPES = [
@@ -155,12 +161,18 @@ def get_plays(
     for year in years:
         for week in weeks:
             logger.info(f"Getting plays for year {year} week {week}")
-            response = plays_api.get_plays(
-                year=year, week=week, classification=classification
+            URL = (
+                URL_PREFIX
+                + f"seasonType=both&year={year}&week={week}&classification={classification}"
             )
-            plays = [*plays, *response]
+            res = requests.get(
+                url=URL, headers={"Authorization": f"{PREFIX} {API_KEY}"}
+            )
+            json = res.json()
+            plays.extend(json)
+            # plays = [*plays, *json]
 
-    df = pd.DataFrame.from_records([p.to_dict() for p in plays])
+    df = pd.DataFrame.from_records(plays)
 
     return df
 
