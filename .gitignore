@@ -17,3 +17,4 @@ Shiny App/Prod App/Staturdays/rsconnect
 model*.txt
 model*.pickle
 eval*.txt
+.env
