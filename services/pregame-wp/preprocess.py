@@ -309,13 +309,13 @@ def main(
     logger.info("Done.")
 
     if run_type == "train":
-        X_train.to_parquet(path="./X_train.parquet")
-        y_train.to_parquet(path="./y_train.parquet")
-        X_test.to_parquet(path="./X_test.parquet")
-        y_test.to_parquet(path="./y_test.parquet")
+        X_train.to_parquet(path="./data/X_train.parquet")
+        y_train.to_parquet(path="./data/y_train.parquet")
+        X_test.to_parquet(path="./data/X_test.parquet")
+        y_test.to_parquet(path="./data/y_test.parquet")
         return (X_train, y_train, X_test, y_test)
     elif run_type == "predict":
-        X_test.to_parquet(path="./X_predict.parquet")
+        X_test.to_parquet(path="./data/X_predict.parquet")
         return X_test
 
 
