@@ -1,5 +1,13 @@
 Predict a team's win probability pregame.
 
+# Set environment model
+- The first time these scripts are run, you will need to set an environment variable.
+- Ensure you are in in the virtual environment.
+- On Windows in the `cmd` prompt, enter `set CFBD_API=YOUR_API_KEY`.
+- `YOUR_API_KEY` does not need to be in quotes.
+- To confirm your environment variable is set, enter `set` into your `cmd` prompt; a list of all of your environment variables will be returned.
+- If your environment variable is not set, `os.getenv("CFBD_API")` will return `None`.
+
 # Run
 
 ```bash
