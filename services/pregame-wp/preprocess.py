@@ -22,7 +22,7 @@ from typing import Union
 
 sys.path.append("../../")
 
-from python.cfbd_api_utils import games, offseason, ratings  # noqa E402
+from cfbpy import games, offseason, ratings  # noqa E402
 
 logging.basicConfig()
 logger = logging.getLogger(name="preprocess")
