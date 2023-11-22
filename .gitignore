@@ -16,5 +16,7 @@ Shiny App/Prod App/Staturdays/rsconnect
 *.parquet
 model*.txt
 model*.pickle
+*.pickle
+*.json
 eval*.txt
 .env
