@@ -112,6 +112,8 @@ KICK_PLAYS = [
     "Kickoff Return (Defense)",
 ]
 
+KICKOFFS = [f for f in KICK_PLAYS if "Kickoff" in f]
+
 NON_KICK_PLAYS = PASS_PLAYS + RUSH_PLAYS
 
 NON_PLAY = [
@@ -169,6 +171,8 @@ def get_plays(
                 url=URL, headers={"Authorization": f"{PREFIX} {API_KEY}"}
             )
             json = res.json()
+            for play in json:
+                play.update({"year": year, "week": week})
             plays.extend(json)
             # plays = [*plays, *json]
 
@@ -179,6 +183,14 @@ def get_plays(
 
 def add_features(df: pd.DataFrame):
     """Add extra features to the plays data."""
+
+    # Score
+    df["home_score"] = np.where(
+        df["offense"] == df["home"], df["offense_score"], df["defense_score"]
+    )
+    df["away_score"] = np.where(
+        df["offense"] == df["away"], df["offense_score"], df["defense_score"]
+    )
 
     # General
     df["margin"] = df["away_score"] - df["home_score"]
@@ -198,13 +210,6 @@ def add_features(df: pd.DataFrame):
     )  # TODO: scrape play text for "pass"
     df["turnover"] = np.where(df["play_type"].isin(TURNOVER), 1, 0)
 
-    # Score
-    df["home_score"] = np.where(
-        df["offense"] == df["home"], df["offense_score"], df["defense_score"]
-    )
-    df["away_score"] = np.where(
-        df["offense"] == df["away"], df["offense_score"], df["defense_score"]
-    )
     df["offense_scoring_play"] = (
         # if they're home the home_score increased, or if they're away the away_score increased
         (
@@ -265,6 +270,60 @@ def add_features(df: pd.DataFrame):
             1,
         ],
         default=0,
+    )
+
+    # Calc clock minutes/seconds
+    clock_df = pd.concat(
+        [df["period"], pd.DataFrame.from_records(df["clock"])],
+        axis=1,
+        ignore_index=True,
+    )
+    clock_df.columns = ["period", "minutes", "seconds"]
+    df["clock_in_seconds"] = (
+        (clock_df["minutes"] * 60)
+        + ((4 - clock_df["period"]) * 15 * 60)
+        + (clock_df["seconds"])
+    )
+
+    # Calc presnap home/away/margin
+    df = df.rename(columns={"margin": "home_margin"})
+    df[
+        ["presnap_home_score", "presnap_away_score", "presnap_home_margin"]
+    ] = df.groupby("game_id")[["home_score", "away_score", "home_margin"]].shift(
+        periods=1, fill_value=0
+    )
+
+    # Calc presnap offense/defense/margin
+    df["presnap_offense_score"] = np.select(
+        condlist=[
+            # If offense is the same as the previous play, use offense score
+            df["offense"] == df.groupby("game_id")["offense"].shift(1),
+            # If offense was on defense previous play, use defense score
+            df["offense"] == df.groupby("game_id")["defense"].shift(1),
+        ],
+        choicelist=[
+            df.groupby("game_id")["offense_score"].shift(1),
+            df.groupby("game_id")["defense_score"].shift(1),
+        ],
+        default=0,
+    )
+
+    df["presnap_defense_score"] = np.select(
+        condlist=[
+            # If defense is the same as the previous play, use defense score
+            df["defense"] == df.groupby("game_id")["defense"].shift(1),
+            # If defense was on offense previous play, use offense score
+            df["defense"] == df.groupby("game_id")["offense"].shift(1),
+        ],
+        choicelist=[
+            df.groupby("game_id")["defense_score"].shift(1),
+            df.groupby("game_id")["offense_score"].shift(1),
+        ],
+        default=0,
+    )
+
+    df["presnap_offense_margin"] = (
+        df["presnap_defense_score"] - df["presnap_offense_score"]
     )
 
     return df
