@@ -3,7 +3,6 @@
 Given a game-state using play-by-play data, predict run or pass.
 
 TODO:
-    - Doc functions
     - implement predict-only run
 
 """
@@ -42,7 +41,15 @@ DEFAULT_PARAMS = {
 }
 
 
-def read_data():
+def read_data() -> pd.DataFrame:
+    """Read plays data into memory as a pandas DataFrame.
+
+    Args:
+        None
+
+    Returns:
+        pandas.DataFrame: raw play-by-play data
+    """
     if args.use_data:
         df = pd.read_parquet("df_raw.parquet")
     else:
@@ -54,7 +61,17 @@ def read_data():
     return df
 
 
-def filter_plays(df):
+def filter_plays(df) -> pd.DataFrame:
+    """Filter out non-play types and kickoffs from data
+
+    Args:
+        df (pandas.DataFrame):
+            A plays dataframe.
+
+    Returns:
+        pandas.DataFrame: a DataFrame with kickoffs and non-plays removed.
+
+    """
     # Filter non-plays and kickoffs
     df = df[~df.play_type.isin(plays.NON_PLAY)]
     df = df[~df.play_type.isin(plays.KICKOFFS)]
@@ -62,7 +79,8 @@ def filter_plays(df):
     return df
 
 
-def add_lag_features(df):
+def add_lag_features(df) -> pd.DataFrame:
+    """Add lag features for `pass` and `rush` for the last 5 plays."""
     # Score/margin are post-play, so need lagging score/margin.
     # Get previous n playcalls as features
     df["pass_lag_1"] = df.groupby("offense")["pass"].shift(1, fill_value=0)
@@ -85,7 +103,35 @@ def fit_model(
     eval_set: tuple | None = None,
     n_estimators: int = 2000,
     tuned_params: dict | None = None,
+) -> (
+    tuple[lgbm.LGBMClassifier, np.float64, np.float64, pd.DataFrame, int | None]
+    | lgbm.LGBMClassifier
 ):
+    """Fit a model and optionally evaluate it on an evaluation and test set.
+
+    Args:
+        X (pandas.DataFrame):
+            DataFrame of features.
+        y (pandas.Series):
+            Series of targets
+        test_set (tuple | None):
+            tuple of X and y test DataFrame and test Series
+        eval_set (tuple | None):
+            tuple of X and y validation DataFrame and validation Series
+            (used for early stopping monitoring)
+        n_estimators (int):
+            Number of boosted trees to fit.
+        tuned_params (dict | None):
+            dict of tuned parameters to use in place of defaults.
+
+    Returns:
+        (
+            tuple[lgbm.LGBMClassifier, np.float64, np.float64, pd.DataFrame, int | None]
+            | lgbm.LGBMClassifier
+        ):
+            The model, plus test accuracy, test logloss, feature importances, and best round before stopping.
+
+    """
     params = tuned_params or DEFAULT_PARAMS
     early_stopping = 10 if eval_set else None
     model = lgbm.LGBMClassifier(
@@ -116,6 +162,8 @@ def fit_model(
         logger.info(
             f"Best Iteration, Score: {best_iter, model.best_score_['valid_0']['binary_logloss']}"
         )
+    else:
+        best_iter = None
 
     # Eval
     # Feature Importance
@@ -148,6 +196,7 @@ def fit_model(
 
 
 def log_model(model, model_name, test_acc, test_logloss, feat_imp):
+    """Log model evaluation metrics as a json file"""
     eval_dict = {
         "valid_logloss": model.best_score_["valid_0"]["binary_logloss"],
         "test_logloss": test_logloss,
@@ -162,6 +211,7 @@ def log_model(model, model_name, test_acc, test_logloss, feat_imp):
 
 
 def tune_model(X, y, X_valid, y_valid, score_to_beat):
+    """Tune model for 5 folds and record the best parameters"""
     # Hyperparam Tuning
     iter = []
 
@@ -238,6 +288,7 @@ def tune_model(X, y, X_valid, y_valid, score_to_beat):
 
 
 def save_model(model, model_name):
+    """Save model object as a pickle"""
     model_path = f"./models/{model_name}.pickle"
     with open(model_path, "wb") as f:
         pickle.dump(model, f)
@@ -246,6 +297,7 @@ def save_model(model, model_name):
 
 
 def update_predict_config(model_name, new_logloss, target):
+    """Check if new metrics are better than the current best model, and if so, update metrics in config file."""
     with open("./predict_config.yaml", "r") as f:
         predict_config = yaml.safe_load(f)
 
