@@ -1,4 +1,4 @@
-model_name_pass: pass-model-2023-11-22-17-13
+model_name_pass: pass-model-2023-11-23-20-56
 model_name_rush: null
-test_logloss_pass: 0.5744905926665774
+test_logloss_pass: 0.5743740001716449
 test_logloss_rush: 1

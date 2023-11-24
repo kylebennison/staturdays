@@ -19,7 +19,7 @@ import lightgbm as lgbm
 import numpy as np
 import optuna
 import pandas as pd
-from sklearn.metrics import accuracy_score, log_loss
+from sklearn.metrics import accuracy_score, log_loss, confusion_matrix
 from sklearn.model_selection import KFold
 
 sys.path.append("../..")
@@ -180,6 +180,10 @@ def fit_model(
         )
 
         test_acc = accuracy_score(y_true=eval_df["actual"], y_pred=eval_df["preds"])
+        conf_matrix = confusion_matrix(
+            y_true=eval_df["actual"], y_pred=eval_df["preds"]
+        )
+        logger.info(f"{conf_matrix = }")
         y_preds = model.predict_proba(X_test)[:, 1]
         y_preds = pd.Series(y_preds, name="preds")
         eval_df = pd.DataFrame(
@@ -354,6 +358,9 @@ def main():
         ]
     ]
     X = X.dropna()
+
+    # Save preprocessed data
+    X.to_parquet("df_preprocessed.parquet")
 
     # Shuffle data
     X = X.sample(frac=1)
