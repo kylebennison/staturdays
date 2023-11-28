@@ -4,6 +4,7 @@ Given a game-state using play-by-play data, predict run or pass.
 
 TODO:
     - implement predict-only run
+    - save model binaries to a public location (like gcs)
 
 """
 import logging
